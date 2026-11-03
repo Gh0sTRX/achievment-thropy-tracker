@@ -109,7 +109,8 @@ class Library:
         self.library_path=self.root/'library.json'
         self.state_path=self.root/'state.json'
         self.lock=threading.RLock()
-        from . import archive
+        from . import archive, journal
+        journal.recover_pending(self.root)
         archive.recover_interrupted_restore(self.root)
         self.revision=0
         self.library=self._read(self.library_path, empty_library())
@@ -169,9 +170,17 @@ class Library:
             raise ValueError('Yerel JSON arşivi okunamadı: '+p.name+'. Dosya değiştirilmedi; yedeğini kontrol et.') from exc
 
     def save(self):
-        self.revision+=1
-        atomic_write(self.library_path,self.library)
-        atomic_write(self.state_path,self.state)
+        """Save the library/state pair together, reverting an interrupted write."""
+        from . import journal
+        with self.lock:
+            try:
+                journal.save_pair(self.root, self.library, self.state)
+            except Exception:
+                # After an I/O error the in-memory state must match recovered disk.
+                self.library = self._read(self.library_path, empty_library())
+                self.state = self._read(self.state_path, {})
+                raise
+            self.revision += 1
 
     def export_archive(self):
         """Portable current library and non-secret state, not OAuth or image cache."""
