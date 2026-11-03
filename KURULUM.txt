@@ -1,9 +1,10 @@
-ACHIEVEMENT ATLAS 0.6.0 — WINDOWS KURULUMU
+ACHIEVEMENT ATLAS 0.7.0 — WINDOWS KURULUMU
 
 Hazır Setup.exe paketi Windows 10/11 64 bit içindir. Python veya yönetici
 izni gerekmez. Kurulum dosyasını aç, adımları tamamla, masaüstündeki
-Achievement Atlas kısayolunu çalıştır. Arayüz varsayılan tarayıcıda açılır.
-Açılan küçük komut penceresini açık tut; kapatmak için Enter'a bas.
+Achievement Atlas kısayolunu çalıştır. Arayüz kendi masaüstü penceresinde açılır. Microsoft Edge WebView2 Runtime
+kurulu olmalıdır (Windows 10/11 sistemlerinde genellikle bulunur). Pencereyi
+kapatmak uygulamayı kapatır. Microsoft oturum açma sayfası tarayıcıda açılabilir.
 
 Portable.zip sürümünü kullanırsan TÜM dosyaları bir klasöre çıkar ve
 AchievementAtlas.exe dosyasını aç. _internal klasörünü silme.
@@ -22,7 +23,9 @@ Oyuncu hesabını uygulamaya bağlamadan sorgulamak için işletmeciye ait:
 - PSN servis hesabı NPSSO değeri gerekir.
 Bunları yalnızca uygulamanın yerel ayarlar ekranına gir; sohbete/GitHub'a koyma.
 Servis kurulmamışsa uygulama açılır ancak canlı kupaları getiremez.
-CSV ve demo görüntüleme internet veya servis anahtarı gerektirmez.
+TrueAchievements CSV içe aktarımı servis anahtarı gerektirmez. Bu sürüm
+örnek oyun veya başarım içermez. Eski demo kayıtları otomatik kaldırılır;
+gerçek kayıtlar ve oturum bilgileri korunur.
 Ayrıntı: docs/PUBLIC_PROFILES_TR.md.
 
 TÜRKÇE REHBERLER
@@ -44,7 +47,13 @@ Tam silmek istersen uygulamayı kapatıp bu veri klasörünü ayrıca sil.
 KAYNAK KOD PAKETİ
 Kaynak ZIP kullanıyorsan önce Python 3.11+ kur; sonra KUR_WINDOWS.bat
 çalıştır. Bu işlem .venv klasörü oluşturur ve internetten Xbox/PSN
-bileşenlerini kurar. Sonraki açılışlar: BASLAT_TARAYICI.bat.
+bileşenlerini kurar. Sonraki açılışlar: BASLAT_WINDOWS.bat. BASLAT_TARAYICI.bat isteğe bağlıdır.
 
 Bu ön sürüm Microsoft veya Sony tarafından yayımlanmamıştır.
 Kurulum dosyası kod imzası içermez.
+
+0.7 DUZELTMELERI
+Microsoft girisi sonrasi tum oyun ve basarimlar otomatik indirilir.
+Kayitli oturum varsa yeniden acilista esitleme denenir. Bir oturumun acik
+olmasi basarimlarin indirildigi anlamina gelmez; durum ve hatalar ana
+merkezde gosterilir. Yeni API kayitlari yoksa ornek veri uretilmez.

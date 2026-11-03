@@ -1,13 +1,15 @@
-# Achievement Atlas 0.6 — Türkçe Kurulum
+# Achievement Atlas 0.7 — Türkçe Kurulum
 
 Windows 10/11 64 bit için hazır **Setup.exe** ve **Portable.zip** paketleri hazırlanır.
-Hazır paketlerde Python kurman gerekmez. Setup masaüstü/Başlat menüsü kısayolu ve
+Hazır paketlerde Python kurman gerekmez. Arayüz Microsoft Edge WebView2 ile kendi masaüstü penceresinde açılır. Setup masaüstü/Başlat menüsü kısayolu ve
 kaldırıcı ekler; portable sürümde klasörü çıkarıp AchievementAtlas.exe açılır.
 Paketler imzasız ön sürümdür. Kurulumun ayrıntıları [KURULUM.txt](KURULUM.txt) içinde.
 
+0.7 sürümü eski demo kayıtlarını otomatik temizler ve Xbox oturumundan sonra gerçek başarımları otomatik indirir. [Kaynak incelemesi ve düzeltme](docs/COMMUNITY_SOURCES_TR.md).
+
 Kaynak kod ZIP için Python 3.11+ gerekir: `KUR_WINDOWS.bat` dosyasını çalıştır.
 Bu betik uygulamaya özel `.venv` oluşturur, Xbox ve PSN bileşenlerini kurar ve
-uygulamayı açar. Sonraki açılışlarda `BASLAT_TARAYICI.bat` kullanılır.
+uygulamayı açar. Sonraki açılışlarda `BASLAT_WINDOWS.bat` kullanılır.
 
 ## İlk kullanım
 

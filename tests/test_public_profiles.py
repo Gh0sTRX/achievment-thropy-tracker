@@ -151,3 +151,33 @@ class XboxTargetTests(unittest.TestCase):
         self.assertEqual(len(items),1)
         self.assertTrue(all('/xuid(222)/' in url for url,_ in calls))
         self.assertTrue(items[0]['unlocked'])
+
+class ConnectionSyncTests(unittest.TestCase):
+    def test_reconnect_automatically_imports_remote_library(self):
+        import time
+        from atlas import xbox
+        with TemporaryDirectory() as root, patch.object(xbox,'account_info',return_value=None):
+            async def info():return {'gamertag':'Player1','xuid':'1'}
+            with patch.object(xbox,'account_info',info),patch.object(public,'readiness',return_value={'xbox':True,'psn':False}),patch.object(public,'fetch',return_value=snapshot(earned=True)):
+                c=Controller(root)
+                c.xbox_reconnect()
+                deadline=time.monotonic()+2
+                while c.public_guard.locked() and time.monotonic()<deadline:time.sleep(.005)
+                self.assertEqual(len(c.store.library['achievements']),1)
+                self.assertTrue(c.store.library['achievements'][0]['unlocked'])
+                self.assertEqual(c.data_status()['state'],'stored')
+
+    def test_connected_without_data_is_not_reported_as_synced(self):
+        with TemporaryDirectory() as root:
+            c=Controller(root);c.store.status['connected']=True
+            self.assertEqual(c.data_status()['state'],'empty')
+            self.assertIn('henüz',c.data_status()['message'])
+
+    def test_saved_oauth_session_is_available_for_username_lookup(self):
+        from atlas import xbox
+        with patch.dict('os.environ',{'ATLAS_XBOX_TOKEN_FILE':''}),patch.object(xbox,'has_tokens',return_value=True):
+            self.assertTrue(public.readiness()['xbox'])
+
+    def test_empty_remote_result_is_not_a_successful_sync(self):
+        with patch.object(public,'_psn',return_value=({'id':'1','username':'Player1'},[],[])):
+            with self.assertRaisesRegex(ValueError,'alınamadı'):public.fetch('psn','Player1')

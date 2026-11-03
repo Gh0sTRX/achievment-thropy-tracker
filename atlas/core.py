@@ -89,23 +89,9 @@ def build_library(earned_csv: str, locked_csv: str, gamertag: str='') -> dict:
             'games':list(games.values()),'achievements':list(items.values())}
 
 
-def make_sample() -> dict:
-    names=['ORBITAL RANGER','PIXEL VALLEY','DEEP BLUE','NIGHT DRIVE']
-    badges=[('First Steps',10,1.05),('Explorer',25,1.35),('Challenge Accepted',40,1.9),('Final Chapter',100,3.1),('Collector',50,2.2)]
-    games=[];ach=[]
-    for i,name in enumerate(names):
-        gid=game_id('demo',name)
-        games.append({'id':gid,'name':name,'platform':'demo','title_id':'',
-            'platform_edition':'demo','cover_url':'','hero_url':'','image_source':'',
-            'plan':'Demo game — not a real platform title','notes':'','ownership':'unknown'})
-        for j,(t,pts,ratio) in enumerate(badges):
-            ach.append({'id':f'demo:{i}:{j}','provider_id':f'demo:{i}:{j}',
-                'game_id':gid,'game_name':name,'name':t,'points':pts,'ratio':ratio,
-                'dlc':'','source_url':'','unlocked':j < (i+1)%4,'unlock_time':'',
-                'flag':False,'description':'Demonstration only. Import your own data to replace this.',
-                'icon_url':'','source':'demo'})
-    return {'schema':1,'platform':'demo','gamertag':'','created_at':'',
-            'complete_export':False,'games':games,'achievements':ach}
+def empty_library():
+    return {'schema': 2, 'platform': 'empty', 'gamertag': '', 'created_at': '',
+            'complete_export': False, 'games': [], 'achievements': []}
 
 
 def atomic_write(path: Path, data: dict) -> None:
@@ -121,10 +107,25 @@ class Library:
         self.library_path=self.root/'library.json'
         self.state_path=self.root/'state.json'
         self.lock=threading.RLock()
-        self.library=self._read(self.library_path, make_sample())
+        self.library=self._read(self.library_path, empty_library())
         self.state=self._read(self.state_path, {'pins':[],'hidden':[],'custom_art':{},'xbox_titles':{},'linked_profile':None,'sync_at':None,'log':[]})
         for key,default in [('pins',[]),('hidden',[]),('custom_art',{}),('xbox_titles',{}),('linked_profile',None),('sync_at',None),('log',[])]:
             self.state.setdefault(key,deepcopy(default))
+        # Migrate v0.5/v0.6 demonstration rows; keep every real record and session.
+        demo_games = {g['id'] for g in self.library.get('games', []) if g.get('platform') == 'demo'}
+        demo_items = [a for a in self.library.get('achievements', [])
+                      if a.get('source') == 'demo' or a.get('game_id') in demo_games or str(a.get('id', '')).startswith('demo:')]
+        if demo_games or demo_items or self.library.get('platform') == 'demo':
+            if self.library_path.exists():
+                backup = self.root/'migration-v06-demo-backup.json'
+                if not backup.exists(): atomic_write(backup, self.library)
+            self.library['games'] = [g for g in self.library['games'] if g['id'] not in demo_games]
+            removed = {a['id'] for a in demo_items}
+            self.library['achievements'] = [a for a in self.library['achievements'] if a['id'] not in removed]
+            if not self.library['games']: self.library = empty_library()
+            self.state['pins'] = [x for x in self.state['pins'] if x not in removed]
+            self.state['demo_removed'] = True
+            self.save()
         self.live_artwork={}
         self.steamgriddb_key=None
         self.status={'connected':False,'message':'No platform session','job':None,'art_job':None}

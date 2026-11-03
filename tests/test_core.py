@@ -44,3 +44,26 @@ class CoreTests(unittest.TestCase):
             a=Library(td);a.state['linked_profile']={'gamertag':'Different'}
             with self.assertRaises(ValueError):a.import_csv(self.EARN,self.LOCK,'PublicGamer')
 if __name__=='__main__':unittest.main()
+class EmptyAndMigrationTests(unittest.TestCase):
+    def test_new_library_has_no_fictional_data(self):
+        with tempfile.TemporaryDirectory() as td:
+            a=Library(td)
+            self.assertEqual(a.library['games'],[])
+            self.assertEqual(a.library['achievements'],[])
+
+    def test_old_demo_removed_without_losing_session_or_real_rows(self):
+        import json
+        from fixtures import make_sample
+        with tempfile.TemporaryDirectory() as td:
+            demo=make_sample()
+            real=build_library(CoreTests.EARN,CoreTests.LOCK,'Player')
+            demo['games']+=real['games'];demo['achievements']+=real['achievements']
+            Path(td,'library.json').write_text(json.dumps(demo))
+            Path(td,'state.json').write_text(json.dumps({'pins':['demo:0:0','ta:124'],'linked_profile':{'gamertag':'Player','xuid':'222'}}))
+            a=Library(td)
+            self.assertEqual(len(a.library['games']),1)
+            self.assertEqual(len(a.library['achievements']),3)
+            self.assertEqual(a.state['linked_profile']['xuid'],'222')
+            self.assertEqual(a.state['pins'],['ta:124'])
+            self.assertTrue(Path(td,'migration-v06-demo-backup.json').exists())
+            self.assertEqual(len(Library(td).library['achievements']),3)

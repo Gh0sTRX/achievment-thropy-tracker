@@ -36,7 +36,21 @@ class Controller:
                 'recommendations':recommendations.rank(s.library,s.state['pins']),
                 'insights':recommendations.insights(s.library),
                 'providers':public_profiles.readiness(), 'guides_ready':guides.configured(),
-                'settings':settings.status()}
+                'settings':settings.status(), 'data_status':self.data_status()}
+
+    def data_status(self):
+        job = self.store.status.get('public_job') or {}
+        count = len(self.store.library['achievements'])
+        if job.get('running'): return {'state':'syncing', 'message':f"Gerçek başarımlar alınıyor · {job.get('done',0)}/{job.get('total') or '?'} oyun · {job.get('message','')}"}
+        if job.get('error'): return {'state':'error', 'message':job['error']}
+        if count: return {'state':'stored', 'message':f"{count} kaynak kaydı · Son eşitleme: {self.store.state.get('sync_at') or 'CSV içe aktarımı'}"}
+        if self.store.status.get('connected'): return {'state':'empty', 'message':'Xbox oturumu açık; henüz başarım indirilmedi. Gerçek verileri yenile.'}
+        return {'state':'empty', 'message':'Henüz gerçek başarım verisi yok. Kullanıcı adını sorgula veya TrueAchievements CSV aktar. Örnek oyun gösterilmez.'}
+
+    def sync_linked_profile(self):
+        profile = self.store.state.get('linked_profile') or {}
+        if not profile.get('gamertag'): raise ValueError('Önce Xbox oturumunu aç.')
+        return self.public_sync({'platform':'xbox', 'username':profile['gamertag']})
 
     def save_settings(self, data):
         if self.public_guard.locked() or self.guide_guard.locked() or (self.store.status.get('job') or {}).get('running') or self.store.status.get('login_running'):
@@ -220,6 +234,7 @@ class Controller:
                 with store.lock:
                     store.state['linked_profile']=profile;store.status.update({'connected':True,'message':'Xbox connected: '+profile['gamertag']})
                     store.save()
+                self.sync_linked_profile()
             except Exception as exc:
                 store.status.update({'connected':False,'message':'Xbox sign-in failed: '+str(exc)[:280]})
             finally:
@@ -235,7 +250,8 @@ class Controller:
         with self.store.lock:
             self.store.state['linked_profile']=profile;self.store.status.update({'connected':True,'message':'Xbox connected: '+profile['gamertag']})
             self.store.save()
-        return {'profile':profile}
+        self.sync_linked_profile()
+        return {'profile':profile, 'message':'Xbox oturumu doğrulandı; gerçek oyunlar ve başarımlar indiriliyor.'}
 
     def xbox_discover(self):
         if not self.store.status.get('connected'):raise ValueError('Sign in first')
@@ -266,6 +282,8 @@ class Controller:
 
     def xbox_sync(self,data):
         if self.public_guard.locked():raise ValueError('Profil eşitlemesinin bitmesini bekle.')
+        if self.store.status.get('connected'):
+            return self.sync_linked_profile()
         target=(self.store.state.get('public_profiles') or {}).get('xbox')
         linked=self.store.state.get('linked_profile') or {}
         if target and target['id']!=str(linked.get('xuid','')):
@@ -379,7 +397,7 @@ class Handler(BaseHTTPRequestHandler):
                '/api/art/select':self.server.controller.select_art,
                '/api/xbox/login':lambda d:self.server.controller.xbox_login(),
                '/api/xbox/reconnect':lambda d:self.server.controller.xbox_reconnect(),
-               '/api/xbox/discover':lambda d:self.server.controller.xbox_discover(),
+               '/api/xbox/discover':lambda d:self.server.controller.sync_linked_profile(),
                '/api/xbox/map':self.server.controller.xbox_map,
                '/api/xbox/sync':self.server.controller.xbox_sync,
                '/api/icons':self.server.controller.cache_icons,
@@ -404,20 +422,23 @@ class LocalApp(ThreadingHTTPServer):
     @property
     def url(self):return f'http://127.0.0.1:{self.server_port}/'
 
-def main(browser=False, root=None):
+def main(browser=False, root=None, desktop_report=None):
     app=LocalApp(root)
     t=threading.Thread(target=app.serve_forever,daemon=True);t.start()
-    print('Achievement Atlas:',app.url)
-    print('Uygulama tarayicida acilir. Bu pencereyi acik tut.')
+    if not desktop_report and app.controller.store.state.get('linked_profile') and xbox.has_tokens():
+        def resume():
+            try:app.controller.xbox_reconnect()
+            except Exception as exc:
+                message=str(exc) if type(exc) in (ValueError,xbox.DirectError) else type(exc).__name__
+                app.controller.store.status['public_job']={'running':False,'error':'Xbox yenilemesi başarısız: '+message[:250]}
+        threading.Thread(target=resume,daemon=True).start()
     try:
-        if not browser:
-            try:
-                import webview
-                webview.create_window('Achievement Atlas • Xbox',app.url,width=1500,height=950,min_size=(980,640),background_color='#07130f')
-                webview.start();return
-            except (ImportError,RuntimeError) as e:print('WebView not available:',e)
-        webbrowser.open(app.url)
-        input('Uygulamayi kapatmak icin Enter tusuna bas...')
+        if browser:
+            webbrowser.open(app.url)
+            input('Uygulamayi kapatmak icin Enter tusuna bas...')
+        else:
+            from .desktop import open_window
+            open_window(app.url, smoke_report=desktop_report)
     finally:
         app.shutdown()
         app.server_close()

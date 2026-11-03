@@ -45,12 +45,23 @@ def cli():
     parser.add_argument('--data-dir', help='Kütüphane ve ayarlar için ayrı klasör')
     parser.add_argument('--self-test', action='store_true')
     parser.add_argument('--report')
+    parser.add_argument('--desktop-test', action='store_true')
     args = parser.parse_args()
     if args.self_test:
         self_test(args.report)
     else:
         from atlas.server import main
-        main(browser=args.browser, root=args.data_dir)
+        if args.desktop_test:
+            if not args.report:parser.error('--desktop-test requires --report')
+            with tempfile.TemporaryDirectory() as root:
+                main(root=root, desktop_report=args.report)
+        else:
+            try:main(browser=args.browser, root=args.data_dir)
+            except Exception as exc:
+                if sys.platform == 'win32':
+                    import ctypes
+                    ctypes.windll.user32.MessageBoxW(None, 'Masaüstü penceresi açılamadı. Microsoft Edge WebView2 Runtime kurulu olmalı.\n\n'+type(exc).__name__+': '+str(exc)[:400], 'Achievement Atlas', 16)
+                raise
 
 
 if __name__ == '__main__':

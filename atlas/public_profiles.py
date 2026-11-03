@@ -21,7 +21,7 @@ def validate(platform, username):
 
 
 def readiness():
-    return {'xbox': bool(settings.get('ATLAS_XBOX_TOKEN_FILE')),
+    return {'xbox': bool(settings.get('ATLAS_XBOX_TOKEN_FILE')) or xbox.has_tokens(),
             'psn': bool(settings.get('ATLAS_PSN_NPSSO'))}
 
 
@@ -69,7 +69,7 @@ async def _pages(client, url, headers, key, params=None):
 
 
 async def _xbox(username, progress):
-    path = settings.get('ATLAS_XBOX_TOKEN_FILE')
+    path = settings.get('ATLAS_XBOX_TOKEN_FILE') or (xbox.token_path() if xbox.has_tokens() else None)
     if not path:
         raise ValueError('Xbox veri servisi kurulmamış. İşletmeci ATLAS_XBOX_TOKEN_FILE ayarlamalı; oyuncunun Microsoft hesabını bağlaması gerekmez.')
     async with xbox.authenticated_client(path) as (client, _):
@@ -86,6 +86,7 @@ async def _xbox(username, progress):
                                   {'x-xbl-contract-version': version}, 'titles')
             histories.extend((t, version) for t in titles)
         games = []; items = []; seen = set()
+        total = len({str(t.get('titleId')) for t, _ in histories})
         for title, version in histories:
             tid = str(title.get('titleId', ''))
             if not tid.isdigit() or tid in seen:
@@ -99,7 +100,7 @@ async def _xbox(username, progress):
             if len(normalized) != len(records) or any(not a['id'] for a in normalized):
                 raise ValueError('Xbox başarım kimlikleri eksik; arşiv değiştirilmedi.')
             games.append(g); items.extend(achievement(g, a) for a in normalized)
-            progress(len(games), len(seen), g['name'])
+            progress(len(games), total, g['name'])
         return {'id': xuid, 'username': profile['gamertag']}, games, items
 
 
@@ -144,6 +145,8 @@ def fetch(platform, username, progress=lambda *args: None):
     except Exception as exc:
         # SDK exceptions can contain request headers or tokens; expose only the class.
         raise ValueError('Profil alınamadı: '+type(exc).__name__+'. Gizlilik, servis oturumu, ağ erişimi ve hız limitini kontrol et.') from None
+    if not games or not items:
+        raise ValueError('Herkese açık oyun veya başarım alınamadı. Gizlilik ve servis erişimini kontrol et; önceki arşiv korundu.')
     if len({a['id'] for a in items}) != len(items):
         raise ValueError('Tekrarlanan kupa kimliği; arşiv değiştirilmedi.')
     return {'platform': platform, **identity, 'games': games, 'achievements': items,

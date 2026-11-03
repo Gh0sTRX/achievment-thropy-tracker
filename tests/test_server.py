@@ -16,7 +16,7 @@ class ServerTests(unittest.TestCase):
     def test_health_and_html(self):
         with urlopen(self.app.url+'api/data') as r:
             x=json.load(r)
-        self.assertEqual(len(x['library']['library']['games']),4)
+        self.assertEqual(len(x['library']['library']['games']),0)
         with urlopen(self.app.url) as r:
             html=r.read().decode()
         self.assertIn('Achievement Atlas',html)

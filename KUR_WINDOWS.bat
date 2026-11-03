@@ -19,7 +19,7 @@ if errorlevel 1 goto failed
 ".venv\Scripts\python.exe" -m pip install -r requirements-platforms.txt
 if errorlevel 1 goto failed
 echo Kurulum tamamlandi. Uygulama aciliyor...
-call BASLAT_TARAYICI.bat
+call BASLAT_WINDOWS.bat
 exit /b 0
 :python_missing
 echo Python 3.11 veya uzeri bulunamadi.

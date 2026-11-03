@@ -1,2 +1,3 @@
 -r requirements-xbox.txt
 -r requirements-psn.txt
+pywebview>=6,<7; sys_platform == 'win32'

@@ -44,6 +44,12 @@ jobs:
           $process = Start-Process -FilePath .\dist\AchievementAtlas\AchievementAtlas.exe -ArgumentList '--self-test','--report','frozen-test-report.json' -Wait -PassThru -NoNewWindow
           if ($process.ExitCode -ne 0) { throw "Frozen self-test failed: $($process.ExitCode)" }
           if (!(Test-Path frozen-test-report.json)) { throw 'Self-test report missing' }
+      - name: Verify native desktop window
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath .\dist\AchievementAtlas\AchievementAtlas.exe -ArgumentList '--desktop-test','--report','desktop-test-report.json' -PassThru
+          if (!$process.WaitForExit(120000)) { $process.Kill(); throw 'Desktop window test timed out' }
+          if ($process.ExitCode -ne 0 -or !(Test-Path desktop-test-report.json)) { throw 'Desktop window test failed' }
       - name: Build per-user installer
         shell: pwsh
         run: |
@@ -67,13 +73,13 @@ jobs:
         run: |
           Copy-Item KURULUM.txt dist\AchievementAtlas\
           Copy-Item LICENSE dist\AchievementAtlas\
-          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.6.0-Windows-x64-Portable.zip
-          Copy-Item frozen-test-report.json,installed-test-report.json dist\installer\
+          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.7.0-Windows-x64-Portable.zip
+          Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json dist\installer\
           Get-ChildItem dist\installer\*.exe,dist\installer\*.zip | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist\installer\SHA256SUMS.txt
           python -m pip freeze | Set-Content dist\installer\dependencies.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: AchievementAtlas-0.6.0-Windows-x64
+          name: AchievementAtlas-0.7.0-Windows-x64
           path: dist/installer/*
           retention-days: 30
           if-no-files-found: error
