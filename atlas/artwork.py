@@ -126,7 +126,7 @@ def store_bytes(root, category, ident, data):
                 meta = {'width':image.width, 'height':image.height,
                         'original_width':width, 'original_height':height,
                         'accent':'#'+''.join(f'{max(90, min(225, c+35)):02x}' for c in palette)}
-    except (UnidentifiedImageError, OSError, Image.DecompressionBombError, Image.DecompressionBombWarning):
+    except (UnidentifiedImageError, OSError, SyntaxError, Image.DecompressionBombError, Image.DecompressionBombWarning):
         raise ValueError('Görsel bozuk veya güvenli boyut sınırını aşıyor.') from None
     directory = Path(root)/'artwork'
     directory.mkdir(parents=True, exist_ok=True)

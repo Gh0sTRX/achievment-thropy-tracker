@@ -28,7 +28,7 @@ function applyAtmosphere(game){
 }
 function renderPlatform(){
  if(PLATFORM_REPORTS[ACTIVE_PLATFORM]){RECS=PLATFORM_REPORTS[ACTIVE_PLATFORM].recommendations||[];INSIGHTS=PLATFORM_REPORTS[ACTIVE_PLATFORM].insights||{}}
- document.querySelectorAll('[data-platform]').forEach(b=>{b.classList.toggle('active',b.dataset.platform===ACTIVE_PLATFORM);b.setAttribute('aria-pressed',String(b.dataset.platform===ACTIVE_PLATFORM))});
+ document.querySelectorAll('.platform-tabs [data-platform]').forEach(b=>{b.classList.toggle('active',b.dataset.platform===ACTIVE_PLATFORM);b.setAttribute('aria-pressed',String(b.dataset.platform===ACTIVE_PLATFORM))});
  const g=gameById(selectedGame)||games().find(g=>visualUrl(g,'hero'))||games()[0];
  applyAtmosphere(g);
  $('platformNote').textContent=ACTIVE_PLATFORM==='pc'?'PC sağlayıcısı planlanıyor. Bağlantı veya başarım verisi varmış gibi gösterilmez.':`${ACTIVE_PLATFORM==='xbox'?'Xbox':'PlayStation'} kütüphanesi · İstatistikler yalnız bu platforma ait`;
@@ -67,15 +67,15 @@ function renderVisuals(){
 }
 function initVisuals(){
  document.body.classList.toggle('low-memory',Number(navigator.deviceMemory||8)<=4);
- document.querySelectorAll('[data-platform]').forEach(b=>b.onclick=()=>switchPlatform(b.dataset.platform));
+ document.querySelectorAll('.platform-tabs [data-platform]').forEach(b=>b.onclick=()=>switchPlatform(b.dataset.platform));
  $('artGame').addEventListener('change',()=>{$('artConfirm').checked=false;$('artChoices').innerHTML='';renderVisuals()});
  $('localArtKind').onchange=renderVisuals;
  $('localArtChoose').onclick=()=>$('localArtFile').click();
  $('localArtFile').onchange=async()=>{
-  const file=$('localArtFile').files?.[0],g=gameById($('artGame').value);if(!file||!g)return;
+  const file=$('localArtFile').files?.[0],g=gameById($('artGame').value),kind=$('localArtKind').value;if(!file||!g)return;
   if(file.size>8000000){toast('Görsel en fazla 8 MB olabilir.',true);return}
   const reader=new FileReader();reader.onerror=()=>toast('Dosya okunamadı.',true);
-  reader.onload=async()=>{const r=await run(()=>api('/api/art/upload',{game_id:g.id,kind:$('localArtKind').value,image:String(reader.result).split(',')[1]}));if(r){toast(r.message);await reload()}};
+  reader.onload=async()=>{const r=await run(()=>api('/api/art/upload',{game_id:g.id,kind:kind,image:String(reader.result).split(',')[1]}));if(r){toast(r.message);await reload()}};
   reader.readAsDataURL(file);$('localArtFile').value='';
  };
  $('localArtReset').onclick=async()=>{const g=gameById($('artGame').value);if(!g)return;const r=await run(()=>api('/api/art/reset',{game_id:g.id,kind:$('localArtKind').value}));if(r){toast(r.message);await reload()}};
