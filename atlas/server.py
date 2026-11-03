@@ -449,7 +449,7 @@ class Handler(BaseHTTPRequestHandler):
         if path in ('/','/index.html'):
             body=(BASE/'web'/'index.html').read_text(encoding='utf-8').replace('__TOKEN__',self.server.token).encode('utf-8')
             return self.blob(body,'text/html; charset=utf-8')
-        if path in ('/app.js','/visuals.js','/style.css'):
+        if path in ('/app.js','/visuals.js','/ultimate.js','/style.css','/ultimate.css'):
             return self.blob((BASE/'web'/path[1:]).read_bytes(), 'text/javascript' if path.endswith('.js') else 'text/css')
         if path=='/api/data':return self.reply(self.server.controller.status())
         if path=='/api/art/sources':return self.reply(artwork.sources())
@@ -479,6 +479,7 @@ class Handler(BaseHTTPRequestHandler):
                '/api/guides/generate':self.server.controller.generate_guides,
                '/api/guides/stop':lambda d:self.server.controller.stop_guides(),
                '/api/pin':self.server.controller.set_pin,
+               '/api/preferences':lambda d:self.server.controller.store.set_preferences(d),
                '/api/art/key':self.server.controller.set_sgdb_key,
                '/api/art/search':self.server.controller.search_art,
                '/api/art/choices':self.server.controller.get_art_choices,

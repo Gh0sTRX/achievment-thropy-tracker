@@ -1,6 +1,6 @@
 'use strict';
 let ACTIVE_DEVICE='all';
-let ACTIVE_PLATFORM='xbox', VISUAL_SOURCES=null, PLATFORM_REPORTS={};
+let ACTIVE_PLATFORM='all', VISUAL_SOURCES=null, PLATFORM_REPORTS={};
 const visualThemes={ember:'#e8a18b',ice:'#99cff1',forest:'#b8e5a2',dusk:'#c8b2eb',sunrise:'#f4c483'};
 function visualUrl(game,kind='hero'){
  if(!game)return '';
@@ -19,30 +19,30 @@ function applyAtmosphere(game){
  const hero=visualUrl(game,'hero')||visualUrl(game,'banner')||visualUrl(game,'screenshot');
  const theme=game?.art_theme||{};
  const accent=visualThemes[theme.preset]||game?.artwork_meta?.hero?.accent||game?.artwork_meta?.cover?.accent||({xbox:'#b8e5a2',psn:'#99cff1',pc:'#c8b2eb'})[ACTIVE_PLATFORM];
- document.documentElement.style.setProperty('--lime',accent);
- document.documentElement.style.setProperty('--green',accent);
+ document.documentElement.style.setProperty('--game-accent',accent||'#7087a6');
  document.documentElement.style.setProperty('--ambient-image',hero?cssUrl(hero):'none');
  document.documentElement.style.setProperty('--ambient-position',`${Number(theme.x??50)}% ${Number(theme.y??38)}%`);
- document.body.dataset.platform=ACTIVE_PLATFORM;
+ document.body.dataset.platform=(DATA.state.ui?.theme_mode||'auto')==='auto'?(game?.platform||ACTIVE_PLATFORM):DATA.state.ui.theme_mode;
  document.body.classList.toggle('has-atmosphere',!!hero);
  $('atmosphereCredit').textContent=hero?`${game.name} · ${(game.artwork_meta?.hero||game.artwork_meta?.banner||{}).provider==='user_file'?'Yerel görsel':(game.artwork_meta?.hero||{}).provider||'Oyun görseli'}`:'Görsel seçilmedi · Sade arka plan';
 }
 function deviceList(g){if(g.devices?.length)return g.devices;const aliases={'360':'xbox360',one:'xboxone',PS3:'ps3',PS4:'ps4',PS5:'ps5',PSVITA:'psvita'};return [aliases[g.platform_edition]||'unknown']}
 function deviceLabel(g){return g.device_label||deviceList(g).map(d=>({xbox360:'Xbox 360',xboxone:'Xbox One',ps3:'PS3',ps4:'PS4',ps5:'PS5',psvita:'PS Vita',windows:'Windows / PC',ios:'iOS',android:'Android',unknown:'Cihaz belirtilmemiş'})[d]||d).join(' / ')}
-function renderDeviceOptions(){const sel=$('deviceFilter');const keys=[...new Set((DATA.library.games||[]).filter(g=>g.platform===ACTIVE_PLATFORM).flatMap(deviceList))].sort();sel.innerHTML='<option value="all">Tüm cihazlar</option>'+keys.map(d=>`<option value="${esc(d)}">${esc(deviceLabel({devices:[d]}))}</option>`).join('');sel.value=ACTIVE_DEVICE;}
+function renderDeviceOptions(){const sel=$('deviceFilter');const keys=[...new Set((DATA.library.games||[]).filter(g=>(ACTIVE_PLATFORM==='all'||g.platform===ACTIVE_PLATFORM)).flatMap(deviceList))].sort();sel.innerHTML='<option value="all">Tüm cihazlar</option>'+keys.map(d=>`<option value="${esc(d)}">${esc(deviceLabel({devices:[d]}))}</option>`).join('');sel.value=ACTIVE_DEVICE;}
 function renderPlatform(){renderDeviceOptions();
  if(PLATFORM_REPORTS[ACTIVE_PLATFORM]){RECS=PLATFORM_REPORTS[ACTIVE_PLATFORM].recommendations||[];INSIGHTS=PLATFORM_REPORTS[ACTIVE_PLATFORM].insights||{}}
  document.querySelectorAll('.platform-tabs [data-platform]').forEach(b=>{b.classList.toggle('active',b.dataset.platform===ACTIVE_PLATFORM);b.setAttribute('aria-pressed',String(b.dataset.platform===ACTIVE_PLATFORM))});
  const g=gameById(selectedGame)||games().find(g=>visualUrl(g,'hero'))||games()[0];
  applyAtmosphere(g);
- $('platformNote').textContent=ACTIVE_PLATFORM==='pc'?'Steam sağlayıcısı planlanıyor. Xbox ağına bağlı Windows ve mobil oyunları Xbox sekmesinde cihaz etiketiyle görünür.':`${ACTIVE_PLATFORM==='xbox'?'Xbox':'PlayStation'} kütüphanesi · İstatistikler yalnız bu platforma ait`;
- $('scoreLabel').textContent=ACTIVE_PLATFORM==='psn'?'KAZANILAN KUPALAR':ACTIVE_PLATFORM==='pc'?'STEAM BAŞARIMLARI':'GAMERSCORE';
+ $('platformNote').textContent=ACTIVE_PLATFORM==='all'?'Tüm ekosistemler · Gamerscore yalnız Xbox kazanımlarını içerir':ACTIVE_PLATFORM==='pc'?'Steam sağlayıcısı planlanıyor. Xbox ağına bağlı Windows ve mobil oyunları Xbox sekmesinde cihaz etiketiyle görünür.':`${ACTIVE_PLATFORM==='xbox'?'Xbox':'PlayStation'} kütüphanesi · İstatistikler yalnız bu platforma ait`;
+ $('scoreLabel').textContent=ACTIVE_PLATFORM==='psn'?'KAZANILAN KUPALAR':ACTIVE_PLATFORM==='pc'?'STEAM BAŞARIMLARI':'XBOX GAMERSCORE';
 }
 function switchPlatform(platform){
  ACTIVE_PLATFORM=platform;ACTIVE_DEVICE='all';selectedGame=null;achPage=0;
  $('gameDetail').classList.add('hidden');$('achGame').value='all';$('achSearch').value='';$('gameSearch').value='';
  $('publicPlatform').value=platform==='psn'?'psn':'xbox';
  render();
+ savePreferences({platform_filter:platform,focus_game_id:null});
 }
 async function loadVisualSources(){
  if(VISUAL_SOURCES)return;

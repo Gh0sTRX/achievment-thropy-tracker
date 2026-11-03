@@ -111,6 +111,8 @@ class Library:
         self.state=self._read(self.state_path, {'pins':[],'hidden':[],'custom_art':{},'xbox_titles':{},'linked_profile':None,'sync_at':None,'log':[]})
         for key,default in [('pins',[]),('hidden',[]),('custom_art',{}),('xbox_titles',{}),('linked_profile',None),('sync_at',None),('log',[])]:
             self.state.setdefault(key,deepcopy(default))
+        from .preferences import DEFAULTS
+        self.state['ui'] = {**deepcopy(DEFAULTS), **self.state.get('ui', {})}
         # Migrate v0.5/v0.6 demonstration rows; keep every real record and session.
         demo_games = {g['id'] for g in self.library.get('games', []) if g.get('platform') == 'demo'}
         demo_items = [a for a in self.library.get('achievements', [])
@@ -165,6 +167,14 @@ class Library:
             self.library=lib;self.save()
         return {'games':len(lib['games']),'achievements':len(lib['achievements']),
                 'earned':sum(a['unlocked'] for a in lib['achievements']),'message':'Library imported; saved achievements never revoked.'}
+
+    def set_preferences(self, values):
+        from .preferences import validate
+        with self.lock:
+            clean=validate(values,self.library['games'])
+            self.state['ui'].update(clean)
+            self.save()
+        return {'message':'Görünüm tercihleri kaydedildi.'}
 
     def set_pin(self,aid,pinned):
         if aid not in {a['id'] for a in self.library['achievements']}:raise ValueError('Unknown achievement')
