@@ -66,3 +66,19 @@ Ek ayrıntı: docs/ATLAS_V5_1_INTEGRATION_AUDIT_TR.md ve docs/V015_FOUNDATION_PL
 ## Dürüstlük notu
 
 Bu belge bir kontrol listesi, canlı sürüm sertifikası değildir. En son Foundation dalının Windows sonucu, PR numarası ve GitHub Actions durumu belgenin oluşturulmasından sonra değişebilir. Yeni sohbette tekrar kontrol edilmelidir.
+
+
+## 4 Kasım 2026 — Foundation arşivleme/kurtarma ek dilimi (PR #5)
+
+Bu oturumda PR #5'in mevcut dalı üzerinde **yeni release üretmeden** şu işler eklendi:
+
+- `atlas/archive.py`: izinli yerel state + aktif library için SHA-256 kontrollü taşınabilir JSON export; hesap tokenları/servis ayarları ve geçmiş profil/medya cache dosyaları export dışında.
+- `Library.export_archive()` ve `restore_archive()`: kayıt ID/edition/platform bağlarını koruyan doğrulama; restore öncesi `recovery/pre-restore-*.json` kopyası; iki JSON arasında yarım kalan restore için açılışta marker tabanlı rollback.
+- `/api/archive/export` ve `/api/archive/restore`: localhost Host/Origin + token denetimi; restore için açık `confirm:true`, aktif eşitleme/güncelleme engeli.
+- Hesap & Veri ekranında yerel arşiv indir/yükle kontrolleri; açık kullanıcı onayı ve hata durum mesajları.
+- `tests/test_archive.py` (round-trip, API auth+confirmation, hash, platform ayrımı, restore failure/rollback), `tests/test_foundation_ui.cjs` yapısal ek kontrolleri.
+- Ayrıntı ve sınırlamalar: `docs/V015_ARCHIVE_RECOVERY_TR.md`.
+
+**Önemli:** PR #4 önce incelenmeli; PR #5 hâlâ PR #4 üstünde bağımlı DRAFT. `codex/public-profile-trophies`, `main` ve Development Release'e doğrudan merge/publish yapılmadı. Bu dilim, uygulamanın **diğer** `save()` çağrıları için tam çoklu-dosya transaction garantisi sağlamaz. Arşiv kişisel oyun kayıtlarını içerir, herkese açık repoya konmamalı. Yeni oturumda PR #5'in son commitindeki CI/Windows installer sonucunu mutlaka kontrol et.
+
+**Sonraki P0:** Gerçek Windows installer + 0.13/0.14.1 yükseltme/rollback testi; karma Xbox XUID/gamertag ve PSN ID ayrımı, CSV edition/DLC doğruluğu; ardından diğer dosyaların transaction/migration sistemine geçirilmesi. Gerçek platform hesapları ve fiziksel gamepad sonuçları olmadan doğrulanmış deme.
