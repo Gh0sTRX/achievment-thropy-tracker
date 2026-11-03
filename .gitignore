@@ -16,3 +16,7 @@ local-data/
 *.csv
 work/
 profiles/
+
+settings.json
+frozen-test-report.json
+installed-test-report.json

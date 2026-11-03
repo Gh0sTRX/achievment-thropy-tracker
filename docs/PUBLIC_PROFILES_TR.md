@@ -10,8 +10,10 @@ herkese açık profil görüntülemesidir. Uygulama halen localhost üzerinde ç
 
 Herkese açık profil, anonim API anlamına gelmez. Sunucu tarafındaki sağlayıcı için
 işletmeciye ait bir servis oturumu gerekir. Anahtarları veya oturum dosyalarını
-kaynak koduna, GitHub'a veya sohbete koyma. Ortam değişkenleri uygulama başlarken
-okunur; .env otomatik yüklenmez.
+kaynak koduna, GitHub'a veya sohbete koyma. Ayarlar artık Hesap & Veri → İlk kurulum ekranından yerel olarak kaydedilebilir.
+Windows sürümünde DPAPI ile Windows kullanıcısına bağlı şifrelenir. Diğer
+sistemlerde dosya erişimi yalnız kullanıcıya açıktır. Ortam değişkenleri yerel
+ayarlardan önceliklidir; .env otomatik yüklenmez.
 
 ### Xbox
 
@@ -52,8 +54,9 @@ rehberleri ve görselleri eksiksiz kapsayan tek bir ortak havuz kullanılmaz.
 İşletmeci `BRAVE_SEARCH_API_KEY` ve `OPENAI_API_KEY` ayarlar.
 `ATLAS_GUIDE_MODEL` isteğe bağlıdır; varsayılan `gpt-4.1-mini`.
 Bunlar ücretli servislere istek gönderebilir: her yeni kupa için bir web araması ve
-bir model isteği yapılır. Anahtarlar ayarlıysa profil eşitlemesinden sonra tüm
-kupalar için otomatik araştırma başlar. Eksik rehberler oyun detayından tekrar
+bir model isteği yapılır. Anahtarlar ayarlıysa ve kullanıcı otomatik rehber seçeneğini açmışsa profil
+eşitlemesinden sonra tüm kupalar için otomatik araştırma başlar. Bu seçenek
+varsayılan kapalıdır. İşlem ekrandan durdurulabilir; devam eden istek tamamlanır. Eksik rehberler oyun detayından tekrar
 hazırlanabilir. İşlemler sırayla çalışır; ilk servis hatasında durur.
 
 Arama sonuçlarının kısa alıntıları ve API kazanma koşulu üzerinden Türkçe çeviri

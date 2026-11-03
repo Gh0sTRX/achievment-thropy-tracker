@@ -16,24 +16,32 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit
 from .core import Library,normalize
 from . import recommendations,artwork
-from . import xbox, public_profiles, guides
+from . import xbox, public_profiles, guides, settings
 
 BASE=Path(__file__).resolve().parent
 
 class Controller:
     def __init__(self,root=None):
         self.store=Library(root)
+        settings.activate(self.store.root)
         self.active_matches=[]
         self.start_guard=threading.Lock()
         self.public_guard=threading.Lock()
         self.guide_guard=threading.Lock()
+        self.guide_stop=threading.Event()
 
     def status(self):
         s=self.store
         return {'library':s.payload(),
                 'recommendations':recommendations.rank(s.library,s.state['pins']),
                 'insights':recommendations.insights(s.library),
-                'providers':public_profiles.readiness(), 'guides_ready':guides.configured()}
+                'providers':public_profiles.readiness(), 'guides_ready':guides.configured(),
+                'settings':settings.status()}
+
+    def save_settings(self, data):
+        if self.public_guard.locked() or self.guide_guard.locked() or (self.store.status.get('job') or {}).get('running') or self.store.status.get('login_running'):
+            raise ValueError('Ayarları değiştirmeden önce çalışan işlemin bitmesini bekle.')
+        return settings.save(self.store.root, data.get('values', {}), data.get('clear', []))
 
     def public_sync(self, data):
         platform = str(data.get('platform', ''))
@@ -56,7 +64,7 @@ class Controller:
                 report = self.store.apply_public_profile(snapshot)
                 with self.store.lock:
                     self.store.status['public_job']['message'] = f"{snapshot['username']}: {report['games']} oyun, {report['achievements']} kupa kaydedildi."
-                if guides.configured():
+                if guides.configured() and settings.get('ATLAS_AUTO_GUIDES') == '1':
                     try:self.generate_guides({'platform': platform})
                     except ValueError as exc:self.store.status['public_job']['message'] += ' '+str(exc)
             except Exception as exc:
@@ -69,6 +77,10 @@ class Controller:
         threading.Thread(target=worker, daemon=True).start()
         return {'message': 'Herkese açık profil eşitlemesi başladı.'}
 
+    def stop_guides(self):
+        self.guide_stop.set()
+        return {'message': 'Rehber araştırması mevcut istek tamamlandığında duracak.'}
+
     def generate_guides(self, data):
         if not guides.configured():
             raise ValueError('Rehber veri servisi kurulmamış. docs/PUBLIC_PROFILES_TR.md dosyasına bak.')
@@ -79,10 +91,14 @@ class Controller:
                 if (not data.get('game_id') or a['game_id'] == data['game_id'])
                 and (not data.get('platform') or a.get('platform') == data['platform'])
                 and (a.get('guide') or {}).get('fingerprint') != guides.fingerprint(a)]
+        self.guide_stop.clear()
         self.store.status['guide_job'] = {'running': True, 'done': 0, 'total': len(items), 'error': ''}
         def worker():
             try:
                 for i, a in enumerate(items):
+                    if self.guide_stop.is_set():
+                        self.store.status['guide_job']['error'] = 'Araştırma durduruldu; tamamlanan rehberler korundu.'
+                        break
                     guide = guides.create(a)
                     with self.store.lock:
                         current = next((x for x in self.store.library['achievements'] if x['id'] == a['id']), None)
@@ -352,8 +368,10 @@ class Handler(BaseHTTPRequestHandler):
             path=urlsplit(self.path).path
             methods={
                '/api/import':self.server.controller.import_csv,
+               '/api/settings':self.server.controller.save_settings,
                '/api/profiles/sync':self.server.controller.public_sync,
                '/api/guides/generate':self.server.controller.generate_guides,
+               '/api/guides/stop':lambda d:self.server.controller.stop_guides(),
                '/api/pin':self.server.controller.set_pin,
                '/api/art/key':self.server.controller.set_sgdb_key,
                '/api/art/search':self.server.controller.search_art,
@@ -386,10 +404,11 @@ class LocalApp(ThreadingHTTPServer):
     @property
     def url(self):return f'http://127.0.0.1:{self.server_port}/'
 
-def main(browser=False):
-    app=LocalApp()
+def main(browser=False, root=None):
+    app=LocalApp(root)
     t=threading.Thread(target=app.serve_forever,daemon=True);t.start()
     print('Achievement Atlas:',app.url)
+    print('Uygulama tarayicida acilir. Bu pencereyi acik tut.')
     try:
         if not browser:
             try:
@@ -398,5 +417,7 @@ def main(browser=False):
                 webview.start();return
             except (ImportError,RuntimeError) as e:print('WebView not available:',e)
         webbrowser.open(app.url)
-        input('Press Enter to close Achievement Atlas…')
-    finally:app.shutdown()
+        input('Uygulamayi kapatmak icin Enter tusuna bas...')
+    finally:
+        app.shutdown()
+        app.server_close()

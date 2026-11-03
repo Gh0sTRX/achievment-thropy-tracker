@@ -1,0 +1,70 @@
+name: Windows installer
+on:
+  push:
+    branches: [main, 'codex/**']
+    paths:
+      - 'atlas/**'
+      - 'tests/**'
+      - 'run.py'
+      - 'requirements*.txt'
+      - 'packaging/**'
+      - 'KURULUM.txt'
+      - '.github/workflows/windows-package.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install platform SDKs and packager
+        run: python -m pip install -r requirements-windows.txt
+      - name: Run tests with real SDKs installed
+        run: python -m unittest discover -s tests -v
+      - name: Build standalone application
+        run: python -m PyInstaller --noconfirm packaging/windows.spec
+      - name: Verify frozen application and Windows secret storage
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath .\dist\AchievementAtlas\AchievementAtlas.exe -ArgumentList '--self-test','--report','frozen-test-report.json' -Wait -PassThru -NoNewWindow
+          if ($process.ExitCode -ne 0) { throw "Frozen self-test failed: $($process.ExitCode)" }
+          if (!(Test-Path frozen-test-report.json)) { throw 'Self-test report missing' }
+      - name: Build per-user installer
+        shell: pwsh
+        run: |
+          $compiler = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (!(Test-Path $compiler)) { throw 'Inno Setup compiler missing' }
+          & $compiler packaging\windows.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+      - name: Verify installed application
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist\installer\*-Setup.exe | Select-Object -First 1
+          $installDir = Join-Path $env:RUNNER_TEMP 'Atlas install smoke test'
+          $process = Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=`"$installDir`"" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode)" }
+          $process = Start-Process (Join-Path $installDir 'AchievementAtlas.exe') -ArgumentList '--self-test','--report','installed-test-report.json' -Wait -PassThru -NoNewWindow
+          if ($process.ExitCode -ne 0 -or !(Test-Path installed-test-report.json)) { throw 'Installed self-test failed' }
+          $process = Start-Process (Join-Path $installDir 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw 'Uninstall failed' }
+      - name: Prepare portable app, setup and checksums
+        shell: pwsh
+        run: |
+          Copy-Item KURULUM.txt dist\AchievementAtlas\
+          Copy-Item LICENSE dist\AchievementAtlas\
+          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.6.0-Windows-x64-Portable.zip
+          Copy-Item frozen-test-report.json,installed-test-report.json dist\installer\
+          Get-ChildItem dist\installer\*.exe,dist\installer\*.zip | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist\installer\SHA256SUMS.txt
+          python -m pip freeze | Set-Content dist\installer\dependencies.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AchievementAtlas-0.6.0-Windows-x64
+          path: dist/installer/*
+          retention-days: 30
+          if-no-files-found: error

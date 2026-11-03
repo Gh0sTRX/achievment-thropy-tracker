@@ -1,0 +1,2 @@
+-r requirements-xbox.txt
+-r requirements-psn.txt

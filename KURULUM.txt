@@ -1,0 +1,50 @@
+ACHIEVEMENT ATLAS 0.6.0 — WINDOWS KURULUMU
+
+Hazır Setup.exe paketi Windows 10/11 64 bit içindir. Python veya yönetici
+izni gerekmez. Kurulum dosyasını aç, adımları tamamla, masaüstündeki
+Achievement Atlas kısayolunu çalıştır. Arayüz varsayılan tarayıcıda açılır.
+Açılan küçük komut penceresini açık tut; kapatmak için Enter'a bas.
+
+Portable.zip sürümünü kullanırsan TÜM dosyaları bir klasöre çıkar ve
+AchievementAtlas.exe dosyasını aç. _internal klasörünü silme.
+
+İLK KULLANIM
+1. Hesap & Veri ekranını aç.
+2. Veri servisi ayarlarını aşağıdaki açıklamaya göre kaydet.
+3. Xbox veya PlayStation seç; Gamertag / Online ID yaz; KUPALARIMI GETİR'e bas.
+4. Oyun detayında BU OYUNU TAMAMLA düğmesine bas.
+
+CANLI VERİ İÇİN GEREKENLER
+Bu paket ortak bir ücretli servis hesabı veya API anahtarı içermez.
+Kullanıcı adının herkese açık olması anonim API erişimi sağlamaz.
+Oyuncu hesabını uygulamaya bağlamadan sorgulamak için işletmeciye ait:
+- Xbox OpenXbox oturum dosyası veya
+- PSN servis hesabı NPSSO değeri gerekir.
+Bunları yalnızca uygulamanın yerel ayarlar ekranına gir; sohbete/GitHub'a koyma.
+Servis kurulmamışsa uygulama açılır ancak canlı kupaları getiremez.
+CSV ve demo görüntüleme internet veya servis anahtarı gerektirmez.
+Ayrıntı: docs/PUBLIC_PROFILES_TR.md.
+
+TÜRKÇE REHBERLER
+Brave Search API ve OpenAI API anahtarları isteğe bağlıdır.
+Bu servisler ücretlidir. Otomatik rehber seçeneği varsayılan kapalıdır;
+açarsan her yeni kupa için web araması ve model isteği yapılabilir.
+Alternatif: yalnızca seçtiğin oyunun rehberlerini düğmeyle hazırla.
+Rehberler kaynak alıntılarına dayalı yapay zekâ özetleridir.
+Canlı kupa erişimi ve rehber doğruluğu Gh0sTRX55 hesabıyla doğrulanmadı.
+
+VERİLER VE GÜNCELLEME
+Kütüphane, profil arşivleri ve ayarlar Windows kullanıcı klasöründeki
+%LOCALAPPDATA%\AchievementAtlas altında saklanır. Servis anahtarları
+Windows DPAPI ile kullanıcı hesabına bağlı şifrelenir. Bu klasörü
+başka Windows hesabına kopyalamak anahtarları taşımaya yetmez.
+Yeni sürümü aynı yere kurabilirsin; kaldırma işlemi kişisel arşivi silmez.
+Tam silmek istersen uygulamayı kapatıp bu veri klasörünü ayrıca sil.
+
+KAYNAK KOD PAKETİ
+Kaynak ZIP kullanıyorsan önce Python 3.11+ kur; sonra KUR_WINDOWS.bat
+çalıştır. Bu işlem .venv klasörü oluşturur ve internetten Xbox/PSN
+bileşenlerini kurar. Sonraki açılışlar: BASLAT_TARAYICI.bat.
+
+Bu ön sürüm Microsoft veya Sony tarafından yayımlanmamıştır.
+Kurulum dosyası kod imzası içermez.

@@ -3,7 +3,7 @@
 The target player supplies only an ID. Credentials never travel to the browser.
 """
 import asyncio
-import os
+from . import settings
 import re
 from datetime import datetime, timezone
 from . import xbox, artwork
@@ -21,8 +21,8 @@ def validate(platform, username):
 
 
 def readiness():
-    return {'xbox': bool(os.getenv('ATLAS_XBOX_TOKEN_FILE')),
-            'psn': bool(os.getenv('ATLAS_PSN_NPSSO'))}
+    return {'xbox': bool(settings.get('ATLAS_XBOX_TOKEN_FILE')),
+            'psn': bool(settings.get('ATLAS_PSN_NPSSO'))}
 
 
 def game(platform, title_id, name, edition, cover=''):
@@ -69,7 +69,7 @@ async def _pages(client, url, headers, key, params=None):
 
 
 async def _xbox(username, progress):
-    path = os.getenv('ATLAS_XBOX_TOKEN_FILE')
+    path = settings.get('ATLAS_XBOX_TOKEN_FILE')
     if not path:
         raise ValueError('Xbox veri servisi kurulmamış. İşletmeci ATLAS_XBOX_TOKEN_FILE ayarlamalı; oyuncunun Microsoft hesabını bağlaması gerekmez.')
     async with xbox.authenticated_client(path) as (client, _):
@@ -104,7 +104,7 @@ async def _xbox(username, progress):
 
 
 def _psn(username, progress):
-    secret = os.getenv('ATLAS_PSN_NPSSO')
+    secret = settings.get('ATLAS_PSN_NPSSO')
     if not secret:
         raise ValueError('PSN veri servisi kurulmamış. İşletmeci ATLAS_PSN_NPSSO ayarlamalı; oyuncudan oturum bilgisi istenmez.')
     try:
