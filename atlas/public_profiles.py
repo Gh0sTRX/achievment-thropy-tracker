@@ -85,6 +85,13 @@ async def _xbox(username, progress):
             titles = await _pages(client, f'{base}/users/xuid({xuid})/history/titles',
                                   {'x-xbl-contract-version': version}, 'titles')
             histories.extend((t, version) for t in titles)
+        metadata = {}
+        try:
+            titlehub = xbox._dump(await client.titlehub.get_title_history(xuid, max_items=10000))
+            metadata = {t['titleId']: t for t in xbox.parse_titles(titlehub)}
+        except Exception:
+            # Optional cover metadata must not replace or fabricate progression.
+            pass
         games = []; items = []; seen = set()
         total = len({str(t.get('titleId')) for t, _ in histories})
         for title, version in histories:
@@ -92,7 +99,7 @@ async def _xbox(username, progress):
             if not tid.isdigit() or tid in seen:
                 continue
             seen.add(tid)
-            g = game('xbox', tid, str(title.get('name') or tid), '360' if version == '1' else 'one')
+            g = game('xbox', tid, str(title.get('name') or tid), '360' if version == '1' else 'one', metadata.get(tid, {}).get('cover_url', ''))
             endpoint = 'titleachievements' if version == '1' else 'achievements'
             records = await _pages(client, f'{base}/users/xuid({xuid})/{endpoint}',
                                    {'x-xbl-contract-version': version}, 'achievements', {'titleId': tid})

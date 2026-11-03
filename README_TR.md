@@ -17,7 +17,9 @@ Hesap & Veri ekranında **İlk kurulum** bölümünü aç. Servis erişimlerini 
 olarak kaydet, platformunu seç ve kullanıcı adını gir. Xbox / PSN için hedef
 oyuncunun hesabını bağlaman gerekmez; işletmeciye ait bir servis erişimi gerekir.
 **Paket hazır servis hesabı veya API anahtarı içermez.** Bunlar olmadan canlı
-kupa sorgulaması çalışmaz; CSV ve demo kullanılabilir.
+kupa sorgulaması çalışmaz; TrueAchievements CSV aktarımı kullanılabilir.
+Mevcut Xbox oturumun varsa uygulama onu kullanır; oturum dosyası yolunu yeniden
+girmen gerekmez.
 
 Türkçe rehberler isteğe bağlı Brave Search ve OpenAI servislerini kullanır;
 ücretli çağrılar yapabilir. Otomatik rehber varsayılan kapalıdır. Kaynaklar,

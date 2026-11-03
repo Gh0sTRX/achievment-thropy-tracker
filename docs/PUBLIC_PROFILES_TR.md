@@ -21,6 +21,8 @@ ayarlardan önceliklidir; .env otomatik yüklenmez.
 - İşletmeci kendi yetkili OpenXbox oturumunu önceden kurar (mevcut Microsoft ile
   bağlan akışı da kullanılabilir).
 - `ATLAS_XBOX_TOKEN_FILE`: bu OpenXbox OAuth JSON dosyasının mutlak yolu.
+  Uygulamada daha önce Microsoft oturumu açıldıysa kayıtlı OpenXbox oturumu
+  otomatik kullanılır; bu alanı tekrar doldurmak gerekmez.
 - Servis oturumu yenilenir; hedef oyuncu Gamertag üzerinden XUID'ye çözülür.
   Başarımlar servis hesabından değil **hedef XUID** üzerinden okunur.
 - 360 ve yeni nesil oyun geçmişi ve başarımlar continuationToken ile sayfalanır.
@@ -73,7 +75,7 @@ listeler. Ölçülen ilerlemesi yüksek kupalar öne çıkar. Zorluk kanıtı ol
 ## Yerel kayıt ve sınırlar
 
 - Tam profil başarıyla alınınca aktif platform kayıtları değiştirilir. Diğer
-  platform korunur. İlk gerçek eşitlemede demo kaldırılır.
+  platform korunur. Eski demo kayıtları uygulama açılışında kaldırılır.
 - Farklı oyuncuların kazanımları birleştirilmez. Aynı oyuncunun daha önce
   kazanılmış kupaları geri alınmaz.
 - Başarılı profiller uygulamanın veri klasöründe `profiles/` altında saklanır;
