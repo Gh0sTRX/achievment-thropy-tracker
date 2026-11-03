@@ -1,4 +1,4 @@
-ACHIEVEMENT ATLAS 0.13.0 — WINDOWS KURULUMU
+ACHIEVEMENT ATLAS 0.14.0 — WINDOWS KURULUMU
 
 Hazır Setup.exe paketi Windows 10/11 64 bit içindir. Python veya yönetici
 izni gerekmez. Kurulum dosyasını aç, adımları tamamla, masaüstündeki
@@ -118,3 +118,8 @@ Tema, yazi boyutu ve erisilebilirlik tercihleri cihazda saklanir.
 Tema rengi verinin platformunu degistirmez. Muzede eksik kaynak
 verisine kesin %100 etiketi verilmez. Yeni ekranlar maket puan eklemez.
 0.12 Setup kuruluysa uygulama icindeki Guncellemeler bolumunu kullan.
+
+0.14 / V5
+Atlas Ultimate dugmesiyle yeni gorunume gec. Kupa ayrintilari satir altinda acilir.
+Indirmeleri DURDUR ile durdurabilirsin. Tam yenile onbelleksiz kupa sorgular.
+Uygulama EXE ve gorev cubugu simgesi yenilendi.

@@ -79,3 +79,10 @@ cihazda saklar. Gerçek oyun görselleri dağıtıma gömülmez.
 
 0.12 Setup kuruluysa **Güncellemeler → Güncellemeyi indir → Kur ve yeniden başlat**
 yoluyla 0.13 alınabilir. [Uygulama ve doğrulama raporu](docs/ULTIMATE_IMPLEMENTATION_TR.md).
+
+## 0.14 / Ultimate V5
+
+Üstteki **Atlas Ultimate** düğmesi Cinematic / Blades / NXE / XMB görünümünü açar.
+Kupa ayrıntıları her iki arayüzde de satır altında açılır. İşlem durum çubuğundan
+profil/görsel/rehber indirmeleri durdurulabilir. **Tam yenile**, kısa süreli
+kupa önbelleğini kullanmadan sorgular. [Değişiklikler ve testler](docs/ULTIMATE_V5_INTEGRATION.md).
