@@ -20,19 +20,24 @@ class UltimateAssetsTests(unittest.TestCase):
         self.thread.join(timeout=3)
         self.data.cleanup()
 
-    def test_ultimate_css_and_js_are_allowlisted(self):
-        with urlopen(self.app.url + "ui/ultimate.css") as response:
+    def test_native_theme_css_and_js_are_allowlisted(self):
+        with urlopen(self.app.url + "ui/shell.css") as response:
             self.assertIn("text/css", response.headers["Content-Type"])
-            self.assertIn(b"Achievement Atlas Ultimate v5", response.read())
-        with urlopen(self.app.url + "ui/ultimate.js") as response:
+            self.assertIn(b"Atlas native skin system", response.read())
+        with urlopen(self.app.url + "ui/shell.js") as response:
             self.assertIn("text/javascript", response.headers["Content-Type"])
-            self.assertIn(b"const KEY", response.read())
+            self.assertIn(b"const SKINS", response.read())
 
-    def test_main_page_loads_ultimate_as_optional_enhancement(self):
+    def test_main_page_uses_one_native_shell_and_console(self):
         with urlopen(self.app.url) as response:
             html = response.read().decode("utf-8")
-        self.assertIn('/ui/ultimate.css', html)
-        self.assertIn('/ui/ultimate.js', html)
+        self.assertIn('/ui/shell.css', html)
+        self.assertIn('/ui/shell.js', html)
+        self.assertNotIn('src="/ui/ultimate.js"', html)
+        self.assertNotIn('href="/ui/ultimate.css"', html)
+        self.assertIn('id="atlasThemeSkin"', html)
+        self.assertIn('id="atlasConsole"', html)
+        self.assertIn('id="timeline"', html)
         self.assertIn('/app.js', html)
 
     def test_static_allowlist_does_not_serve_arbitrary_path(self):

@@ -7,7 +7,7 @@
 <title>Achievement Atlas — Your Next Move</title>
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/ultimate.css">
-<link rel="stylesheet" href="/ui/ultimate.css">
+<link rel="stylesheet" href="/ui/shell.css">
 </head>
 <body data-token="__TOKEN__" data-platform="all">
 <a class="skip-link" href="#home">İçeriğe atla</a>
@@ -17,21 +17,25 @@
     <div class="identity"><div class="brand-icon"><img src="/brand/atlas-mark.svg" alt="Atlas" width="46" height="46"></div><div><strong>ACHIEVEMENT<br><span>ATLAS</span></strong><small>YOUR NEXT MOVE.</small></div></div>
     <div class="rail-label">WORKSPACE</div>
     <nav class="nav" aria-label="Sayfalar">
+      <div class="atlas-nav-group" aria-hidden="true">OYUN DÜNYAN</div>
       <button class="nav-link active" data-page="home"><span class="nav-mark">◈</span> Atlas Hub <span class="nav-index">01</span></button>
       <button class="nav-link" data-page="games"><span class="nav-mark">▦</span> Oyun Kütüphanesi <span class="nav-index">02</span></button>
       <button class="nav-link" data-page="achievements"><span class="nav-mark">✦</span> Başarım Kasası <span class="nav-index">03</span></button>
       <button class="nav-link" data-page="quests"><span class="nav-mark">⌖</span> Hedef Panosu <span class="nav-index">04</span></button>
+      <div class="atlas-nav-group" aria-hidden="true">KOLEKSİYONUN</div>
       <button class="nav-link" data-page="hall"><span class="nav-mark">♛</span> Koleksiyon Müzesi <span class="nav-index">05</span></button>
-      <button class="nav-link" data-page="profile"><span class="nav-mark">◉</span> Oyuncu Profili <span class="nav-index">06</span></button>
-      <button class="nav-link" data-page="artwork"><span class="nav-mark">▧</span> Oyun Görselleri <span class="nav-index">07</span></button>
-      <button class="nav-link" data-page="account"><span class="nav-mark">⌘</span> Hesap & Veri <span class="nav-index">08</span></button>
-      <button class="nav-link" data-page="updates"><span class="nav-mark">↻</span> Güncellemeler <span class="nav-index">09</span></button>
+      <button class="nav-link" data-page="timeline"><span class="nav-mark">◷</span> Zaman Çizelgesi <span class="nav-index">06</span></button>
+      <button class="nav-link" data-page="profile"><span class="nav-mark">◉</span> Oyuncu Profili <span class="nav-index">07</span></button>
+      <div class="atlas-nav-group" aria-hidden="true">AYARLAR & MEDYA</div>
+      <button class="nav-link" data-page="artwork"><span class="nav-mark">▧</span> Oyun Görselleri <span class="nav-index">08</span></button>
+      <button class="nav-link" data-page="account"><span class="nav-mark">⌘</span> Hesap & Veri <span class="nav-index">09</span></button>
+      <button class="nav-link" data-page="updates"><span class="nav-mark">↻</span> Güncellemeler <span class="nav-index">10</span></button>
     </nav>
     <div class="rail-bottom"><div class="pulse-dot"></div><div><b>LOCAL FIRST</b><small>Verilerin bu bilgisayarda.</small></div></div>
-    <div class="rail-foot">v0.14 ÖN SÜRÜM · OPEN SOURCE</div>
+    <div class="rail-foot">v0.14.1 · NATIVE THEMES ÖNİZLEME · OPEN SOURCE</div>
   </aside>
   <main class="content">
-    <header class="topbar"><button id="mobileMenu" class="secondary mobile-menu" aria-label="Menüyü aç" aria-expanded="false">☰</button><div class="breadcrumbs"><span class="bread-quiet">ATLAS</span><span class="sep">/</span><strong id="breadcrumb">ATLAS HUB</strong></div><div class="top-right"><form id="globalSearchForm" role="search"><input id="globalSearch" type="search" placeholder="Oyun veya başarım ara…" aria-label="Küresel arama"><button class="ghost-link" type="submit" aria-label="Ara">⌕</button></form><span class="live-indicator" id="apiIndicator"><i></i> YEREL MOD</span><div class="profile-chip"><span class="profile-avatar" id="profileAvatar">P</span><span id="profileName">Oyuncu</span></div></div></header>
+    <header class="topbar"><button id="mobileMenu" class="secondary mobile-menu" aria-label="Menüyü aç" aria-expanded="false">☰</button><div class="breadcrumbs"><span class="bread-quiet">ATLAS</span><span class="sep">/</span><strong id="breadcrumb">ATLAS HUB</strong></div><div class="top-right"><label class="atlas-theme-label" for="atlasThemeSkin">GÖRÜNÜM</label><select id="atlasThemeSkin" aria-label="Uygulama görünüm teması"><option value="cinematic">Cinematic</option><option value="blades">360 Blades</option><option value="nxe">360 NXE</option><option value="xmb">PS3 XMB</option></select><button type="button" id="atlasConsoleButton" aria-keyshortcuts="Alt+C">▣ Console Mode</button><form id="globalSearchForm" role="search"><input id="globalSearch" type="search" placeholder="Oyun veya başarım ara…" aria-label="Küresel arama"><button class="ghost-link" type="submit" aria-label="Ara">⌕</button></form><span class="live-indicator" id="apiIndicator"><i></i> YEREL MOD</span><div class="profile-chip"><span class="profile-avatar" id="profileAvatar">P</span><span id="profileName">Oyuncu</span></div></div></header>
     <div class="platform-toolbar"><div class="platform-tabs" role="group" aria-label="Oyun platformu"><button data-platform="all" aria-pressed="true">TÜMÜ</button><button data-platform="xbox" aria-pressed="false">XBOX</button><button data-platform="psn" aria-pressed="false">PLAYSTATION</button><button data-platform="pc" aria-pressed="false">PC <small>PLANLANIYOR</small></button></div><span id="platformNote"></span></div><p id="atmosphereCredit" class="atmosphere-credit"></p>
     <div id="sourceStatus" class="source-status" role="status" aria-live="polite"></div>
     <div id="transferDock" class="transfer-dock hidden" role="status" aria-live="polite"><span id="transferText"></span><button class="secondary" data-stop="all">DURDUR</button></div><div id="notification" role="status" class="notification hidden"></div>
@@ -74,13 +78,26 @@
       <div class="panel form-panel"><h3>Profilin</h3><p class="muted">Yalnızca herkese açık veriler okunur. Aynı platformda başka oyuncu seçildiğinde önceki profil yerel arşivde korunur.</p><div class="formline"><label>PLATFORM<select id="publicPlatform"><option value="xbox">Xbox</option><option value="psn">PlayStation</option></select></label><label>GAMERTAG / ONLINE ID<input id="publicUsername" placeholder="Kullanıcı adın" maxlength="32" autocomplete="off"></label><label class="sync-force"><input id="forceSync" type="checkbox"> Tam yenile</label><button id="publicSync" class="cta">PROFİLİMİ YENİLE ↗</button></div><button id="stopProfile" class="secondary hidden" data-stop="profile">EŞİTLEMEYİ DURDUR</button><button id="stopMedia" class="secondary hidden" data-stop="media">GÖRSEL İNDİRMEYİ DURDUR</button><p id="publicReadiness" class="helper"></p><p id="publicStatus" role="status" aria-live="polite"></p><p id="guideStatus" role="status" aria-live="polite"></p><p id="mediaStatus" role="status" aria-live="polite"></p><div class="detail-buttons"><button id="allGuides" class="secondary">TÜM BAŞARIMLARIN REHBERLERİNİ HAZIRLA</button><button id="allMedia" class="secondary">KAPAK, LOGO VE İKONLARI İNDİR</button></div><button id="stopGuides" class="secondary hidden">REHBER ARAŞTIRMASINI DURDUR</button></div>
       <div id="xboxAccess"><button class="secondary" id="loginXbox">XBOX ERİŞİMİNİ ETKİNLEŞTİR</button><p class="helper">Yalnızca veri erişimi yoksa gerekir. Microsoft oturumu açılır; kayıtlı erişim daha sonra otomatik kullanılır.</p></div>
       <details class="panel" style="margin-top:20px"><summary>Alternatif: TrueAchievements dosyalarını aktar</summary><p class="helper">Canlı sorgulama yerine daha önce indirdiğin kazanılmış ve kilitli CSV dosyalarını kullanabilirsin.</p><label class="form-label">Oyuncu adı<input id="importGamertag" placeholder="Oyuncu adı"></label><label class="form-label">Kazanılmış başarımlar<input type="file" id="earnedCSV" accept=".csv,text/csv"></label><label class="form-label">Kilitli başarımlar<input type="file" id="lockedCSV" accept=".csv,text/csv"></label><button id="importBtn" class="secondary">DOSYALARI AKTAR</button></details>
-      <div class="panel preferences-panel"><h3>Görünüm ve erişilebilirlik</h3><div class="formline"><label>TEMA<select id="themeMode"><option value="auto">Otomatik / seçili oyun</option><option value="all">Atlas Unified</option><option value="xbox">Xbox</option><option value="psn">PlayStation</option><option value="pc">PC</option></select></label><label>YAZI BOYUTU<select id="fontScale"><option value="1">%100</option><option value="1.15">%115</option><option value="1.3">%130</option></select></label></div><label><input id="reducedMotion" type="checkbox"> Hareketi azalt</label><label><input id="denseMode" type="checkbox"> Kompakt liste</label><label><input id="highContrast" type="checkbox"> Yüksek kontrast</label><p class="helper">Tema renkleri verinin platformunu değiştirmez.</p></div>
+      <div class="panel preferences-panel"><h3>Görünüm ve erişilebilirlik</h3><div class="formline"><label>PLATFORM RENK KİMLİĞİ<select id="themeMode"><option value="auto">Otomatik / seçili oyun</option><option value="all">Atlas Unified</option><option value="xbox">Xbox</option><option value="psn">PlayStation</option><option value="pc">PC</option></select></label><label>YAZI BOYUTU<select id="fontScale"><option value="1">%100</option><option value="1.15">%115</option><option value="1.3">%130</option></select></label></div><label><input id="reducedMotion" type="checkbox"> Hareketi azalt</label><label><input id="denseMode" type="checkbox"> Kompakt liste</label><label><input id="highContrast" type="checkbox"> Yüksek kontrast</label><p class="helper">Cinematic/Blades/NXE/XMB görünümünü üst çubuktan seç. Platform renk kimliği ve veri filtresi bağımsızdır.</p></div>
 <p class="helper"><a href="https://github.com/Gh0sTRX/achievment-thropy-tracker/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">Gizlilik politikası ↗</a></p>
       <p class="helper">Veriler bu bilgisayarda otomatik saklanır. Dosya yolu veya başarım kimliği girmen gerekmez.</p><button class="ghost-link" data-page="advanced">İsteğe bağlı gelişmiş ayarlar ↗</button>
 
     </section>
     <section class="page hidden" id="quests"><div class="section-head"><span class="eyebrow">YOUR NEXT CHAPTER / QUEST BOARD</span><h1>Hedef <em>panosu.</em></h1><p>Sabitlediklerin ve kayıtlı ilerlemene dayanan öneriler. Süre veya zorluk tahmini yapılmaz.</p></div><div id="questBoard" class="quest-board"></div></section>
     <section class="page hidden" id="hall"><div class="section-head"><span class="eyebrow">HALL OF FAME / YOUR LEGACY</span><h1>Her kazanım <em>bir iz bırakır.</em></h1><p>Yalnız kayıtlı başarımlarından oluşan kişisel vitrin.</p></div><div id="museum"></div></section>
+    <section class="page hidden" id="timeline">
+      <div class="section-head"><span class="eyebrow">UNLOCK TIMELINE / YOUR HISTORY</span><h1>Başarım <em>zaman çizelgen.</em></h1><p>Yalnız kayıtlı, geçerli tarihli kazanımlar. Platform seçimi tüm ekranlarla ortaktır.</p></div>
+      <div class="panel">
+        <div class="atlas-timeline-controls" role="group" aria-label="Zaman çizelgesi aralığı">
+          <button type="button" data-atlas-range="30" aria-pressed="false">30 gün</button>
+          <button type="button" data-atlas-range="90" aria-pressed="true">90 gün</button>
+          <button type="button" data-atlas-range="365" aria-pressed="false">1 yıl</button>
+        </div>
+        <p id="atlasTimelineTotal" aria-live="polite">Henüz hesaplanmadı.</p>
+        <div id="atlasTimelineChart" class="atlas-timeline-chart" role="group" aria-label="Günlere göre gerçek kazanımlar"></div>
+        <details><summary>Verileri erişilebilir tabloda göster</summary><table class="atlas-timeline-table"><thead><tr><th>Aralık başlangıcı</th><th>Kazanım</th></tr></thead><tbody id="atlasTimelineRows"></tbody></table></details>
+      </div>
+    </section>
     <section class="page hidden" id="profile"><div class="section-head"><span class="eyebrow">PLAYER PROFILE / LOCAL FIRST</span><h1>Senin <em>hikâyen.</em></h1><p>Bu profil yalnız cihazında görünür; otomatik paylaşılmaz.</p></div><div id="playerProfile"></div></section>
     <section class="page hidden" id="advanced"><div class="section-head"><h1>Gelişmiş <em>ayarlar</em></h1><p>Normal kullanımda bu ekranı doldurman gerekmez. Mevcut erişimler cihazında korunur. Harici servis anahtarları paketle dağıtılmaz.</p></div>
       <details class="panel form-panel" id="providerSetup"><summary>İlk kurulum · Veri servisleri</summary>
@@ -98,12 +115,20 @@
       <div class="hidden"><span id="xboxStatus"></span><button id="reconnectXbox"></button><button id="discoverXbox"></button><button id="syncXbox"></button><div id="xboxTitles"></div></div><button class="ghost-link" data-page="account">← Profilime dön</button>
     </section>
     <section class="page hidden" id="updates"><div class="section-head"><span class="eyebrow">GITHUB / GÜNCELLEMELER</span><h1>Uygulamanı <em>güncel tut.</em></h1><p>Geliştirme kanalı etkin. GitHub yayınları uygulama açılışında kontrol edilir. Yeni sürümü buradan indirip yeniden başlatabilirsin.</p></div><div class="panel"><h3 id="updateVersion">Kurulu sürüm</h3><p id="updateMessage" role="status" aria-live="polite"></p><progress id="updateProgress" class="hidden" max="100" value="0" aria-label="Güncelleme indirme ilerlemesi"></progress><div class="detail-buttons"><button id="checkUpdate" class="secondary">GÜNCELLEMELERİ KONTROL ET</button><button id="downloadUpdate" class="cta hidden">GÜNCELLEMEYİ İNDİR</button><button id="installUpdate" class="cta hidden">KUR VE YENİDEN BAŞLAT</button></div><pre id="updateNotes" class="update-notes"></pre><a id="updateRelease" class="ghost-link hidden" target="_blank" rel="noopener noreferrer">GITHUB YAYININI İNCELE ↗</a><p class="helper">Kütüphane ve ayarların korunur. Geliştirme güncellemelerinde SHA256 ve GitHub’ın kriptografik derleme kökeni kanıtı doğrulanır. Windows yayıncı sertifikası gerekmez. Yalnızca belirlenmiş depomuz ve workflow dalımız kabul edilir. Bu özellik Chrome/Windows güvenlik korumasını atlatmaz.</p></div></section>
-    <footer class="footer">ACHIEVEMENT ATLAS <b>0.14 ULTIMATE V5</b> — Open-source community project · Unofficial, not endorsed by Microsoft or Sony · Art remains with its respective owners.</footer>
+    <footer class="footer">ACHIEVEMENT ATLAS <b>0.14.1 · UNIFIED THEMES</b> — Open-source community project · Unofficial, not endorsed by Microsoft or Sony · Art remains with its respective owners.</footer>
   </main>
 </div>
+<dialog id="atlasConsole" class="atlas-console" aria-label="Achievement Atlas Console Mode">
+  <div id="atlasConsoleArtwork" class="atlas-console-artwork" aria-hidden="true"></div>
+  <div class="atlas-console-header"><div>ACHIEVEMENT <strong>ATLAS</strong> / CONSOLE MODE</div><button type="button" data-atlas-console="close">✕ Kapat · Esc / B</button></div>
+  <div class="atlas-console-hero"><span class="eyebrow">YOUR GAME UNIVERSE</span><h2 id="atlasConsoleTitle">Oyun seç</h2><p id="atlasConsoleSubtitle"></p><button type="button" data-atlas-console="open">OYUN DETAYINI AÇ ↗</button></div>
+  <div class="atlas-console-arrows"><button type="button" data-atlas-console="previous" aria-label="Önceki oyun">←</button><strong id="atlasConsoleCount"></strong><button type="button" data-atlas-console="next" aria-label="Sonraki oyun">→</button></div>
+  <div class="atlas-console-rail" id="atlasConsoleRail"></div>
+  <div class="atlas-console-foot">← → / D-PAD: OYUN SEÇ · ENTER / A: AÇ · ESC / B: GERİ <span id="atlasControllerStatus" role="status"></span></div>
+</dialog>
 <script src="/model.js"></script>
 <script src="/visuals.js"></script>
 <dialog id="achievementDrawer" aria-labelledby="drawerTitle"><button id="drawerClose" class="secondary" aria-label="Başarım detayını kapat">✕</button><div id="drawerContent"></div></dialog>
-<script src="/app.js"></script><script src="/ultimate.js"></script><script src="/inline.js"></script><script src="/art_transition.js"></script><script src="/ui/ultimate.js"></script>
+<script src="/app.js"></script><script src="/ultimate.js"></script><script src="/inline.js"></script><script src="/art_transition.js"></script><script src="/ui/shell.js"></script>
 </body>
 </html>
