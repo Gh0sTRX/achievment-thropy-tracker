@@ -111,7 +111,7 @@
         if (!confirm('Bu işlem mevcut yerel kütüphaneyi ' + count +
           ' başarım kaydıyla değiştirecek. Önceki durum recovery klasöründe saklanacak. Devam?')) return;
         status.textContent = 'Bütünlük ve oyun kimlikleri doğrulanıyor…';
-        const result = await api('/api/archive/restore', {archive:documentData});
+        const result = await api('/api/archive/restore', {archive:documentData, confirm:true});
         await reload();
         navigate('home');
         status.textContent = result.message;
