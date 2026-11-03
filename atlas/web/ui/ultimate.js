@@ -22,14 +22,14 @@
     if (['pc','steam','gog','epic'].includes(p)) return 'pc';
     return p === 'demo' ? 'demo' : 'other';
   };
-  let indexedLibrary=null, grouped=new Map(), allGames=[];
+  let indexedLibrary=null,indexedItems=null,indexedGames=null,grouped=new Map(),statsIndex=new Map(),allGames=[];
   function indexData(){
     const lib=typeof DATA==='undefined'?null:DATA.library;
-    if(lib!==indexedLibrary){indexedLibrary=lib;allGames=lib?.games||[];grouped=AtlasModel.index(lib?.achievements||[]);}
+    if(lib!==indexedLibrary||lib?.games!==indexedGames||lib?.achievements!==indexedItems){indexedLibrary=lib;indexedGames=lib?.games;indexedItems=lib?.achievements;allGames=lib?.games||[];grouped=AtlasModel.index(lib?.achievements||[]);statsIndex=new Map([...grouped].map(([id,items])=>[id,AtlasModel.progress(items)]));}
   }
   const gamesInLibrary=()=>{indexData();return allGames;};
   const achievementsFor=id=>{indexData();return grouped.get(id)||[];};
-  const gameStats=id=>AtlasModel.progress(achievementsFor(id));
+  const gameStats=id=>{indexData();return statsIndex.get(id)||AtlasModel.progress([])};
   const recommendations = () => Object.values(typeof PLATFORM_REPORTS==='undefined'?{}:PLATFORM_REPORTS).flatMap(x=>x.recommendations||[]).filter((r,i,a)=>a.findIndex(x=>x.achievement_id===r.achievement_id)===i);
   const userPins = () => new Set(typeof DATA === 'undefined' ? [] : DATA.state?.pins || []);
   const artworkStyle = (g, kind = 'hero') => {
@@ -61,6 +61,7 @@
   let hallFilter = 'all';
   let timelineDays = 90;
   let search = '';
+  let searchTimer=0,lastBackdropCSS=null;
   let gamePage=0,libraryPage=0;
   const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch (_) {} };
   const relevant = () => gamesInLibrary().filter(g => prefs.platform === 'all' || platformKey(g) === prefs.platform);
@@ -132,8 +133,23 @@
     $u('live').textContent = typeof DATA !== 'undefined' && DATA.status?.connected ? '● SERVİS OTURUMU' : '● YEREL KAYITLAR';
     $u('nav').querySelectorAll('[data-au-view]').forEach(b => b.classList.toggle('current', b.dataset.auView === prefs.view));
     const g = activeGame();
-    $u('backdrop').style = artworkStyle(g);
-    if (!g) $u('backdrop').style.backgroundImage = 'none';
+    const nextBackdropCSS = g ? artworkStyle(g) : '';
+    if(nextBackdropCSS !== lastBackdropCSS){
+      const backdrop=$u('backdrop');
+      const noMotion=prefs.motion==='reduce'||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      if(lastBackdropCSS && !noMotion){
+        backdrop.parentNode.querySelectorAll('.au-ambient-fading').forEach(el=>el.remove());
+        const fading=backdrop.cloneNode(false);
+        fading.removeAttribute('id');
+        fading.classList.add('au-ambient-fading');
+        backdrop.parentNode.insertBefore(fading,backdrop.nextSibling);
+        requestAnimationFrame(()=>fading.classList.add('au-fade-out'));
+        window.setTimeout(()=>fading.remove(),570);
+      }
+      backdrop.style.cssText=nextBackdropCSS;
+      if(!nextBackdropCSS)backdrop.style.backgroundImage='none';
+      lastBackdropCSS=nextBackdropCSS;
+    }
     const adj = lighting(g);
     $u('backdrop').style.setProperty('--au-brightness',String(adj.brightness));
     $u('backdrop').style.setProperty('--au-blur',adj.blur+'px');
@@ -239,7 +255,7 @@
     const ap=$u('art-image');const g=activeGame();if(ap&&g){const a=lighting(g);ap.style.filter=`brightness(${a.brightness}%) blur(${a.blur}px)`;ap.style.backgroundPosition=a.focus+'% center';}
   }
   function open() {createShell();focusReturn=document.activeElement;closeInline();opened=true;document.getElementById('app').inert=true;$u('root').setAttribute('role','dialog');$u('root').setAttribute('aria-modal','true');$u('root').setAttribute('aria-label','Atlas Ultimate');$u('root').hidden=false;document.body.classList.add('au-lock');render();$u('content').focus({preventScroll:true});}
-  function close() {closeConsole();opened=false;$u('root').hidden=true;document.body.classList.remove('au-lock');document.getElementById('app').inert=false;focusReturn?.focus?.({preventScroll:true});}
+  function close() {clearTimeout(searchTimer);closeConsole();opened=false;$u('root').hidden=true;document.body.classList.remove('au-lock');document.getElementById('app').inert=false;focusReturn?.focus?.({preventScroll:true});}
   function go(view) {if(!VIEWS.includes(view))return;closeInline();prefs.view=view;persist();render();$u('content').scrollTop=0;$u('content').focus({preventScroll:true});}
   function focusGame(gid){if(!relevant().some(g=>g.id===gid))return;closeInline();gamePage=0;prefs.focus=gid;prefs.view='game';persist();render();}
   function onClick(e) {
@@ -266,7 +282,7 @@
   }
   function onChange(e){if(e.target.id==='au-platform'){prefs.platform=PLATFORMS.includes(e.target.value)?e.target.value:'all';prefs.focus='';persist();render();}
     if(e.target.id==='au-mode'){prefs.mode=MODES.includes(e.target.value)?e.target.value:'cinematic';persist();render();}}
-  function onInput(e){if(e.target.dataset.auSearch!==undefined){const pos=e.target.selectionStart;search=e.target.value;libraryPage=0;const selection = document.activeElement===e.target;render();if(selection){$u('search')?.focus();$u('search')?.setSelectionRange(pos,pos);}return;}
+  function onInput(e){if(e.target.dataset.auSearch!==undefined){const pos=e.target.selectionStart;search=e.target.value;libraryPage=0;clearTimeout(searchTimer);searchTimer=setTimeout(()=>{if(!opened||prefs.view!=='library')return;const focused=document.activeElement?.id==='au-search';render();if(focused){$u('search')?.focus();$u('search')?.setSelectionRange(pos,pos)}},100);return;}
     const field=e.target.dataset.auLighting;if(!field)return;const g=activeGame();if(!g)return;const a=lighting(g);a[field]=Number(e.target.value);prefs.lighting[fileKey(g.id)]=a;persist();updateTheme();
     const preview=$u('art-image');if(preview){preview.style.filter=`brightness(${a.brightness}%) blur(${a.blur}px)`;preview.style.backgroundPosition=a.focus+'% center';}
     const output=$u('output-'+field);if(output)output.textContent=e.target.value+(field==='blur'?'px':'%');}

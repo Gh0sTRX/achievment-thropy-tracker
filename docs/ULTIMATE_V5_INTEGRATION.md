@@ -96,3 +96,11 @@ icon until the shortcut cache is refreshed by recreating that pin.
 
 Temporary browser fixtures/screenshots live only under work/v5 and /tmp. They are
 explicit test data and are not part of the distributed library or installer.
+
+## Concurrent V5.1 changes preserved
+
+Upstream PR #2 commits through 981e3d9 were merged without rewriting the remote
+branch. Their explicit numeric/month-name/AM-PM date parser, date regression tests,
+real cached-art crossfade and debounced search are retained. The index uses stable
+raw library/array references rather than filtered arrays, so it rebuilds once per
+reload; game statistics are cached alongside per-game achievement lists.
