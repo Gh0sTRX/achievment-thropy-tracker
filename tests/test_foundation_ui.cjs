@@ -40,4 +40,12 @@ assert.match(foundation, /textContent/);
 assert.match(foundation, /renderUpdates = function foundationRenderUpdates/);
 assert.match(server, /def update_blockers\(self\)/);
 assert.match(style, /atlas-welcome-options/);
-console.log('Foundation: five primary pages, preserved routes, honest onboarding, safe update-blocker UI passed');
+for (const id of ['atlasArchivePanel', 'atlasArchiveExport', 'atlasArchiveFile', 'atlasArchiveRestore', 'atlasArchiveStatus']) {
+  assert.match(html, new RegExp('id="' + id + '"'), 'local archive control: ' + id);
+}
+assert.match(foundation, /api\/archive\/export/);
+assert.match(foundation, /api\/archive\/restore/);
+assert.match(foundation, /confirm\(/, 'explicit destructive restore confirmation');
+assert.match(server, /'\/api\/archive\/restore'/);
+assert.match(server, /X-Atlas-Token/, 'all archive writes are authenticated');
+console.log('Foundation: navigation, onboarding, blockers and guarded archive controls passed');
