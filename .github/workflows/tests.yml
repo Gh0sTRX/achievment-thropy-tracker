@@ -25,4 +25,6 @@ jobs:
         with:
           node-version: '22'
       - name: JavaScript syntax
-        run: node --check atlas/web/app.js
+        run: |
+          node --check atlas/web/app.js
+          node --check atlas/web/ui/ultimate.js
