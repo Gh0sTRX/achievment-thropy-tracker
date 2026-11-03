@@ -19,3 +19,5 @@ body.low-memory #ambientBackdrop{background-image:none;filter:none}body.low-memo
 
 .featured-logo{display:block;max-width:280px;max-height:75px;object-fit:contain;object-position:left;margin-top:18px}.featured-logo:not(.hidden)+h2{font-size:26px;margin-top:14px}
 #ambientBackdrop{z-index:0}.app{position:relative;z-index:1}
+
+.missing-art{display:grid;place-items:center;border:1px dashed #526271;color:#8c9aa7;background:#111b25}
