@@ -28,6 +28,13 @@ body[data-skin=xmb] .atlas-welcome{background:#142d66c4;border-color:#6eb8ff}
 @media(max-width:650px){.atlas-welcome{padding:16px}.atlas-welcome-option{padding:13px}}
 @media(prefers-reduced-motion:reduce){.atlas-welcome-option{transition:none}}
 
+.atlas-archive-panel{margin-top:20px}
+.atlas-archive-panel>summary{cursor:pointer;font-weight:800}
+.atlas-archive-panel .detail-buttons{margin:12px 0}
+.atlas-archive-panel input[type=file]{display:block;max-width:100%;margin:10px 0}
+.atlas-archive-panel button:disabled{opacity:.6;cursor:wait}
+#atlasArchiveStatus{min-height:1.5em}
+
 /* Empty libraries show the honest first-run path instead of a wall of zero metrics. */
 body.atlas-empty-library #home > .featured,
 body.atlas-empty-library #home > .heading-row,
