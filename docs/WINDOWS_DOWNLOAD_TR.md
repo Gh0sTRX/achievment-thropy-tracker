@@ -32,3 +32,8 @@ Geçerli imza bile Chrome/SmartScreen uyarısının hemen kaybolacağını garan
 etmez. Sertifika/dosya itibarı ve tespit değerlendirmeleri ilgili güvenlik
 sağlayıcısına aittir. Bir tespit hatalıysa dosyanın yayımlayıcısı Google veya
 Microsoft'un resmi yanlış tespit inceleme sürecine başvurabilir.
+
+Derleme ortamında Windows Defender çalıştırılabiliyorsa kurulum dosyası ayrıca
+taranır. Sonuç `defender-report.json` içine yazılır. Tarayıcı kullanılamıyorsa
+bu durum temiz sonuç gibi gösterilmez. Bu yerel tarama Google Safe Browsing
+veya SmartScreen itibar kontrolünün yerine geçmez.

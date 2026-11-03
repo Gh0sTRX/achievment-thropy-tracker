@@ -79,6 +79,11 @@ jobs:
         run: |
           $setup = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
           ./scripts/sign_windows.ps1 -TargetPath $setup.FullName -Report dist/installer/installer-signing.json
+      - name: Record Windows Defender scan when available
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
+          ./scripts/scan_windows.ps1 -TargetPath $setup.FullName -Report dist/installer/defender-report.json
       - name: Verify installed application
         shell: pwsh
         run: |
