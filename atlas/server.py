@@ -57,7 +57,8 @@ class Controller:
         return {'revision':revision,'library':payload, 'recommendations':reports['all']['recommendations'],
                 'insights':reports['all']['insights'],'platform_reports':reports,
                 'providers':public_profiles.readiness(), 'guides_ready':guides.configured(),
-                'settings':settings.status(), 'data_status':self.data_status(), 'update':self.updates.snapshot()}
+                'settings':settings.status(), 'data_status':self.data_status(), 'update':self.updates.snapshot(),
+                'update_blockers':self.update_blockers()}
 
     def data_status(self):
         job = self.store.status.get('public_job') or {}
@@ -72,10 +73,29 @@ class Controller:
         if self.store.status.get('connected'): return {'state':'empty', 'message':'Xbox oturumu açık; henüz başarım indirilmedi. Gerçek verileri yenile.'}
         return {'state':'empty', 'message':'Henüz gerçek başarım verisi yok. Kullanıcı adını sorgula veya TrueAchievements CSV aktar. Örnek oyun gösterilmez.'}
 
+    def update_blockers(self):
+        """Human-readable active tasks; reporting does not reveal credentials."""
+        current = self.store.status
+        blockers = []
+        if self.public_guard.locked() or (current.get('public_job') or {}).get('running'):
+            blockers.append('Profil eşitlemesi')
+        if self.guide_guard.locked() or (current.get('guide_job') or {}).get('running'):
+            blockers.append('Türkçe rehber araştırması')
+        if self.media_guard.locked() or (current.get('media_job') or {}).get('running'):
+            blockers.append('Oyun görselleri indirmesi')
+        if (current.get('art_job') or {}).get('running'):
+            blockers.append('Başarım ikonları indirmesi')
+        if (current.get('job') or {}).get('running'):
+            blockers.append('Xbox eşitlemesi')
+        if current.get('login_running') or current.get('reconnect_running'):
+            blockers.append('Xbox oturum işlemi')
+        return blockers
+
     def install_update(self):
         if not self.allow_update_install:raise ValueError('Güncellemeyi masaüstü uygulamasından başlat.')
-        if self.public_guard.locked() or self.guide_guard.locked() or self.media_guard.locked() or self.store.status.get('login_running') or self.store.status.get('reconnect_running') or (self.store.status.get('job') or {}).get('running'):
-            raise ValueError('Güncellemeden önce çalışan eşitleme/indirme işlemlerinin bitmesini bekle.')
+        blockers = self.update_blockers()
+        if blockers:
+            raise ValueError('Güncelleme bekliyor: ' + ', '.join(blockers) + '. İşlemleri güvenle durdurup bitmesini bekle.')
         with self.store.lock:self.store.save()
         return self.updates.install()
 
@@ -499,13 +519,14 @@ class Handler(BaseHTTPRequestHandler):
         if path in ('/','/index.html'):
             body=(BASE/'web'/'index.html').read_text(encoding='utf-8').replace('__TOKEN__',self.server.token).encode('utf-8')
             return self.blob(body,'text/html; charset=utf-8')
-        if path in ('/ui/shell.js','/ui/shell.css','/ui/ultimate.js','/ui/ultimate.css','/app.js','/visuals.js','/ultimate.js','/model.js','/inline.js','/art_transition.js','/style.css','/ultimate.css'):
+        if path in ('/ui/foundation.js','/ui/foundation.css','/ui/shell.js','/ui/shell.css','/ui/ultimate.js','/ui/ultimate.css','/app.js','/visuals.js','/ultimate.js','/model.js','/inline.js','/art_transition.js','/style.css','/ultimate.css'):
             return self.blob((BASE/'web'/path[1:]).read_bytes(), 'text/javascript' if path.endswith('.js') else 'text/css')
         if path=='/brand/atlas-mark.svg':return self.blob((BASE.parent/'assets'/'atlas-mark.svg').read_bytes(),'image/svg+xml')
         if path=='/api/status':
             c=self.server.controller
             with c.store.lock:
-                return self.reply({'revision':c.store.revision,'status':c.store.status,'data_status':c.data_status(),'update':c.updates.snapshot()})
+                return self.reply({'revision':c.store.revision,'status':c.store.status,'data_status':c.data_status(),'update':c.updates.snapshot(),
+                                   'update_blockers':c.update_blockers()})
         if path=='/api/data':return self.reply(self.server.controller.status())
         if path=='/api/art/sources':return self.reply(artwork.sources())
         seg=path.split('/')
