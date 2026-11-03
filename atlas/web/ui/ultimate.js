@@ -113,6 +113,7 @@
   let timelineDays = 90;
   let search = '';
   let searchTimer = 0;
+  let lastBackdropCSS = null;
   const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch (_) {} };
   const relevant = () => gamesInLibrary().filter(g => prefs.platform === 'all' || platformKey(g) === prefs.platform);
   const activeGame = () => relevant().find(g => g.id === prefs.focus) || relevant()[0] || null;
@@ -182,8 +183,22 @@
     $u('live').textContent = typeof DATA !== 'undefined' && DATA.status?.connected ? '● XBOX BAĞLI' : '● YEREL MOD';
     $u('nav').querySelectorAll('[data-au-view]').forEach(b => b.classList.toggle('current', b.dataset.auView === prefs.view));
     const g = activeGame();
-    $u('backdrop').style = artworkStyle(g);
-    if (!g) $u('backdrop').style.backgroundImage = 'none';
+    const nextBackdropCSS = g ? artworkStyle(g) : '';
+    if(nextBackdropCSS !== lastBackdropCSS){
+      const backdrop=$u('backdrop');
+      const noMotion=prefs.motion==='reduce'||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      if(lastBackdropCSS && !noMotion){
+        const fading=backdrop.cloneNode(false);
+        fading.removeAttribute('id');
+        fading.classList.add('au-ambient-fading');
+        backdrop.parentNode.insertBefore(fading,backdrop.nextSibling);
+        requestAnimationFrame(()=>fading.classList.add('au-fade-out'));
+        window.setTimeout(()=>fading.remove(),570);
+      }
+      backdrop.style.cssText=nextBackdropCSS;
+      if(!nextBackdropCSS)backdrop.style.backgroundImage='none';
+      lastBackdropCSS=nextBackdropCSS;
+    }
     const adj = lighting(g);
     $u('backdrop').style.setProperty('--au-brightness',String(adj.brightness));
     $u('backdrop').style.setProperty('--au-blur',adj.blur+'px');
