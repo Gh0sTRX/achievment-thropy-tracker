@@ -3,7 +3,7 @@ import threading
 import time
 
 
-def open_window(url, smoke_report=None):
+def open_window(url, smoke_report=None, shutdown_event=None):
     import webview
     window = webview.create_window('Achievement Atlas', url, width=1500, height=950,
         min_size=(980, 640), background_color='#07130f', hidden=False)
@@ -27,14 +27,24 @@ def open_window(url, smoke_report=None):
             if not window.evaluate_js("switchPlatform('pc'); document.getElementById('platformNote').textContent.includes('planlanıyor')"):
                 raise RuntimeError('PC planned-state failed')
             window.evaluate_js("switchPlatform('psn'); navigate('account'); true")
+            window.evaluate_js("navigate('updates'); true")
+            if not window.evaluate_js("Boolean(document.getElementById('checkUpdate') && document.getElementById('installUpdate').classList.contains('hidden'))"):
+                raise RuntimeError('Update screen exposed an unverified installation')
+            window.evaluate_js("navigate('account'); true")
             if not window.evaluate_js("document.body.click(); page === 'account'"):
                 raise RuntimeError('Platform event scope changed the active page')
             from pathlib import Path
             import json
-            Path(smoke_report).write_text(json.dumps({'ok':True,'renderer':'edgechromium','checks':['native window','HTML loaded','JavaScript app ready','data status visible','11 artwork sources','platform switch','PC planned state','simple account screen']}), encoding='utf-8')
+            Path(smoke_report).write_text(json.dumps({'ok':True,'renderer':'edgechromium','checks':['native window','HTML loaded','JavaScript app ready','data status visible','11 artwork sources','platform switch','PC planned state','simple account screen','update screen blocks unverified install']}), encoding='utf-8')
         except Exception as exc:
             errors.append(str(exc))
         finally:
             window.destroy()
-    webview.start(verify if smoke_report else None, gui='edgechromium')
+    closed=threading.Event()
+    window.events.closed += lambda:closed.set()
+    def watch_update():
+        while not closed.wait(.2):
+            if shutdown_event is not None and shutdown_event.is_set():
+                window.destroy();return
+    webview.start(verify if smoke_report else watch_update, gui='edgechromium')
     if errors:raise RuntimeError('; '.join(errors))

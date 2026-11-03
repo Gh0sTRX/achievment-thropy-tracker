@@ -15,6 +15,7 @@ on:
       - '.github/workflows/windows-package.yml'
   push:
     branches: [main]
+    tags: ['v*']
     paths:
       - 'atlas/**'
       - 'tests/**'
@@ -44,6 +45,12 @@ jobs:
         run: python -m pip install -r requirements-windows.txt
       - name: Run tests with real SDKs installed
         run: python -m unittest discover -s tests -v
+      - name: Validate update helper syntax
+        shell: pwsh
+        run: |
+          $tokens=$null; $errors=$null
+          [Management.Automation.Language.Parser]::ParseFile((Resolve-Path scripts/apply_update.ps1),[ref]$tokens,[ref]$errors) | Out-Null
+          if ($errors.Count) { $errors | Format-List; throw 'Update helper syntax error' }
       - name: Build standalone application
         run: python -m PyInstaller --noconfirm packaging/windows.spec
       - name: Sign application when a trusted certificate is configured
@@ -79,6 +86,11 @@ jobs:
         run: |
           $setup = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
           ./scripts/sign_windows.ps1 -TargetPath $setup.FullName -Report dist/installer/installer-signing.json
+      - name: Generate verified update channel manifest
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
+          python scripts/build_update_manifest.py $setup.FullName
       - name: Record Windows Defender scan when available
         shell: pwsh
         run: |
@@ -100,15 +112,49 @@ jobs:
         run: |
           Copy-Item KURULUM.txt dist\AchievementAtlas\
           Copy-Item LICENSE dist\AchievementAtlas\
-          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.10.0-Windows-x64-Portable.zip
-          Compress-Archive preview -DestinationPath dist\installer\AchievementAtlas-0.10.0-Preview.zip
+          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.11.0-Windows-x64-Portable.zip
+          Compress-Archive preview -DestinationPath dist\installer\AchievementAtlas-0.11.0-Preview.zip
           Copy-Item app-signing.json dist/installer/
           Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json dist\installer\
           Get-ChildItem dist\installer\*.exe,dist\installer\*.zip | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist\installer\SHA256SUMS.txt
           python -m pip freeze | Set-Content dist\installer\dependencies.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: AchievementAtlas-0.10.0-Windows-x64
+          name: AchievementAtlas-0.11.0-Windows-x64
           path: dist/installer/*
           retention-days: 30
           if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: AchievementAtlas-0.11.0-Windows-x64
+          path: release-files
+      - name: Require a signed, matching stable release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PYTHON'
+          import json,os,hashlib
+          from pathlib import Path
+          root=Path('release-files')
+          manifest=json.loads((root/'update-manifest.json').read_text())
+          assert manifest['signed'] is True, 'Unsigned development artifacts cannot become automatic updates'
+          assert os.environ['RELEASE_TAG']=='v'+manifest['version'], 'Tag/version mismatch'
+          installer=root/manifest['installer']
+          assert installer.stat().st_size==manifest['size']
+          assert hashlib.sha256(installer.read_bytes()).hexdigest()==manifest['sha256']
+          PYTHON
+      - name: Publish stable GitHub update channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" release-files/* --verify-tag --title "Achievement Atlas $RELEASE_TAG" --generate-notes

@@ -18,7 +18,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit
 from .core import Library,normalize
 from . import recommendations,artwork
-from . import xbox, public_profiles, guides, settings, media_sync
+from . import xbox, public_profiles, guides, settings, media_sync, updater
 
 BASE=Path(__file__).resolve().parent
 
@@ -32,6 +32,9 @@ class Controller:
         self.guide_guard=threading.Lock()
         self.guide_stop=threading.Event()
         self.media_guard=threading.Lock()
+        self.updates=updater.Updater(self.store.root)
+        self.allow_update_install=False
+        self.action_guard=threading.RLock()
 
     def status(self):
         payload=self.store.payload();library=payload['library'];pins=payload['state']['pins']
@@ -44,7 +47,7 @@ class Controller:
         return {'library':payload, 'recommendations':recommendations.rank(library,pins),
                 'insights':recommendations.insights(library),'platform_reports':reports,
                 'providers':public_profiles.readiness(), 'guides_ready':guides.configured(),
-                'settings':settings.status(), 'data_status':self.data_status()}
+                'settings':settings.status(), 'data_status':self.data_status(), 'update':self.updates.snapshot()}
 
     def data_status(self):
         job = self.store.status.get('public_job') or {}
@@ -58,6 +61,13 @@ class Controller:
         if count: return {'state':'stored', 'message':f"{count} kaynak kaydı · Son eşitleme: {self.store.state.get('sync_at') or 'CSV içe aktarımı'}"}
         if self.store.status.get('connected'): return {'state':'empty', 'message':'Xbox oturumu açık; henüz başarım indirilmedi. Gerçek verileri yenile.'}
         return {'state':'empty', 'message':'Henüz gerçek başarım verisi yok. Kullanıcı adını sorgula veya TrueAchievements CSV aktar. Örnek oyun gösterilmez.'}
+
+    def install_update(self):
+        if not self.allow_update_install:raise ValueError('Güncellemeyi masaüstü uygulamasından başlat.')
+        if self.public_guard.locked() or self.guide_guard.locked() or self.media_guard.locked() or self.store.status.get('login_running') or self.store.status.get('reconnect_running') or (self.store.status.get('job') or {}).get('running'):
+            raise ValueError('Güncellemeden önce çalışan eşitleme/indirme işlemlerinin bitmesini bekle.')
+        with self.store.lock:self.store.save()
+        return self.updates.install()
 
     def sync_linked_profile(self):
         profile = self.store.state.get('linked_profile') or {}
@@ -483,9 +493,15 @@ class Handler(BaseHTTPRequestHandler):
                '/api/xbox/map':self.server.controller.xbox_map,
                '/api/xbox/sync':self.server.controller.xbox_sync,
                '/api/icons':self.server.controller.cache_icons,
+               '/api/update/check':lambda d:self.server.controller.updates.check(),
+               '/api/update/download':lambda d:self.server.controller.updates.download(),
+               '/api/update/install':lambda d:self.server.controller.install_update(),
             }
             if path not in methods:return self.reply({'error':'Unknown action'},404)
-            return self.reply(methods[path](data))
+            with self.server.controller.action_guard:
+                if self.server.controller.updates.snapshot().get('state')=='installing':raise ValueError('Güncelleme kuruluyor; uygulamanın yeniden açılmasını bekle.')
+                result=methods[path](data)
+            return self.reply(result)
         except (ValueError,KeyError,xbox.DirectError,urllib.error.HTTPError,urllib.error.URLError) as e:
             return self.reply({'error':str(e)[:350]},400)
         except Exception:
@@ -507,12 +523,16 @@ class LocalApp(ThreadingHTTPServer):
 def main(browser=False, root=None, desktop_report=None):
     app=LocalApp(root)
     t=threading.Thread(target=app.serve_forever,daemon=True);t.start()
+    app.controller.allow_update_install=not browser and not desktop_report
+    if not desktop_report:app.controller.updates.check()
     if not desktop_report and app.controller.store.state.get('linked_profile') and xbox.has_tokens():
         def resume():
+            app.controller.store.status['reconnect_running']=True
             try:app.controller.xbox_reconnect()
             except Exception as exc:
                 message=str(exc) if type(exc) in (ValueError,xbox.DirectError) else type(exc).__name__
                 app.controller.store.status['public_job']={'running':False,'error':'Xbox yenilemesi başarısız: '+message[:250]}
+            finally:app.controller.store.status['reconnect_running']=False
         threading.Thread(target=resume,daemon=True).start()
     try:
         if browser:
@@ -520,7 +540,7 @@ def main(browser=False, root=None, desktop_report=None):
             input('Uygulamayi kapatmak icin Enter tusuna bas...')
         else:
             from .desktop import open_window
-            open_window(app.url, smoke_report=desktop_report)
+            open_window(app.url, smoke_report=desktop_report, shutdown_event=app.controller.updates.exit_requested)
     finally:
         app.shutdown()
         app.server_close()

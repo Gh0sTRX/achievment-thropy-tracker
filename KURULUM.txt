@@ -1,4 +1,4 @@
-ACHIEVEMENT ATLAS 0.10.0 — WINDOWS KURULUMU
+ACHIEVEMENT ATLAS 0.11.0 — WINDOWS KURULUMU
 
 Hazır Setup.exe paketi Windows 10/11 64 bit içindir. Python veya yönetici
 izni gerekmez. Kurulum dosyasını aç, adımları tamamla, masaüstündeki
@@ -90,3 +90,15 @@ Rehber servisleri ayarliysa tum eksik rehberler esitlemeden sonra arastirilir.
 Kaynak bulunamayan basarim digerlerinin arastirilmasini engellemez.
 Bu paket guvenilir yayinci sertifikasi olmadigi icin imzasizdir. Chrome veya
 SmartScreen uyarilarinin kalktigi iddia edilmez; korumayi kapatman onerilmez.
+
+0.11 UYGULAMA ICI GUNCELLEME
+Guncellemeler ekranindan GitHub Releases kararlı surumlerini kontrol edebilirsin.
+Yeni surum varsa indir, dogrulandiktan sonra Kur ve yeniden baslat dugmesini
+kullan. Calisan esitleme islemleri tamamlanmadan kurulum baslatilmaz. Veriler
+korunur ve onceki uygulama dosyalari yedeklenir.
+Bu ozellik Actions ZIP dosyalarini guncelleme kanali olarak kullanmaz. Yayinlanan
+kurulumun SHA256, boyut ve ayni guvenilir yayinci imzasi dogrulanir. Imzasiz
+gelistirme paketleri otomatik kurulmaz. Ilk imzali surum elle kurulmalidir.
+Bu ozellik Chrome/SmartScreen korumasini atlatmaz. Kod imzalama erisimi henuz
+kurulmadiysa ve imzali GitHub Release yoksa otomatik kurulum etkin olmaz.
+Kaynak ve tasinabilir surumler bu otomatik Setup akisina dahil degildir.

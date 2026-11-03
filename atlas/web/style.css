@@ -21,3 +21,5 @@ body.low-memory #ambientBackdrop{background-image:none;filter:none}body.low-memo
 #ambientBackdrop{z-index:0}.app{position:relative;z-index:1}
 
 .missing-art{display:grid;place-items:center;border:1px dashed #526271;color:#8c9aa7;background:#111b25}
+
+.update-notes{white-space:pre-wrap;font:13px/1.7 inherit;color:#bac9d6;max-height:300px;overflow:auto}.update-notes:empty{display:none}#updateProgress{width:100%;height:12px;margin:10px 0 20px;accent-color:var(--lime)}

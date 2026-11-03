@@ -12,7 +12,7 @@ for package in ('xbox', 'psnawp_api', 'pycountry', 'certifi', 'webview'):
 
 a = Analysis([str(root / 'run.py')], pathex=[str(root)],
     binaries=extra_binaries,
-    datas=[(str(root / 'atlas' / 'web'), 'atlas/web'), (str(root / 'spec' / 'COMMUNITY_ART_SOURCES.json'), 'spec')] + extra_data,
+    datas=[(str(root / 'atlas' / 'web'), 'atlas/web'), (str(root / 'spec' / 'COMMUNITY_ART_SOURCES.json'), 'spec'), (str(root / 'scripts' / 'apply_update.ps1'), 'scripts')] + extra_data,
     hiddenimports=hidden, hookspath=[], hooksconfig={}, runtime_hooks=[],
     excludes=['pytest'], noarchive=False)
 pyz = PYZ(a.pure)
