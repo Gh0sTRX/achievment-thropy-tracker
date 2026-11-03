@@ -140,15 +140,31 @@ class Library:
                 old=item['unlock_time'];normal=normalize_unlock(old)
                 if normal!=old:
                     item.setdefault('unlock_time_raw',old);item['unlock_time']=normal;migrated=True
-        if migrated:self.save()
+        if migrated:
+            self._backup_migration()
+            self.save()
         self.live_artwork={}
         self.steamgriddb_key=None
         self.status={'connected':False,'message':'No platform session','job':None,'art_job':None}
 
+    def _backup_migration(self):
+        # Preserve exact original bytes (including unknown fields) before v0.14 normalization.
+        for original in (self.library_path,self.state_path):
+            backup=original.with_name('migration-v014-'+original.name)
+            if original.exists() and not backup.exists():
+                try:
+                    with backup.open('xb') as output:output.write(original.read_bytes())
+                except FileExistsError:pass
+
     @staticmethod
     def _read(p,default):
-        try:return json.loads(p.read_text(encoding='utf-8'))
-        except (OSError,ValueError):return deepcopy(default)
+        try:
+            value=json.loads(p.read_text(encoding='utf-8'))
+            if not isinstance(value,dict):raise ValueError('Expected an object')
+            return value
+        except FileNotFoundError:return deepcopy(default)
+        except (OSError,ValueError) as exc:
+            raise ValueError('Yerel JSON arşivi okunamadı: '+p.name+'. Dosya değiştirilmedi; yedeğini kontrol et.') from exc
 
     def save(self):
         self.revision+=1

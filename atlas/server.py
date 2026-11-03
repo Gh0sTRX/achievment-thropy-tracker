@@ -22,6 +22,9 @@ from . import xbox, public_profiles, guides, settings, media_sync, updater, sync
 
 BASE=Path(__file__).resolve().parent
 
+def safe_error(exc,limit=250):
+    return (str(exc) if type(exc) in (ValueError,xbox.DirectError) else type(exc).__name__)[:limit]
+
 class Controller:
     def __init__(self,root=None):
         self.store=Library(root)
@@ -41,7 +44,9 @@ class Controller:
         self.action_guard=threading.RLock()
 
     def status(self):
-        payload=self.store.payload();library=payload['library'];pins=payload['state']['pins']
+        with self.store.lock:
+            payload=self.store.payload();revision=self.store.revision
+        library=payload['library'];pins=payload['state']['pins']
         reports={}
         for platform in ('xbox','psn','pc'):
             games=[g for g in library['games'] if g.get('platform')==platform]
@@ -49,8 +54,8 @@ class Controller:
             scoped={**library,'games':games,'achievements':[a for a in library['achievements'] if a['game_id'] in ids]}
             reports[platform]={'recommendations':recommendations.rank(scoped,pins),'insights':recommendations.insights(scoped)}
         reports['all']={'recommendations':recommendations.rank(library,pins),'insights':recommendations.insights(library)}
-        return {'revision':self.store.revision,'library':payload, 'recommendations':recommendations.rank(library,pins),
-                'insights':recommendations.insights(library),'platform_reports':reports,
+        return {'revision':revision,'library':payload, 'recommendations':reports['all']['recommendations'],
+                'insights':reports['all']['insights'],'platform_reports':reports,
                 'providers':public_profiles.readiness(), 'guides_ready':guides.configured(),
                 'settings':settings.status(), 'data_status':self.data_status(), 'update':self.updates.snapshot()}
 
@@ -115,7 +120,7 @@ class Controller:
                     self.store.status['public_job']['message']='Profil kaydedildi; sonraki indirmeler durduruldu.'
                     return
                 self.download_media()
-                if guides.configured() and not self.public_stop.is_set():
+                if settings.get('ATLAS_AUTO_GUIDES','0') == '1' and guides.configured() and not self.public_stop.is_set():
                     try:self.generate_guides({'platform': platform})
                     except ValueError as exc:self.store.status['public_job']['message'] += ' '+str(exc)
             except sync_control.Cancelled:
@@ -177,12 +182,15 @@ class Controller:
                         self.store.status['guide_job']['error'] = 'Araştırma durduruldu; tamamlanan rehberler korundu.'
                         break
                     try:
-                        guide = guides.create(a)
+                        guide = guides.create(a, stop=self.guide_stop.is_set)
                         with self.store.lock:
                             current = next((x for x in self.store.library['achievements'] if x['id'] == a['id']), None)
                             if current and guides.fingerprint(current) == guides.fingerprint(a):
                                 current['guide'] = guide
                                 self.store.save()
+                    except guides.Cancelled:
+                        self.store.status['guide_job'].update(cancelled=True,error='Araştırma durduruldu; tamamlanan rehberler korundu.')
+                        break
                     except Exception as exc:
                         job=self.store.status['guide_job']
                         job.setdefault('failures',[]).append({'id':a['id'],'reason':str(exc)[:180] if type(exc) is ValueError else type(exc).__name__})
@@ -361,7 +369,7 @@ class Controller:
                     store.save()
                 self.sync_linked_profile()
             except Exception as exc:
-                store.status.update({'connected':False,'message':'Xbox sign-in failed: '+str(exc)[:280]})
+                store.status.update({'connected':False,'message':'Xbox sign-in failed: '+safe_error(exc,280)})
             finally:
                 store.status['login_running']=False;callback.server_close()
         threading.Thread(target=worker,daemon=True).start()
@@ -393,7 +401,7 @@ class Controller:
         gid=str(data.get('game_id','')); tid=str(data.get('title_id',''))
         game=next((g for g in self.store.library['games'] if g['id']==gid),None)
         candidate=next((x for x in self.active_matches if x['titleId']==tid),None)
-        if not game or not candidate:raise ValueError('Choose a discovered title first')
+        if not game or game.get('platform')!='xbox' or not candidate:raise ValueError('Choose a discovered Xbox title first')
         if normalize(game['name'])!=normalize(candidate['name']):
             raise ValueError('Different title name; automatic unsafe mapping prevented')
         with self.store.lock:
@@ -414,7 +422,7 @@ class Controller:
         if target and target['id']!=str(linked.get('xuid','')):
             raise ValueError('Bu arşiv herkese açık hedef profile ait. Kullanıcı adıyla yenileme düğmesini kullan.')
         gid=str(data.get('game_id',''))
-        games=[g for g in self.store.library['games'] if g.get('title_id') and (not gid or g['id']==gid)]
+        games=[g for g in self.store.library['games'] if g.get('platform')=='xbox' and g.get('title_id') and (not gid or g['id']==gid)]
         if not games:raise ValueError('Map a title ID first')
         if self.store.status.get('job',{}).get('running'):raise ValueError('Sync already running')
         self.xbox_stop.clear()
@@ -431,11 +439,11 @@ class Controller:
                             report=self.store.apply_live_game(game['id'],records)
                             self.store.status['message']=f"{game['name']} · {report['updated']} newly earned"
                         except Exception as e:
-                            self.store.status['job']['errors'].append({'game':game['name'],'reason':str(e)[:100]})
+                            self.store.status['job']['errors'].append({'game':game['name'],'reason':safe_error(e,100)})
                             if any(x in str(e) for x in ('429','403','401')):break
                         finally:self.store.status['job']['done']=index+1
             try:asyncio.run(sync())
-            except Exception as e:self.store.status['message']='Sync failed: '+str(e)[:250]
+            except Exception as e:self.store.status['message']='Sync failed: '+safe_error(e)
             finally:self.store.status['job']['running']=False
         threading.Thread(target=worker,daemon=True).start()
         return {'message':'Xbox sync started. Existing earned achievements will not be revoked.'}
@@ -491,7 +499,7 @@ class Handler(BaseHTTPRequestHandler):
         if path in ('/','/index.html'):
             body=(BASE/'web'/'index.html').read_text(encoding='utf-8').replace('__TOKEN__',self.server.token).encode('utf-8')
             return self.blob(body,'text/html; charset=utf-8')
-        if path in ('/ui/ultimate.js','/ui/ultimate.css','/app.js','/visuals.js','/ultimate.js','/model.js','/inline.js','/style.css','/ultimate.css'):
+        if path in ('/ui/ultimate.js','/ui/ultimate.css','/app.js','/visuals.js','/ultimate.js','/model.js','/inline.js','/art_transition.js','/style.css','/ultimate.css'):
             return self.blob((BASE/'web'/path[1:]).read_bytes(), 'text/javascript' if path.endswith('.js') else 'text/css')
         if path=='/brand/atlas-mark.svg':return self.blob((BASE.parent/'assets'/'atlas-mark.svg').read_bytes(),'image/svg+xml')
         if path=='/api/status':

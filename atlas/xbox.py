@@ -209,7 +209,7 @@ async def fetch_title_achievements(client,xuid,title_id: str,platform='auto'):
         except Exception as e:
             err=str(e)
             if any(code in err for code in ('429','401','403')):
-                raise DirectError('Xbox servisi erişimi reddetti/limit uyguladı: '+type(e).__name__+' ('+err[:120]+')') from e
+                raise DirectError('Xbox servisi erişimi reddetti/limit uyguladı: '+type(e).__name__) from e
             failures.append(f'{p}: {type(e).__name__}')
     raise DirectError('Başarımlar alınamadı; '+(', '.join(failures) if failures else 'Yanıt boş.'))
 

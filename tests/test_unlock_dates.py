@@ -38,3 +38,13 @@ class DateTests(unittest.TestCase):
         self.assertEqual(a['unlock_time_raw'],'03/04/2026')
 
 if __name__=='__main__':unittest.main()
+
+class AuditDateTests(unittest.TestCase):
+    def test_public_normalizers_agree_for_excel_and_real_months(self):
+        from atlas.dates import normalize_unlock
+        for raw in ('45292','45292.5','03-Nov-2026','3 November 2026'):
+            self.assertEqual(normalize_unlock(raw),normalize_unlock_date(raw));self.assertTrue(normalize_unlock(raw))
+        self.assertEqual(normalize_unlock_date('45292.5'),'2024-01-01T12:00:00')
+    def test_invalid_month_prefix_and_clock_rejected(self):
+        for raw in ('3 Novgarbage 2026','2026-11-03T24:00:00Z','2026-11-03T01:60:00+03:00','2026-11-03T01:00:60Z'):
+            self.assertEqual(normalize_unlock_date(raw),'')

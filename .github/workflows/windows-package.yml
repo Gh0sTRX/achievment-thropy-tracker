@@ -57,6 +57,7 @@ jobs:
           node --check atlas/web/inline.js
           node --check atlas/web/ui/ultimate.js
           node tests/test_ui_model.cjs
+          node tests/test_art_transition.cjs
       - name: Validate update helper syntax
         shell: pwsh
         run: |

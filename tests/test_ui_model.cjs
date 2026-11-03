@@ -12,3 +12,4 @@ assert.equal(m.timeline([{unlocked:true,unlock_time:'bad'},{unlocked:false,unloc
 assert.equal(m.secret({hidden:true,unlocked:false}),true);assert.equal(m.secret({hidden:true,unlocked:true}),false);
 assert.deepEqual(games.map(g=>g.id),['360','win','ios','ps4','pc']);console.log('UI projections: scope, editions, 15k records, honest metrics, completion, measured progress, timeline and spoilers passed');
 assert.equal(m.date('03/11/2026'),null);assert.equal(m.date('2026-02-30'),null);assert.equal(m.date('2026-11-03').getDate(),3);assert.equal(m.date('2026-11-03T23:30:00+03:00').toISOString(),'2026-11-03T20:30:00.000Z');
+assert.equal(m.date('3 Novgarbage 2026'),null);assert.equal(m.date('2026-11-03T24:00:00Z'),null);assert.equal(m.date('2026-11-03T01:60:00Z'),null);assert.equal(m.date('2026-11-03T01:00:60Z'),null);

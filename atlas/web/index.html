@@ -90,8 +90,8 @@
         <p class="helper">Xbox veya PSN alanından yalnızca kullanacağın platformu ayarla. Bunlar hedef oyuncunun şifresi değildir. Hazır bir servis erişimin yoksa canlı eşitleme çalışmaz; TrueAchievements CSV dosyalarını içe aktarabilirsin. Daha önce Xbox oturumu açtıysan dosya yolu girmen gerekmez.</p>
         <div class="formline"><label>Türkçe rehber · Brave Search API<input id="settingBrave" type="password" autocomplete="new-password" placeholder="İsteğe bağlı arama servisi anahtarı"></label><label>Türkçe rehber · OpenAI API<input id="settingOpenai" type="password" autocomplete="new-password" placeholder="İsteğe bağlı model servisi anahtarı"></label></div>
         <label class="form-label">Rehber modeli<input id="settingModel" value="gpt-4.1-mini" maxlength="100"></label>
-        <input id="settingAutoGuides" type="checkbox" class="hidden"><p class="helper">Rehber servisleri ayarlıysa profil eşitlemesinden sonra eksik rehberler otomatik hazırlanır. İstersen çalışan araştırmayı profil ekranından durdurabilirsin.</p>
-        <p class="helper">Arama ve model servisleri ücretlidir. Rehber servisleri ayarlıysa eşitlemeden sonra otomatik araştırma yapılır. Açarsan her yeni kupa için ücretli istekler yapılabilir; oyun detayından yalnızca seçtiğin oyunu da araştırabilirsin.</p>
+        <label class="auto-guide-choice"><input id="settingAutoGuides" type="checkbox"> Profil eşitlemesinden sonra otomatik Türkçe rehber üretimini etkinleştir</label><p class="helper">Varsayılan kapalıdır. Bu seçeneği açıp ayarları kaydedersen yeni kupalar için Brave Search ve OpenAI ücretli çağrıları yapılabilir. Anahtarların kayıtlı olması tek başına otomatik üretim başlatmaz.</p>
+        <p class="helper">Arama ve model servisleri ücretli olabilir. Otomatik üretim kapalıyken oyun detayındaki veya profilindeki rehber düğmeleriyle elle araştırma başlatabilirsin. Durdurma, devam eden isteğin bitmesini bekler ve sonraki servis isteğini engeller.</p>
         <button id="saveSettings" class="cta">AYARLARI KAYDET</button><button id="clearSettings" class="secondary">KAYITLI SERVİS BİLGİLERİNİ SİL</button>
         <p class="helper">Boş bıraktığın alanlar korunur. Anahtarlar geri gösterilmez. Windows'ta kullanıcı hesabınla şifrelenir. Ortam değişkenleriyle verilen ayarlar önceliklidir.</p>
       </details>
@@ -104,6 +104,6 @@
 <script src="/model.js"></script>
 <script src="/visuals.js"></script>
 <dialog id="achievementDrawer" aria-labelledby="drawerTitle"><button id="drawerClose" class="secondary" aria-label="Başarım detayını kapat">✕</button><div id="drawerContent"></div></dialog>
-<script src="/app.js"></script><script src="/ultimate.js"></script><script src="/inline.js"></script><script src="/ui/ultimate.js"></script>
+<script src="/app.js"></script><script src="/ultimate.js"></script><script src="/inline.js"></script><script src="/art_transition.js"></script><script src="/ui/ultimate.js"></script>
 </body>
 </html>

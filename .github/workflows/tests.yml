@@ -35,3 +35,5 @@ jobs:
           node --check atlas/web/inline.js
           node --check atlas/web/model.js
           node tests/test_ui_model.cjs
+          node --check atlas/web/art_transition.js
+          node tests/test_art_transition.cjs

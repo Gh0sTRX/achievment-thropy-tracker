@@ -61,7 +61,7 @@
   let hallFilter = 'all';
   let timelineDays = 90;
   let search = '';
-  let searchTimer=0,lastBackdropCSS=null;
+  let searchTimer=0,artTransition=null;
   let gamePage=0,libraryPage=0;
   const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch (_) {} };
   const relevant = () => gamesInLibrary().filter(g => prefs.platform === 'all' || platformKey(g) === prefs.platform);
@@ -133,27 +133,16 @@
     $u('live').textContent = typeof DATA !== 'undefined' && DATA.status?.connected ? '● SERVİS OTURUMU' : '● YEREL KAYITLAR';
     $u('nav').querySelectorAll('[data-au-view]').forEach(b => b.classList.toggle('current', b.dataset.auView === prefs.view));
     const g = activeGame();
-    const nextBackdropCSS = g ? artworkStyle(g) : '';
-    if(nextBackdropCSS !== lastBackdropCSS){
-      const backdrop=$u('backdrop');
-      const noMotion=prefs.motion==='reduce'||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      if(lastBackdropCSS && !noMotion){
-        backdrop.parentNode.querySelectorAll('.au-ambient-fading').forEach(el=>el.remove());
-        const fading=backdrop.cloneNode(false);
-        fading.removeAttribute('id');
-        fading.classList.add('au-ambient-fading');
-        backdrop.parentNode.insertBefore(fading,backdrop.nextSibling);
-        requestAnimationFrame(()=>fading.classList.add('au-fade-out'));
-        window.setTimeout(()=>fading.remove(),570);
-      }
-      backdrop.style.cssText=nextBackdropCSS;
-      if(!nextBackdropCSS)backdrop.style.backgroundImage='none';
-      lastBackdropCSS=nextBackdropCSS;
-    }
+    if(!artTransition)artTransition=new AtlasArtTransition($u('backdrop'),url=>{
+      if(/^\/art\/(?:hero|cover|banner|screenshot)\/[a-zA-Z0-9:_-]{2,120}\/file(?:\?[^#]*)?$/.test(url))return true;
+      return ['hero','cover','banner','screenshot'].some(kind=>visualUrl(activeGame(),kind)===url);
+    });
+    const artUrl=g?visualUrl(g,'hero')||visualUrl(g,'banner')||visualUrl(g,'screenshot')||visualUrl(g,'cover'):'';
+    artTransition.show(artUrl,prefs.motion==='reduce'||!!DATA.state.ui?.reduced_motion||matchMedia('(prefers-reduced-motion:reduce)').matches);
     const adj = lighting(g);
     $u('backdrop').style.setProperty('--au-brightness',String(adj.brightness));
     $u('backdrop').style.setProperty('--au-blur',adj.blur+'px');
-    $u('backdrop').style.backgroundPosition = adj.focus+'% center';
+    $u('backdrop').style.setProperty('--au-image-focus',adj.focus+'% center');
   }
   function lighting(g) {
     const a = g && prefs.lighting[fileKey(g.id)] || {};
