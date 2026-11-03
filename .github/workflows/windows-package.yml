@@ -56,6 +56,8 @@ jobs:
         run: |
           node --check atlas/web/inline.js
           node --check atlas/web/ui/ultimate.js
+          node --check atlas/web/ui/shell.js
+          node tests/test_unified_shell.cjs
           node tests/test_ui_model.cjs
           node tests/test_art_transition.cjs
       - name: Validate update helper syntax

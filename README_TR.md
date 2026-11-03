@@ -96,3 +96,8 @@ kupa önbelleğini kullanmadan sorgular. [Değişiklikler ve testler](docs/ULTIM
 - Yayın kanalı: **development prerelease**, Windows Authenticode imzası garanti değildir. GitHub/Sigstore köken kanıtı uygulamanın kendi güncelleme doğrulaması içindir, Windows yayıncı sertifikası değildir.
 
 [0.14.1 sürüm notları](docs/RELEASE_NOTES_0_14_1_TR.md) · [V5.1 denetimi](docs/ATLAS_V5_1_INTEGRATION_AUDIT_TR.md)
+
+
+## Birleşik yerel temalar (inceleme dalı)
+
+`feature/unified-native-themes` dalında ikinci Atlas Ultimate uygulama katmanı devre dışı bırakıldı. Cinematic, 360 Blades, 360 NXE ve PS3 XMB görünümü asıl masaüstü arayüzünün üst çubuğundan seçilir. Her tema aynı Atlas Hub, Oyun Kütüphanesi, Başarım Kasası, Hedef Panosu, Koleksiyon Müzesi, Zaman Çizelgesi, Oyuncu Profili, Oyun Görselleri ve Güncellemeler ekranlarını biçimlendirir. Platform filtresi ve renk kimliği temalardan ayrıdır. Console Mode, `Alt+C` veya üstteki düğmeyle açılan tek bağımsız tam ekran deneyimdir. Bu inceleme dalı henüz GitHub Release'te yayımlanmış sürüm değildir.
