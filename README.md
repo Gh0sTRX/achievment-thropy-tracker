@@ -1,80 +1,45 @@
-> **Yeni:** Kullanıcı adıyla Xbox / PlayStation profil eşitleme, özgün kupa ikonları ve kaynak bağlantılı Türkçe rehber akışı eklendi. Servis kurulumu ve canlı doğrulama sınırları: [Kurulum](docs/PUBLIC_PROFILES_TR.md). Aşağıdaki OAuth/CSV açıklamaları mevcut alternatif akışları anlatır.
-
 # Achievement Atlas
 
-**A local-first, open-source achievement companion for PC gamers.** Track your games, unlocks, next goals, and artwork in a console-inspired desktop interface. Xbox is the first supported platform; the data model is designed for future adapters, including PlayStation where legitimate access is available.
+**A local-first, open-source Windows achievement and trophy companion.** Achievement Atlas brings your recorded Xbox and PlayStation activity into a cinematic desktop interface with game libraries, achievement details, a Quest Board, a collection museum, and user-chosen *real* game artwork.
 
-> **Status: v0.5 pre-release / community prototype.** CSV import and the local UI are tested. Direct Microsoft/Xbox sign-in, Xbox Live synchronization, and third-party artwork downloads require real accounts/network access and have **not** been end-to-end verified in this release. This is not affiliated with Microsoft, Xbox, Sony or TrueAchievements.
+> **Development build v0.14.1 (pre-release).** The core import and UI have automated test coverage. Network-dependent Xbox and PSN public-profile adapters require a separately authorized operator session and have **not** been verified end-to-end with a real target account. PC/Steam achievements remain **planned**; platform filters do not imply a live account integration. This is an independent community project, not affiliated with Microsoft, Sony, Valve, TrueAchievements or SignPath.
 
-## What's working
+## What works in the source
 
-- **Your account, not a hard-coded gamer profile:** start with a fictional four-game demo, or import your own earned and locked **TrueAchievements CSV** exports.
-- **Discover your next goal:** transparent, rule-based recommendations; pinned targets, near-completion titles, higher Gamerscore possibilities, and warnings about achievements marked unavailable in the imported dataset.
-- **Honest progress labels:** measurable per-achievement progress appears only if an API actually supplies current/target progress. TrueAchievements rarity ratios are **not** assumed to be difficulty or time estimates.
-- **Xbox connection (experimental):** an optional [OpenXbox/xbox-webapi-python](https://github.com/OpenXbox/xbox-webapi-python) integration can open Microsoft sign-in, discover Title IDs, and query Xbox 360 / Xbox One achievements. It requires user authorization; API access and endpoint availability can change.
-- **Artwork Studio:** optionally use your own SteamGridDB API key to choose game covers and hero images; cache images locally. Official Xbox achievement icon URLs are cached when available. No scraped artwork or proprietary assets ship in the repository.
-- **Offline-first and private:** locally stored JSON library and preferences; server binds to `127.0.0.1` only. Your imported profile, account tokens and artwork cache are ignored by Git.
+- **TrueAchievements CSV import** for Xbox earned and locked achievement exports, including cautious date normalization and local backup/migration protections.
+- **Experimental live Xbox (OpenXbox) and PlayStation (PSNAWP) adapters:** public-profile queries via an operator-owned authenticated session, subject to provider availability, permissions and rate limits. No tokens or production credentials are bundled.
+- **Atlas Ultimate v5.1:** Cinematic / Blades-inspired / NXE-inspired / XMB-inspired looks, platform-separated library, Game Universe, pinned goals, Hall of Fame, timeline and optional keyboard/gamepad-oriented Console Mode.
+- **Artwork Studio:** choose real game cover/hero/logo art via user files, verified Xbox/PSN candidate URLs or optional SteamGridDB search. Artwork is cached locally; copyrighted game images are not bundled.
+- **Optional Turkish achievement notes:** source-linked Brave Search + OpenAI summaries. **Automatic paid-provider calls are disabled by default and need explicit consent.** Manual generation is a separate action. Source-linked summaries are not guaranteed correct.
+- **Local data and privacy:** data is stored in your user's app-data area; the local interface binds to `127.0.0.1`; Windows service credentials configured through the app use DPAPI protection. See [PRIVACY.md](PRIVACY.md) for the exact scope and exceptions.
 
-## Run on Windows
+## Installation
 
-1. Install **Python 3.11+**.
-2. Extract or clone the repository.
-3. Double-click `BASLAT_TARAYICI.bat` to run in your default browser, or `BASLAT_WINDOWS.bat` for the optional native window (`pip install pywebview`).
-4. Import your **earned and locked** TrueAchievements CSV files under the Import section.
-5. To try the experimental Xbox connection, run `XBOX_BILESENINI_KUR.bat`, then use **Xbox / Microsoft sign-in** in the app.
+Download the latest verified **development pre-release** from [GitHub Releases](https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/tag/development). The Windows Setup.exe is built by GitHub Actions on Windows; it does not require a separate Python installation. Read [KURULUM.txt](KURULUM.txt) and [README_TR.md](README_TR.md).
 
-Without any Xbox dependency, run:
+For source development, use Python 3.11+:
 
-```bash
+```sh
+python -m pip install -r requirements-platforms.txt
 python run.py --browser
-```
-
-OpenXbox is **optional**, and third-party sites can block automated requests. A standalone Xbox developer/API key is not needed for the OpenXbox OAuth path, but Microsoft might restrict its API access.
-
-## Test
-
-```bash
 python -m unittest discover -s tests -v
-node --check atlas/web/app.js   # optional JavaScript syntax check
+node tests/test_ui_model.cjs
+node tests/test_art_transition.cjs
 ```
 
-The test suite runs with Python's standard library and uses temporary local data, not real accounts.
+SDKs and image-processing dependencies are optional for some offline workflows. Real Xbox/PSN provider access is not part of automated CI.
 
-## Project structure
+## Build and update trust
 
-```text
-atlas/
-  core.py              # portable library, CSV import, persistence, guarded live updates
-  recommendations.py   # auditable recommendation engine
-  artwork.py           # allow-listed artwork providers, image cache
-  xbox.py              # optional OpenXbox adapter / 360 and One models
-  server.py            # localhost-only HTTP API and desktop window host
-  web/                 # responsive HTML, JS, CSS
-run.py                 # launcher
-tests/                 # automated regression tests
-.github/workflows/     # CI on Windows and Linux
-```
+The Windows build workflow uses PyInstaller + Inno Setup, runs regression and native installer checks and verifies GitHub OIDC/Sigstore provenance before publishing the **development** update channel. This does **not** provide a trusted Windows Authenticode publisher signature or guarantee freedom from malware. SignPath Foundation application is pending; do not assume approved signing. Stable automatic updates require a separately trusted signing certificate.
 
-## Roadmap / contributing
+The development updater verifies SHA-256, attested build identity and authorized GitHub workflow/source. See [docs/UPDATES_TR.md](docs/UPDATES_TR.md), [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md) and [docs/WINDOWS_DOWNLOAD_TR.md](docs/WINDOWS_DOWNLOAD_TR.md).
 
-The next milestones are API sign-in verification against a **consenting tester account**, safe Xbox Title ID matching, a reliable licensed artwork pipeline, installable Windows builds, configurable recommendation rules, and a separate PlayStation provider if permitted by the platform's terms. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/PROVIDERS.md](docs/PROVIDERS.md).
+## Release and technical audit
 
-We welcome issue reports and PRs. **Never submit passwords, session tokens, private achievement exports, or proprietary media files.**
+- [0.14.1 release notes (TR)](docs/RELEASE_NOTES_0_14_1_TR.md)
+- [Ultimate v5.1 audit and remaining work (TR)](docs/ATLAS_V5_1_INTEGRATION_AUDIT_TR.md)
+- [Xbox/PSN public-profile setup and limits (TR)](docs/PUBLIC_PROFILES_TR.md)
+- [Privacy Policy](PRIVACY.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
-## Downloads and Code signing policy
-
-Windows builds will be published on [GitHub Releases](https://github.com/Gh0sTRX/achievment-thropy-tracker/releases). The project has **applied** to SignPath Foundation; **signing has not been approved or activated**. An EXE uploaded manually to a release is **unsigned** unless a valid signature is independently verified. A verifiable GitHub Actions release-build pipeline is still required before SignPath signing can begin.
-
-- [**Code signing policy**](CODE_SIGNING_POLICY.md) — release provenance, approved artifacts, reviewer/approver roles and signing rules.
-- [**Privacy Policy**](PRIVACY.md) — local storage, optional Xbox/Microsoft login, SteamGridDB and other external services.
-- [Security policy](SECURITY.md) — local server and credential handling.
-
-**Planned signed-release attribution (once approved):** Free code signing provided by SignPath.io, certificate by [SignPath Foundation](https://signpath.org/).
-
-Release notes must also link to the Code signing policy and Privacy Policy and clearly state whether that specific EXE is signed or unsigned.
-
-## Privacy and licensing
-
-Data is saved to your user profile's local `AchievementAtlas` application-data folder. Microsoft login tokens, if you choose to use Xbox sign-in, are handled by the separate OpenXbox dependency and kept outside this repository. See [SECURITY.md](SECURITY.md).
-
-Application code is **MIT licensed** ([LICENSE](LICENSE)). Xbox, PlayStation, game covers, achievement icons, and trademarks belong to their respective owners. Distributing code does not grant rights to redistribute those assets.
+The project code is MIT licensed. Trademarks and third-party game images remain the property of their owners. Never upload real OAuth tokens, NPSSO secrets, private profile exports, proprietary media, or API keys to public issues or commits.

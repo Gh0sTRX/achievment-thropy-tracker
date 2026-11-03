@@ -249,3 +249,12 @@ Geri alma: PR merge edilmeden mevcut kullanıcı sürümü/depo dalları değiş
 sonra kod geri alınırsa `git revert` ile audit commit'leri review edilerek geri
 çevrilir; migration yedekleri elle ve uygulama kapalıyken gözden geçirilerek geri
 konur. Kullanıcının mevcut JSON'unu otomatik olarak eski yedekle değiştirme.
+
+
+## 14. Devam çalışması — 0.14.1 geliştirme yayını
+
+Bu raporun ilk 13 bölümünde belirtilen durum, **audit dalı henüz birleştirilmemişken yapılan denetimin** anlık kaydıdır. Kullanıcının sonradan verdiği açık yayımlama talebi üzerine; denetim düzeltmeleri değiştirilmeden, yalnız sürüm/paket metaverisi **0.14.1** olarak güncellenerek `codex/public-profile-trophies` geliştirme kanalına aktarılması planlandı.
+
+Audit PR'ının Windows build ve Unit tests kontrolleri 3 Kasım 2026 tarihinde başarılı tamamlandı. Yayın başarılı sayılması için ayrıca **0.14.1 kaynak commit'i üzerinde** Windows build/install, GitHub/Sigstore attestation verification, publish-development ve GitHub Release manifest/installer eşleşmesi kontrol edilmelidir. Henüz yayınlandığı doğrulanmadan başarı iddiasında bulunulmaz.
+
+İlk 13 bölümdeki canlı servis, rollback, cihaz, maliyet ve gizlilik sınırlamaları geçerliliğini korur. `main` dalı bu işlemde değiştirilmez.
