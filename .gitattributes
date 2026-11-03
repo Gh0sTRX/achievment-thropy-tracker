@@ -1,0 +1,2 @@
+# Cryptographic trust data must retain its exact bytes on Windows checkouts.
+spec/sigstore-trusted-root.json -text
