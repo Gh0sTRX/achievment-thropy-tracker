@@ -521,7 +521,12 @@ class LocalApp(ThreadingHTTPServer):
     def url(self):return f'http://127.0.0.1:{self.server_port}/'
 
 def main(browser=False, root=None, desktop_report=None):
-    app=LocalApp(root)
+    from . import instance
+    lock=instance.acquire()
+    if lock is False:return
+    try:app=LocalApp(root)
+    except Exception:
+        instance.release(lock);raise
     t=threading.Thread(target=app.serve_forever,daemon=True);t.start()
     app.controller.allow_update_install=not browser and not desktop_report
     if not desktop_report:app.controller.updates.check()
@@ -544,3 +549,4 @@ def main(browser=False, root=None, desktop_report=None):
     finally:
         app.shutdown()
         app.server_close()
+        instance.release(lock)

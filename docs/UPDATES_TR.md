@@ -28,7 +28,8 @@ portable sürümde kontrol yapılabilir; otomatik kurulum yapılmaz. Devam eden
 profil, rehber, medya veya oturum işlemi varsa güncelleme bekletilir. Kütüphane
 ve ayarlar diske kaydedilir, doğrulanmış yardımcı başlatılır, pencere kapatılır.
 Yardımcı eski işlemin çıkmasını bekler; zorla sonlandırmaz. Kurulumdan önce
-hash/imza yeniden kontrol edilir. Mevcut uygulama dosyaları yedeklenir; kurulum
+hash/imza yeniden kontrol edilir. Windows tek-örnek kilidi ve Inno AppMutex kontrolü başka açık uygulama örneği
+varken dosyaların değiştirilmesini önler. Mevcut uygulama dosyaları yedeklenir; kurulum
 hatasında önceki dosyalar geri kopyalanıp eski uygulama yeniden açılır. Yerel
 kütüphane kurulum klasörü dışında tutulur ve korunur. Günlük/yedekler uygulamanın
 veri klasöründeki updates altında kalır. Windows betik politikası yardımcıyı

@@ -8,6 +8,7 @@ AppPublisherURL=https://github.com/Gh0sTRX/achievment-thropy-tracker
 DefaultDirName={localappdata}\Programs\AchievementAtlas
 DefaultGroupName=Achievement Atlas
 PrivilegesRequired=lowest
+AppMutex=Local\AchievementAtlas.Running
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist\installer
