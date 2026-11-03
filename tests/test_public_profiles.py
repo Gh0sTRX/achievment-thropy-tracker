@@ -226,5 +226,5 @@ class IdentifierRegressionTests(unittest.TestCase):
             self.assertEqual(len(store.library['games']),2)
             self.assertTrue(next(a for a in store.library['achievements'] if a['id']=='xbox:title2:0')['unlocked'])
             self.assertEqual(len(store.state['sync_warnings']),1)
-            partial['id']='another-player';store.apply_public_profile(partial)
+            partial['id']='another-player';partial['username']='AnotherPlayer';store.apply_public_profile(partial)
             self.assertEqual(len(store.library['games']),1)
