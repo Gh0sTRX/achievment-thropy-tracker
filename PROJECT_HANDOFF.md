@@ -82,3 +82,8 @@ Bu oturumda PR #5'in mevcut dalı üzerinde **yeni release üretmeden** şu işl
 **Önemli:** PR #4 önce incelenmeli; PR #5 hâlâ PR #4 üstünde bağımlı DRAFT. `codex/public-profile-trophies`, `main` ve Development Release'e doğrudan merge/publish yapılmadı. Bu dilim, uygulamanın **diğer** `save()` çağrıları için tam çoklu-dosya transaction garantisi sağlamaz. Arşiv kişisel oyun kayıtlarını içerir, herkese açık repoya konmamalı. Yeni oturumda PR #5'in son commitindeki CI/Windows installer sonucunu mutlaka kontrol et.
 
 **Sonraki P0:** Gerçek Windows installer + 0.13/0.14.1 yükseltme/rollback testi; karma Xbox XUID/gamertag ve PSN ID ayrımı, CSV edition/DLC doğruluğu; ardından diğer dosyaların transaction/migration sistemine geçirilmesi. Gerçek platform hesapları ve fiziksel gamepad sonuçları olmadan doğrulanmış deme.
+
+
+### Ek P0 veri izolasyonu düzeltmesi
+
+`Library.import_csv()` artık Xbox TrueAchievements CSV içe aktarımında önceden kayıtlı PSN/PC oyunlarını, kupalarını ve sabitlenmiş hedeflerini silmez. Yeni CSV sonuçlarının oyun/başarım sayısı yalnız içe aktarılan Xbox kayıtlarını raporlar; başka platformla çakışan oyun ID'sinde içe aktarma iptal edilir. Karma arşiv `platform=mixed` ve `complete_export=False` işaretlenir. Regresyon: `tests/test_core.py::test_xbox_csv_import_preserves_psn_records_and_pins`. Bu, aynı adlı Xbox edition/DLC kayıtlarının güvenilir eşlenmesi sorununu henüz çözmez.
