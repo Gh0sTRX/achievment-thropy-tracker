@@ -230,6 +230,8 @@ class Library:
             other_games = [deepcopy(g) for g in old['games']
                            if g.get('platform') not in ('xbox', 'demo')]
             other_ids = {g['id'] for g in other_games}
+            if other_ids.intersection(g['id'] for g in lib['games']):
+                raise ValueError('CSV oyun kimliği başka platformla çakışıyor; içe aktarma iptal edildi.')
             other_items = [deepcopy(a) for a in old['achievements']
                            if a.get('game_id') in other_ids]
             if other_games:
@@ -239,8 +241,12 @@ class Library:
                 lib['platform'] = 'mixed'
                 lib['complete_export'] = False
             self.library=lib;self.save()
-        return {'games':len(lib['games']),'achievements':len(lib['achievements']),
-                'earned':sum(a['unlocked'] for a in lib['achievements']),'message':'Library imported; other platforms and earned achievements preserved.'}
+        imported_items = [a for a in lib['achievements'] if a['game_id'] not in other_ids]
+        return {'games':len(lib['games'])-len(other_games),
+                'achievements':len(imported_items),
+                'earned':sum(a['unlocked'] for a in imported_items),
+                'preserved_other_platform_games':len(other_games),
+                'message':'Xbox CSV imported; other platforms and earned achievements preserved.'}
 
     def set_preferences(self, values):
         from .preferences import validate
