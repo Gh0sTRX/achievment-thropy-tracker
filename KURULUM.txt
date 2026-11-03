@@ -1,4 +1,4 @@
-ACHIEVEMENT ATLAS 0.14.1 — WINDOWS KURULUMU
+ACHIEVEMENT ATLAS 0.15.0 PREVIEW — WINDOWS KURULUMU
 
 Hazır Setup.exe paketi Windows 10/11 64 bit içindir. Python veya yönetici
 izni gerekmez. Kurulum dosyasını aç, adımları tamamla, masaüstündeki
@@ -9,7 +9,13 @@ kapatmak uygulamayı kapatır. Microsoft oturum açma sayfası tarayıcıda aç�
 Portable.zip sürümünü kullanırsan TÜM dosyaları bir klasöre çıkar ve
 AchievementAtlas.exe dosyasını aç. _internal klasörünü silme.
 
-İLK KULLANIM
+ÖNEMLI: BU BIR ONIZLEME DERLEMESIDIR.
+Mevcut 0.14.1 kurulumuna gecis ve basarisiz guncelleme durumunda geri donus
+henüz gercek kullanici Windows ortaminda dogrulanmamistir.
+Kurulumdan once Hesap & Veri > Yerel arsiv menüsünden JSON yedegi al
+ve guvenli bir yere kopyala. Bu paket otomatik Development Release degildir.
+
+ILK KULLANIM
 1. Hesap & Veri ekranını aç.
 2. Platformunu seç. Kayıtlı Xbox erişimi otomatik kullanılır.
 3. Gamertag / Online ID yaz; PROFİLİMİ YENİLE düğmesine bas.

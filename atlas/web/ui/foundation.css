@@ -1,0 +1,45 @@
+/* v0.15 Foundation: minimal primary navigation, optional tools and onboarding. */
+.atlas-more-nav{margin-top:10px;border-top:1px solid #ffffff25;padding-top:9px;min-width:0}
+.atlas-more-nav>summary{cursor:pointer;list-style:none;padding:12px 13px;border:1px solid #ffffff24;border-radius:8px;color:#d0e2f1;font-weight:750;font-size:12px;display:flex;justify-content:space-between;gap:12px}
+.atlas-more-nav>summary::-webkit-details-marker{display:none}
+.atlas-more-nav[open]>summary{border-color:var(--lime);color:var(--lime)}
+.atlas-more-body{display:grid;gap:3px;margin-top:7px}
+.atlas-more-body>.nav-link{width:100%;font-size:12px;padding:10px 12px}
+.atlas-more-body .nav-mark{font-size:16px}
+.atlas-welcome{background:linear-gradient(125deg,#132b3fe8,#0d1c30de);border:1px solid #81a9cc65;border-radius:16px;padding:24px;margin-bottom:23px}
+.atlas-welcome h2{font-size:clamp(23px,3vw,34px);margin:9px 0}
+.atlas-welcome p{color:#b3c7dc;font-size:13px;line-height:1.6}
+.atlas-welcome-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:20px}
+.atlas-welcome-option{background:#122a40;border:1px solid #759aba6e;border-radius:12px;color:#f1f8ff;text-align:left;padding:18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.atlas-welcome-option:hover{border-color:var(--lime);background:#1a3550}
+.atlas-welcome-option>strong{font-size:15px}
+.atlas-welcome-option>small{font-size:11px;line-height:1.45;color:#bfd2e0}
+.atlas-welcome-disclaimer{font-size:11px!important;margin:15px 0 0}
+.atlas-source-summary{border-left:3px solid var(--lime);margin:0 0 18px;padding:12px 14px;color:#cbddec;background:#0b2136b7;font-size:12px;line-height:1.6}
+.atlas-source-summary[data-state=error],.atlas-source-summary[data-state=partial]{border-left-color:#edba6c}
+.atlas-profile-actions{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 20px}
+.atlas-profile-actions button{padding:10px 16px}
+.atlas-update-blockers{border-left:4px solid #e8b86a;color:#f4d6ab;background:#38291acb;padding:13px 16px;margin:15px 0;font-size:13px;line-height:1.6}
+#atlasStopForUpdate{margin:0 0 18px;min-height:42px}
+body[data-skin=blades] .atlas-welcome{background:#16321fdc;border-color:#83bf6d}
+body[data-skin=nxe] .atlas-welcome{border-radius:22px;background:#183e42d9}
+body[data-skin=xmb] .atlas-welcome{background:#142d66c4;border-color:#6eb8ff}
+@media(max-width:960px){.atlas-welcome-options{grid-template-columns:1fr}}
+@media(max-width:650px){.atlas-welcome{padding:16px}.atlas-welcome-option{padding:13px}}
+@media(prefers-reduced-motion:reduce){.atlas-welcome-option{transition:none}}
+
+.atlas-archive-panel{margin-top:20px}
+.atlas-archive-panel>summary{cursor:pointer;font-weight:800}
+.atlas-archive-panel .detail-buttons{margin:12px 0}
+.atlas-archive-panel input[type=file]{display:block;max-width:100%;margin:10px 0}
+.atlas-archive-panel button:disabled{opacity:.6;cursor:wait}
+#atlasArchiveStatus{min-height:1.5em}
+
+/* Empty libraries show the honest first-run path instead of a wall of zero metrics. */
+body.atlas-empty-library #home > .featured,
+body.atlas-empty-library #home > .heading-row,
+body.atlas-empty-library #home > #homeRail,
+body.atlas-empty-library #home > .stat-grid,
+body.atlas-empty-library #home > #recommendations,
+body.atlas-empty-library #home > .split-panels,
+body.atlas-empty-library #home > .riskstrip{display:none}

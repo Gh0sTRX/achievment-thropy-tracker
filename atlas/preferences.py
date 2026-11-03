@@ -2,8 +2,8 @@
 import math
 DEFAULTS = {'theme_mode':'auto','platform_filter':'all','library_layout':'grid',
  'focus_game_id':None,'reduced_motion':False,'dense_mode':False,'high_contrast':False,
- 'font_scale':1.0,'hero_contrast':0.68}
-ENUMS = {'theme_mode':('auto','all','xbox','psn','pc'),
+ 'font_scale':1.0,'hero_contrast':0.68,'theme_skin':'cinematic'}
+ENUMS = {'theme_mode':('auto','all','xbox','psn','pc'),'theme_skin':('cinematic','blades','nxe','xmb'),
  'platform_filter':('all','xbox','psn','pc'),'library_layout':('grid','showcase','collection')}
 
 def validate(values, games):

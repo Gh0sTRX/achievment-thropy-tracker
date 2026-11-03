@@ -1,4 +1,4 @@
-# Achievement Atlas 0.14.1 Ultimate — Türkçe Kurulum
+# Achievement Atlas 0.15.0 Preview — Türkçe Kurulum
 
 Windows 10/11 64 bit için hazır **Setup.exe** ve **Portable.zip** paketleri hazırlanır.
 Hazır paketlerde Python kurman gerekmez. Arayüz Microsoft Edge WebView2 ile kendi masaüstü penceresinde açılır. Setup masaüstü/Başlat menüsü kısayolu ve
@@ -96,3 +96,10 @@ kupa önbelleğini kullanmadan sorgular. [Değişiklikler ve testler](docs/ULTIM
 - Yayın kanalı: **development prerelease**, Windows Authenticode imzası garanti değildir. GitHub/Sigstore köken kanıtı uygulamanın kendi güncelleme doğrulaması içindir, Windows yayıncı sertifikası değildir.
 
 [0.14.1 sürüm notları](docs/RELEASE_NOTES_0_14_1_TR.md) · [V5.1 denetimi](docs/ATLAS_V5_1_INTEGRATION_AUDIT_TR.md)
+
+
+## Birleşik yerel temalar ve Foundation (0.15.0 Preview)
+
+PR #4 ve PR #5, `integration/atlas-v015` dalında birleştirildi; ikinci Atlas Ultimate uygulama katmanı devre dışı bırakıldı. Cinematic, 360 Blades, 360 NXE ve PS3 XMB görünümü asıl masaüstü arayüzünün üst çubuğundan seçilir. Her tema aynı Atlas Hub, Oyun Kütüphanesi, Başarım Kasası, Hedef Panosu, Koleksiyon Müzesi, Zaman Çizelgesi, Oyuncu Profili, Oyun Görselleri ve Güncellemeler ekranlarını biçimlendirir. Platform filtresi ve renk kimliği temalardan ayrıdır. Console Mode, `Alt+C` veya üstteki düğmeyle açılan tek bağımsız tam ekran deneyimdir. Bu 0.15.0 Preview derlemesi GitHub Release'te yayımlanmış sürüm değildir. Hesap & Veri ekranında doğrulamalı JSON dışa aktarma / geri yükleme vardır. Normal library/state kayıtları çökme kurtarma günlüğü kullanır; Xbox/PSN kimlikleri kalıcı sağlayıcı ID'siyle ayrılır; tema/sekme/oyun geçişleri hareket azaltma ayarına saygılıdır. Gerçek Windows 0.14.1→0.15.0 yükseltme/rollback, fiziksel gamepad ve gerçek Xbox/PSN testi henüz ayrıca yapılmalıdır. 
+
+[Foundation teknik planı](docs/V015_FOUNDATION_PLAN_TR.md) · [Arşivleme](docs/V015_ARCHIVE_RECOVERY_TR.md) · [Kimlik, journal, animasyonlar](docs/V015_IDENTITY_STORAGE_MOTION_TR.md)

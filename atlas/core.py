@@ -109,6 +109,9 @@ class Library:
         self.library_path=self.root/'library.json'
         self.state_path=self.root/'state.json'
         self.lock=threading.RLock()
+        from . import archive, journal
+        journal.recover_pending(self.root)
+        archive.recover_interrupted_restore(self.root)
         self.revision=0
         self.library=self._read(self.library_path, empty_library())
         self.state=self._read(self.state_path, {'pins':[],'hidden':[],'custom_art':{},'xbox_titles':{},'linked_profile':None,'sync_at':None,'log':[]})
@@ -167,9 +170,46 @@ class Library:
             raise ValueError('Yerel JSON arşivi okunamadı: '+p.name+'. Dosya değiştirilmedi; yedeğini kontrol et.') from exc
 
     def save(self):
-        self.revision+=1
-        atomic_write(self.library_path,self.library)
-        atomic_write(self.state_path,self.state)
+        """Save the library/state pair together, reverting an interrupted write."""
+        from . import journal
+        with self.lock:
+            try:
+                journal.save_pair(self.root, self.library, self.state)
+            except Exception:
+                # After an I/O error the in-memory state must match recovered disk.
+                self.library = self._read(self.library_path, empty_library())
+                self.state = self._read(self.state_path, {})
+                raise
+            self.revision += 1
+
+    def export_archive(self):
+        """Portable current library and non-secret state, not OAuth or image cache."""
+        from . import archive
+        with self.lock:
+            return archive.make_archive(self.library, self.state)
+
+    def restore_archive(self, document):
+        """Restore is guarded by a disk rollback snapshot; credentials never imported."""
+        from . import archive
+        from .preferences import DEFAULTS
+        with self.lock:
+            verified = archive.verify_archive(document)
+            state = verified['state']
+            defaults = {'pins': [], 'hidden': [], 'custom_art': {}, 'xbox_titles': {},
+                        'linked_profile': None, 'sync_at': None, 'log': []}
+            for key, value in defaults.items():
+                state.setdefault(key, deepcopy(value))
+            state['ui'] = {**deepcopy(DEFAULTS), **state.get('ui', {})}
+            document = archive.make_archive(verified['library'], state)
+            restored = archive.restore_files(self.root, document, self.library, self.state)
+            self.library, self.state = restored['library'], restored['state']
+            self.revision += 1
+            self.status = {'connected': False,
+                           'message': 'Arşiv geri yüklendi; oturum yeniden doğrulanmalı.',
+                           'job': None, 'art_job': None}
+            return {'message': 'Kayıtlar güvenle geri yüklendi. Canlı hesap erişimini yeniden doğrula.',
+                    'games': len(self.library['games']),
+                    'achievements': len(self.library['achievements'])}
 
     def payload(self):
         with self.lock:
@@ -194,9 +234,28 @@ class Library:
                     if prior.get(key):a[key]=prior[key]
                 if prior.get('unlocked') and not a['unlocked']:
                     a['unlocked']=True;a['unlock_time']=prior.get('unlock_time','')
+            # A TrueAchievements CSV is Xbox-only. Never delete an unrelated PSN/PC
+            # collection when importing a new Xbox export into a mixed library.
+            other_games = [deepcopy(g) for g in old['games']
+                           if g.get('platform') not in ('xbox', 'demo')]
+            other_ids = {g['id'] for g in other_games}
+            if other_ids.intersection(g['id'] for g in lib['games']):
+                raise ValueError('CSV oyun kimliği başka platformla çakışıyor; içe aktarma iptal edildi.')
+            other_items = [deepcopy(a) for a in old['achievements']
+                           if a.get('game_id') in other_ids]
+            if other_games:
+                lib['games'] = other_games + lib['games']
+                lib['achievements'] = other_items + lib['achievements']
+                lib['schema'] = 2
+                lib['platform'] = 'mixed'
+                lib['complete_export'] = False
             self.library=lib;self.save()
-        return {'games':len(lib['games']),'achievements':len(lib['achievements']),
-                'earned':sum(a['unlocked'] for a in lib['achievements']),'message':'Library imported; saved achievements never revoked.'}
+        imported_items = [a for a in lib['achievements'] if a['game_id'] not in other_ids]
+        return {'games':len(lib['games'])-len(other_games),
+                'achievements':len(imported_items),
+                'earned':sum(a['unlocked'] for a in imported_items),
+                'preserved_other_platform_games':len(other_games),
+                'message':'Xbox CSV imported; other platforms and earned achievements preserved.'}
 
     def set_preferences(self, values):
         from .preferences import validate
@@ -217,11 +276,13 @@ class Library:
 
     def apply_public_profile(self, snapshot):
         """Commit a fully fetched profile atomically; never mix two players' unlocks."""
-        platform = snapshot['platform']
+        from . import identity
+        platform, account_id = identity.validate_snapshot(snapshot)
         with self.lock:
             profiles = self.state.setdefault('public_profiles', {})
             previous = profiles.get(platform, {})
-            same = previous.get('id') == snapshot['id']
+            identity.reject_name_reuse(previous, snapshot)
+            same = str(previous.get('id')) == account_id
             if previous.get('id'):
                 previous_games = [g for g in self.library['games'] if g.get('platform') == platform]
                 previous_ids = {g['id'] for g in previous_games}
