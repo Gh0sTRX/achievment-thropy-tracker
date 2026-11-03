@@ -274,26 +274,30 @@
     ${hallFilter==='platinum'?'<div class="au-empty au-big-empty">PlayStation trophy verisi henüz sağlanmıyor. Gerçek platin kayıtları oluştuğunda burada görünecek.</div>':`<div class="au-gallery">${selected.length?selected.slice(0,80).map(g=>gameCard(g)).join(''):'<div class="au-empty">Bu filtrede koleksiyon öğesi bulunmuyor.</div>'}</div>`}
     <p class="au-disclaimer">%100 etiketi, yalnızca yerel kütüphanedeki başarımların tamamının kazanıldığını gösterir; oyunun bütün resmî DLC/başarımlarının mevcut olduğunu kanıtlamaz.</p>`;
   }
-  function renderTimeline() {
-    const allowed=new Set(relevant().map(g=>g.id));
-    const all=(typeof achievements==='function'?achievements():[]).filter(a=>allowed.has(a.game_id)&&a.unlocked&&safeDate(a.unlock_time));
-    const start=new Date();start.setHours(0,0,0,0);start.setDate(start.getDate()-(timelineDays-1));
-    const counts=new Map();
-    for(const a of all){const d=safeDate(a.unlock_time);if(d>=start && d<=new Date())counts.set(day(d),(counts.get(day(d))||0)+1);}
-    const bin=timelineDays===30?30:timelineDays===90?15:12;
-    const arr=[];const now=new Date();
-    for(let i=0;i<bin;i++){
-      const end=new Date(now.getTime()-(bin-i-1)*Math.ceil(timelineDays/bin)*86400000);
-      const begin=new Date(now.getTime()-(bin-i)*Math.ceil(timelineDays/bin)*86400000);
-      let n=0;
-      for(const [key,v] of counts) {const d=new Date(key+'T12:00:00'); if(d>=begin&&d<end)n+=v;}
-      arr.push({n,label:`${i+1}`});
-    }
-    const maximum=Math.max(1,...arr.map(x=>x.n));
-    return `<div class="au-page-head"><span class="au-kicker">THE STORY OF YOUR UNLOCKS</span><h1>Başarım <em>zaman çizelgesi</em></h1><p>Sadece geçerli tarih bilgisi içeren, gerçekten kazanılmış başarımlar sayılır.</p></div>
-    <div class="au-tabs">${[30,90,365].map(v=>`<button data-au-range="${v}" aria-pressed="${v===timelineDays}">${v} GÜN</button>`).join('')}</div>
-    <div class="au-panel au-timeline-panel"><span class="au-kicker">VERIFIED UNLOCK DATES</span>${counts.size?`<div class="au-chart" role="img" aria-label="${timelineDays} günde ${[...counts.values()].reduce((a,b)=>a+b,0)} kazanım; sütun grafiği">${arr.map(a=>`<div class="au-chart-bin"><i style="height:${Math.max(3,(a.n/maximum)*100)}%" title="${a.n} kazanım"></i><small>${a.label}</small></div>`).join('')}</div>`:'<div class="au-empty au-big-empty">Seçilen dönemde tarih bilgisi doğrulanabilen başarım yok. Veriler uydurulmaz.</div>'}<p class="au-muted">Desteklenen biçim: açık ISO tarih/saat. Belirsiz tarih formatları atlanır. Çubuklar, seçilen süreyi eşit gruplara böler.</p></div>`;
-  }
+  function renderTimeline(){
+ const allowed=new Set(relevant().map(g=>g.id));
+ const now=new Date();
+ const todayUTC=Date.UTC(now.getFullYear(),now.getMonth(),now.getDate());
+ const binsCount=timelineDays===30?30:timelineDays===90?15:12;
+ const bins=Array.from({length:binsCount},(_,i)=>({n:0,label:String(i+1)}));
+ let validDates=0,total=0;
+ for(const a of (typeof achievements==='function'?achievements():[])){
+   if(!a.unlocked||!allowed.has(a.game_id))continue;
+   const d=safeDate(a.unlock_time);
+   if(!d)continue;
+   validDates++;
+   const eventUTC=Date.UTC(d.getFullYear(),d.getMonth(),d.getDate());
+   const age=Math.round((todayUTC-eventUTC)/86400000);
+   if(age<0||age>=timelineDays)continue;
+   const index=Math.min(binsCount-1,Math.floor((timelineDays-1-age)*binsCount/timelineDays));
+   bins[index].n++;total++;
+ }
+ const max=Math.max(1,...bins.map(b=>b.n));
+ return `<div class="au-page-head"><span class="au-kicker">THE STORY OF YOUR UNLOCKS</span><h1>Başarım <em>zaman çizelgesi</em></h1><p>Gerçek kayıtlardan, doğrulanabilir tarih bilgileriyle oluşturulur.</p></div>
+ <div class="au-tabs">${[30,90,365].map(v=>`<button data-au-range="${v}" aria-pressed="${v===timelineDays}">${v} GÜN</button>`).join('')}</div>
+ <div class="au-panel au-timeline-panel"><span class="au-kicker">RECORDED UNLOCK DATES</span>${total?`<div class="au-chart" role="img" aria-label="Son ${timelineDays} günde ${total} kayıtlı kazanım">${bins.map(b=>`<div class="au-chart-bin"><i style="height:${b.n?Math.max(3,b.n/max*100):0}%" title="${b.n} kazanım"></i><small>${b.label}</small></div>`).join('')}</div>`:'<div class="au-empty au-big-empty">Seçilen dönemde doğrulanmış tarihli başarım bulunmuyor. Veri uydurulmaz.</div>'}
+ <p class="au-muted">${total} kazanım / ${validDates} geçerli tarihli kayıt. ISO, İngilizce ay adları ve gün/ay sırası kesin tarihler desteklenir; belirsizler atlanır. Günler yerel takvimde sayılır.</p></div>`;
+}
   function renderArtwork() {
     const g=activeGame();if(!g)return '<div class="au-empty au-big-empty">Önce kütüphanene oyun ekle.</div>';
     const p=lighting(g);
