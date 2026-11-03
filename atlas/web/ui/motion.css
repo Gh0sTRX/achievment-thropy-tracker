@@ -1,0 +1,39 @@
+/* v0.15 native-shell motion. Visual only: no duplicate navigation or data state. */
+:root{--atlas-motion-duration:240ms}
+body:not(.reduced-motion) .nav-link,
+body:not(.reduced-motion) .platform-tabs button,
+body:not(.reduced-motion) .atlas-more-nav>summary,
+body:not(.reduced-motion) .game-card,
+body:not(.reduced-motion) .atlas-welcome-option{
+  transition:background-color var(--atlas-motion-duration) ease,
+             color var(--atlas-motion-duration) ease,
+             border-color var(--atlas-motion-duration) ease,
+             box-shadow var(--atlas-motion-duration) ease;
+}
+body:not(.reduced-motion) .nav-link:active,
+body:not(.reduced-motion) .platform-tabs button:active{filter:brightness(1.15)}
+body:not(.reduced-motion) .nav-link.active{
+  box-shadow:inset 3px 0 0 var(--lime, #9bd56e);
+}
+body[data-skin=xmb]:not(.reduced-motion) .nav-link.active{
+  box-shadow:inset 0 -3px 0 var(--lime, #8bc7ff), 0 0 20px #648dec33;
+}
+body[data-skin=blades]:not(.reduced-motion) .nav-link.active{
+  box-shadow:inset 4px 0 0 #c2ee80;
+}
+body:not(.reduced-motion) .atlas-more-body{
+  animation:atlas-more-appear 200ms ease-out both;
+}
+@keyframes atlas-more-appear{
+  from{opacity:.2;transform:translateY(-6px)}
+  to{opacity:1;transform:translateY(0)}
+}
+body.reduced-motion .nav-link,
+body.reduced-motion .platform-tabs button,
+body.reduced-motion .atlas-more-body,
+body.reduced-motion .game-card{animation:none!important;transition:none!important}
+@media(prefers-reduced-motion:reduce){
+  .nav-link,.platform-tabs button,.atlas-more-body,.game-card{
+    animation:none!important;transition:none!important
+  }
+}
