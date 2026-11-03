@@ -93,3 +93,9 @@ class MigrationTests(unittest.TestCase):
             new=Library(root);a=new.library['achievements'][0]
             self.assertEqual((a['id'],a['platform'],a['unlock_time']),('ta:12','xbox','2026-11-03'))
             self.assertEqual(a['unlock_time_raw'],'03 Nov 2026');self.assertEqual(new.state['pins'],['ta:12'])
+
+class NestedSummaryTests(unittest.TestCase):
+    def test_modern_xbox_history_summary_is_supported(self):
+        flat={'lastUnlock':'2026-11-03','currentAchievements':1,'totalAchievements':4,'currentGamerscore':10}
+        nested={'lastUnlock':'2026-11-03','achievement':{'currentAchievements':1,'totalAchievements':4,'currentGamerscore':10}}
+        self.assertEqual(sync_control.signature(flat),sync_control.signature(nested));self.assertTrue(sync_control.signature(nested))

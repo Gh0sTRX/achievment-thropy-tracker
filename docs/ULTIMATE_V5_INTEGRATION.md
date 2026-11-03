@@ -80,7 +80,7 @@ icon until the shortcut cache is refreshed by recreating that pin.
 
 ## Validation
 
-- 95 Python tests pass, including cancellation, target isolation/TTL/force refresh,
+- 96 Python tests pass, including cancellation, target isolation/TTL/force refresh,
   batched writes, bounded media concurrency, existing imports/SDK adapters, and guards.
 - Node projection test: 15,000 records, edition/platform isolation, date rejection,
   zero measured progress and honest completion/score metrics.

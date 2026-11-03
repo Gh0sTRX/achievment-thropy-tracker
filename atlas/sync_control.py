@@ -25,7 +25,12 @@ async def request(awaitable):
         await asyncio.gather(task,return_exceptions=True)
         raise
 
+def summary(title):
+    nested=title.get('achievement')
+    return {**title,**nested} if isinstance(nested,dict) else title
+
 def signature(title):
+    title=summary(title)
     # Reuse only when the provider supplied explicit progress and an update time.
     stamp=title.get('lastUnlock') or title.get('lastUpdated')
     earned=title.get('currentAchievements');total=title.get('totalAchievements')
@@ -45,7 +50,7 @@ def reuse(g,title,identity):
     if not prior or prior.get('sync_signature')!=sig or prior.get('api_generation')!=g.get('api_generation'):return None
     age=time.time()-prior.get('sync_checked_at',0)
     rows=value['item_index'].get(g['id'],[])
-    if not 0<=age<600 or not rows or len(rows)!=title['totalAchievements']:return None
+    if not 0<=age<600 or not rows or len(rows)!=summary(title)['totalAchievements']:return None
     g['sync_signature']=prior['sync_signature'];g['sync_checked_at']=prior['sync_checked_at']
     return deepcopy(rows)
 

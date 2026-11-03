@@ -15,14 +15,12 @@ def open_window(url, smoke_report=None, shutdown_event=None):
         min_size=(980, 640), background_color='#07130f', hidden=False)
     errors = []
     icon_set=[]
-    def set_native_icon():
-        if sys.platform=='win32':
-            try:
-                from System.Drawing import Icon
-                window.native.Icon=Icon(str(icon_path))
-                icon_set.append(True)
-            except Exception as exc:errors.append('Window icon: '+type(exc).__name__)
-    window.events.shown += set_native_icon
+    icon_ready=threading.Event()
+    def verify_native_icon():
+        try:
+            if sys.platform=='win32':icon_set.append(icon_path.is_file() and window.native.Icon is not None)
+        finally:icon_ready.set()
+    window.events.shown += verify_native_icon
     def verify():
         try:
             if not window.events.loaded.wait(timeout=40):
@@ -33,7 +31,7 @@ def open_window(url, smoke_report=None, shutdown_event=None):
                 if ready:break
                 time.sleep(.2)
             else:raise RuntimeError('Desktop UI did not become ready')
-            if sys.platform=='win32' and not icon_set:raise RuntimeError('Taskbar icon was not applied')
+            if sys.platform=='win32' and (not icon_ready.wait(10) or not icon_set or not icon_set[0]):raise RuntimeError('Taskbar icon was not applied')
             window.evaluate_js("navigate('artwork'); true")
             deadline=time.monotonic()+15
             while time.monotonic()<deadline:
@@ -67,5 +65,5 @@ def open_window(url, smoke_report=None, shutdown_event=None):
         while not closed.wait(.2):
             if shutdown_event is not None and shutdown_event.is_set():
                 window.destroy();return
-    webview.start(verify if smoke_report else watch_update, gui='edgechromium')
+    webview.start(verify if smoke_report else watch_update, gui='edgechromium', icon=str(icon_path))
     if errors:raise RuntimeError('; '.join(errors))
