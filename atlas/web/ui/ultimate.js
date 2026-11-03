@@ -50,12 +50,14 @@
   prefs.lighting = prefs.lighting && typeof prefs.lighting === 'object' ? prefs.lighting : {};
   let opened = false;
   let consoleMode = false;
+  let consoleReturn=null;
   let focusReturn = null;
   let gamesFiltered = [];
   let activeIndex = 0;
   let gamepadLoop = 0;
   let lastPadAction = 0;
   let lastPressed = false;
+  let padConnected=null;
   let hallFilter = 'all';
   let timelineDays = 90;
   let search = '';
@@ -108,7 +110,7 @@
         <div class="au-console-top"><b>ATLAS <span>CONSOLE</span></b><button type="button" data-au-action="exit-console">✕ Çıkış <small>Esc / B</small></button></div>
         <div class="au-console-center"><span id="au-console-platform">OYUN KÜTÜPHANESİ</span><h1 id="au-console-title">—</h1><p id="au-console-stats">—</p><button type="button" data-au-action="console-open">OYUN DETAYLARINI AÇ ↗</button></div>
         <div class="au-console-rail" id="au-console-rail"></div>
-        <div class="au-console-guide">← → / D-PAD: OYUN SEÇ • ENTER / A: AÇ • ESC / B: ÇIK</div>
+        <div class="au-console-guide">← → / D-PAD: OYUN SEÇ • ENTER / A: AÇ • ESC / B: ÇIK <span id="au-pad-status" role="status"></span></div>
       </dialog>`;
     document.body.appendChild(root);
     root.addEventListener('click', onClick);
@@ -172,10 +174,11 @@
   }
   function renderLibrary() {
     const a = relevant().filter(g => String(g.name||'').toLocaleLowerCase('tr').includes(search.toLocaleLowerCase('tr')));
+    libraryPage=Math.max(0,Math.min(libraryPage,Math.ceil(a.length/60)-1));
     return `<div class="au-page-head"><span class="au-kicker">ALL YOUR WORLDS</span><h1>Oyun <em>kütüphanesi</em></h1><p>Gerçek kütüphane kayıtları ve kullanıcı tarafından seçilmiş kapaklar.</p></div>
     <label class="au-search-label">OYUN ARA <input id="au-search" data-au-search placeholder="Oyun ismi..." value="${html(search)}"></label>
-    <div class="au-gallery">${a.length?a.slice(0,150).map(g=>gameCard(g)).join(''):'<div class="au-empty">Eşleşen oyun bulunamadı. Başka platform seç veya CSV içe aktar.</div>'}</div>
-    ${a.length>150?'<p class="au-muted">İlk 150 eşleşme gösteriliyor. Aramayı daralt.</p>':''}`;
+    <div class="au-gallery">${a.length?a.slice(libraryPage*60,(libraryPage+1)*60).map(g=>gameCard(g)).join(''):'<div class="au-empty">Eşleşen oyun bulunamadı. Başka platform seç veya CSV içe aktar.</div>'}</div>
+    ${a.length>60?`<div class="au-tabs"><button data-au-library-page="-1" ${libraryPage===0?'disabled':''}>← Önceki</button><span>${libraryPage+1} / ${Math.ceil(a.length/60)}</span><button data-au-library-page="1" ${libraryPage>=Math.ceil(a.length/60)-1?'disabled':''}>Sonraki →</button></div>`:''}`;
   }
   function renderGame() {
     const g=activeGame();
@@ -183,7 +186,7 @@
     const p=gameStats(g.id), arr=achievementsFor(g.id),pins=userPins();
     const sorted=[...arr].sort((a,b)=>Number(!!b.unlocked)-Number(!!a.unlocked));
     gamePage=Math.max(0,Math.min(gamePage,Math.ceil(sorted.length/50)-1));
-    const rows=sorted.slice(gamePage*50,(gamePage+1)*50).map(a=>`<div class="au-ach-row">${imgIcon(a)}<div class="au-ach-name"><button class="ach-open" data-ach="${html(a.id)}" aria-expanded="false">${html(AtlasModel.secret(a)?'Gizli başarım':a.name)}</button><small>${a.unlocked?'KAZANILDI':'KİLİTLİ'} · ${platformKey(g)==='xbox'?showNum(a.points)+' G':'Başarım kaydı'}${pins.has(a.id)?' · HEDEF':''}</small></div><button type="button" data-au-pin="${html(a.id)}" aria-label="${pins.has(a.id)?'Sabitlemeyi kaldır':'Hedefi sabitle'}" aria-pressed="${pins.has(a.id)}">${pins.has(a.id)?'★':'☆'}</button></div>`).join('');
+    const rows=sorted.slice(gamePage*50,(gamePage+1)*50).map(a=>`<div class="au-ach-row">${AtlasModel.secret(a)?'<span class="ach-icon missing-art">?</span>':imgIcon(a)}<div class="au-ach-name"><button class="ach-open" data-ach="${html(a.id)}" aria-expanded="false">${html(AtlasModel.secret(a)?'Gizli başarım':a.name)}</button><small>${a.unlocked?'KAZANILDI':'KİLİTLİ'} · ${platformKey(g)==='xbox'?showNum(a.points)+' G':'Başarım kaydı'}${pins.has(a.id)?' · HEDEF':''}</small></div><button type="button" data-au-pin="${html(a.id)}" aria-label="${pins.has(a.id)?'Sabitlemeyi kaldır':'Hedefi sabitle'}" aria-pressed="${pins.has(a.id)}">${pins.has(a.id)?'★':'☆'}</button></div>`).join('');
     return `<div class="au-game-hero"><div class="au-game-hero-art" style="${html(artworkStyle(g))}"></div><div class="au-game-hero-shade"></div>
       <div class="au-game-hero-body"><span class="au-kicker">${html(platformKey(g).toUpperCase())} / GAME UNIVERSE</span><h1>${html(g.name)}</h1><p>${html(deviceLabel(g))} · ${p.earned} / ${p.total} başarım · ${percentage(p)} · ${platformKey(g)==='xbox'?showNum(p.remainingG)+' G kayıtta kaldı':'Platforma göre kalan hedefler'}</p>
       <div class="au-featured-actions"><button class="au-primary" data-au-action="native-game">KLASİK OYUN DETAYI ↗</button><button class="au-secondary" data-au-view="artwork">GÖRSELİ AYARLA</button></div></div></div>
@@ -235,11 +238,12 @@
     window.dispatchEvent(new CustomEvent('atlas:ultimate-render'));
     const ap=$u('art-image');const g=activeGame();if(ap&&g){const a=lighting(g);ap.style.filter=`brightness(${a.brightness}%) blur(${a.blur}px)`;ap.style.backgroundPosition=a.focus+'% center';}
   }
-  function open() {createShell();focusReturn=document.activeElement;opened=true;document.getElementById('app').inert=true;$u('root').setAttribute('role','dialog');$u('root').setAttribute('aria-modal','true');$u('root').setAttribute('aria-label','Atlas Ultimate');$u('root').hidden=false;document.body.classList.add('au-lock');render();$u('content').focus({preventScroll:true});}
+  function open() {createShell();focusReturn=document.activeElement;closeInline();opened=true;document.getElementById('app').inert=true;$u('root').setAttribute('role','dialog');$u('root').setAttribute('aria-modal','true');$u('root').setAttribute('aria-label','Atlas Ultimate');$u('root').hidden=false;document.body.classList.add('au-lock');render();$u('content').focus({preventScroll:true});}
   function close() {closeConsole();opened=false;$u('root').hidden=true;document.body.classList.remove('au-lock');document.getElementById('app').inert=false;focusReturn?.focus?.({preventScroll:true});}
-  function go(view) {if(!VIEWS.includes(view))return;prefs.view=view;persist();render();$u('content').scrollTop=0;$u('content').focus({preventScroll:true});}
-  function focusGame(gid){if(!relevant().some(g=>g.id===gid))return;gamePage=0;prefs.focus=gid;prefs.view='game';persist();render();}
+  function go(view) {if(!VIEWS.includes(view))return;closeInline();prefs.view=view;persist();render();$u('content').scrollTop=0;$u('content').focus({preventScroll:true});}
+  function focusGame(gid){if(!relevant().some(g=>g.id===gid))return;closeInline();gamePage=0;prefs.focus=gid;prefs.view='game';persist();render();}
   function onClick(e) {
+    const libraryButton=e.target.closest('[data-au-library-page]');if(libraryButton){libraryPage+=Number(libraryButton.dataset.auLibraryPage);return render();}
     const pageButton=e.target.closest('[data-au-page]');if(pageButton){gamePage+=Number(pageButton.dataset.auPage);return render();}
     const inline=e.target.closest('[data-ach]');if(inline){e.stopPropagation();expandInline(inline.dataset.ach,inline);return;}
     const t=e.target.closest('[data-au-action],[data-au-view],[data-au-game],[data-au-hall],[data-au-range],[data-au-pin],[data-au-quest],[data-au-console-index]');if(!t)return;
@@ -262,12 +266,12 @@
   }
   function onChange(e){if(e.target.id==='au-platform'){prefs.platform=PLATFORMS.includes(e.target.value)?e.target.value:'all';prefs.focus='';persist();render();}
     if(e.target.id==='au-mode'){prefs.mode=MODES.includes(e.target.value)?e.target.value:'cinematic';persist();render();}}
-  function onInput(e){if(e.target.dataset.auSearch!==undefined){const pos=e.target.selectionStart;search=e.target.value;const selection = document.activeElement===e.target;render();if(selection){$u('search')?.focus();$u('search')?.setSelectionRange(pos,pos);}return;}
+  function onInput(e){if(e.target.dataset.auSearch!==undefined){const pos=e.target.selectionStart;search=e.target.value;libraryPage=0;const selection = document.activeElement===e.target;render();if(selection){$u('search')?.focus();$u('search')?.setSelectionRange(pos,pos);}return;}
     const field=e.target.dataset.auLighting;if(!field)return;const g=activeGame();if(!g)return;const a=lighting(g);a[field]=Number(e.target.value);prefs.lighting[fileKey(g.id)]=a;persist();updateTheme();
     const preview=$u('art-image');if(preview){preview.style.filter=`brightness(${a.brightness}%) blur(${a.blur}px)`;preview.style.backgroundPosition=a.focus+'% center';}
     const output=$u('output-'+field);if(output)output.textContent=e.target.value+(field==='blur'?'px':'%');}
-  function openConsole(){if(!opened)return;gamesFiltered=relevant();if(!gamesFiltered.length){if(typeof toast==='function')toast('Bu platformda oyun bulunamadı.',true);return;}activeIndex=Math.max(0,gamesFiltered.findIndex(g=>g.id===prefs.focus));consoleMode=true;$u('console').showModal();$u('root').querySelector('.au-layout').inert=true;renderConsole();gamepadTick();$u('console').querySelector('[data-au-action="exit-console"]').focus();}
-  function closeConsole(){if(!consoleMode)return;consoleMode=false;$u('console').close();$u('root').querySelector('.au-layout').inert=false;cancelAnimationFrame(gamepadLoop);gamepadLoop=0;lastPressed=false;$u('content').focus({preventScroll:true});}
+  function openConsole(){if(!opened)return;gamesFiltered=relevant();if(!gamesFiltered.length){if(typeof toast==='function')toast('Bu platformda oyun bulunamadı.',true);return;}activeIndex=Math.max(0,gamesFiltered.findIndex(g=>g.id===prefs.focus));consoleReturn=document.activeElement;consoleMode=true;$u('console').showModal();$u('root').querySelector('.au-layout').inert=true;renderConsole();gamepadTick();$u('console').querySelector('[data-au-action="exit-console"]').focus();}
+  function closeConsole(){if(!consoleMode)return;consoleMode=false;$u('console').close();$u('root').querySelector('.au-layout').inert=false;cancelAnimationFrame(gamepadLoop);gamepadLoop=0;lastPressed=false;if(consoleReturn?.isConnected)consoleReturn.focus({preventScroll:true});else $u('content').focus({preventScroll:true});}
   function stepConsole(step){if(!gamesFiltered.length)return;activeIndex=(activeIndex+step+gamesFiltered.length)%gamesFiltered.length;renderConsole();}
   function renderConsole(){if(!consoleMode)return;const g=gamesFiltered[activeIndex];if(!g)return;
     $u('console-image').style=artworkStyle(g);
@@ -279,6 +283,7 @@
   }
   function gamepadTick(){if(!consoleMode)return;
     try {const pads=navigator.getGamepads?.()||[];const p=Array.from(pads).find(p=>p&&p.connected);
+      if(padConnected!==!!p){padConnected=!!p;$u('pad-status').textContent=p?' • GAMEPAD BAĞLI':' • KLAVYE İLE DEVAM EDEBİLİRSİN';}
       if(p){const left=!!(p.buttons[14]?.pressed || p.axes[0]<-.7),right=!!(p.buttons[15]?.pressed || p.axes[0]>.7);const confirm=!!p.buttons[0]?.pressed,back=!!p.buttons[1]?.pressed;
         const now=performance.now();const pressed=left||right||confirm||back;if(pressed&&(!lastPressed||((left||right)&&!confirm&&!back&&now-lastPadAction>260))){
           lastPadAction=now;if(back){closeConsole();return;}if(confirm){const g=gamesFiltered[activeIndex];closeConsole();if(g)focusGame(g.id);return;}if(left)stepConsole(-1);else if(right)stepConsole(1);

@@ -11,7 +11,7 @@ function expandInline(id,anchor){
  let host=trigger?.closest?.('.achievement-row,.suggest,.au-ach-row,.au-quest,.au-goal,.timeline li');
  if(!host){if(window.AtlasUltimate?.isOpen?.()){window.AtlasUltimate.showAchievement(id);return}navigate('achievements');$('achStatus').value='all';$('achGame').value=a.game_id;$('achSearch').value='';achPage=Math.floor(achForGame(a.game_id).findIndex(x=>x.id===id)/SIZE);renderAchievements();trigger=[...$('achievementList').querySelectorAll('[data-ach]')].find(b=>b.dataset.ach===id);host=trigger?.closest('.achievement-row')}
  if(!host)return;
- if(inlineSelection?.id===id&&document.querySelector('.inline-achievement')){closeInline();return}
+ if(inlineSelection?.id===id&&document.querySelector('.inline-achievement')?.previousElementSibling===host){closeInline();return}
  closeInline();inlineSelection={id,trigger,revealed:false};
  const panel=document.createElement('section');panel.className='inline-achievement';panel.setAttribute('role','region');panel.setAttribute('aria-labelledby','inline-achievement-title');panel.innerHTML=detailMarkup(a);host.insertAdjacentElement('afterend',panel);trigger?.setAttribute('aria-expanded','true');
  if(!matchMedia('(prefers-reduced-motion:reduce)').matches&&!DATA.state.ui?.reduced_motion)panel.animate([{opacity:0,transform:'translateY(-8px)',maxHeight:'0px'},{opacity:1,transform:'translateY(0)',maxHeight:panel.scrollHeight+'px'}],{duration:220,easing:'ease-out'});
@@ -29,3 +29,6 @@ function renderTransfers(){
 document.addEventListener('click',async e=>{const button=e.target.closest('[data-stop]');if(!button)return;button.disabled=true;try{const r=await api('/api/downloads/stop',{kind:button.dataset.stop});toast(r.message)}catch(e){toast(e.message,true)}finally{button.disabled=false}});
 
 window.addEventListener('atlas:ultimate-render',()=>{if(!inlineSelection)return;const id=inlineSelection.id;const button=[...document.querySelectorAll('#au-content [data-ach]')].find(b=>b.dataset.ach===id);if(button){document.querySelector('.inline-achievement')?.remove();expandInline(id,button)}});
+
+function liftFeedback(){for(const id of ['transferDock','notification']){const el=$(id);if(el)document.body.appendChild(el)}}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',liftFeedback,{once:true});else liftFeedback();

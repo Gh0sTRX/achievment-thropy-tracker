@@ -37,10 +37,14 @@ def reuse(g,title,identity):
     if not value or value['force'] or not sig:return None
     old=value.get('cache') or {}
     if old.get('id')!=identity:return None
-    prior=next((x for x in old.get('games',[]) if x['id']==g['id']),None)
+    if 'game_index' not in value:
+        value['game_index']={x['id']:x for x in old.get('games',[])}
+        value['item_index']={}
+        for a in old.get('achievements',[]):value['item_index'].setdefault(a['game_id'],[]).append(a)
+    prior=value['game_index'].get(g['id'])
     if not prior or prior.get('sync_signature')!=sig or prior.get('api_generation')!=g.get('api_generation'):return None
     age=time.time()-prior.get('sync_checked_at',0)
-    rows=[a for a in old.get('achievements',[]) if a['game_id']==g['id']]
+    rows=value['item_index'].get(g['id'],[])
     if not 0<=age<600 or not rows or len(rows)!=title['totalAchievements']:return None
     g['sync_signature']=prior['sync_signature'];g['sync_checked_at']=prior['sync_checked_at']
     return deepcopy(rows)

@@ -1,4 +1,4 @@
-#define AppVersion "0.13.0"
+#define AppVersion "0.14.0"
 [Setup]
 AppId={{36A259D0-55AD-4B8F-83E4-D716F3955AAF}
 AppName=Achievement Atlas
@@ -12,7 +12,7 @@ AppMutex=Local\AchievementAtlas.Running
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist\installer
-OutputBaseFilename=AchievementAtlas-0.13.0-Windows-x64-Setup
+OutputBaseFilename=AchievementAtlas-0.14.0-Windows-x64-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -35,4 +35,4 @@ Name: "{group}\Achievement Atlas"; Filename: "{app}\AchievementAtlas.exe"; AppUs
 Name: "{group}\Kaldır"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Achievement Atlas"; Filename: "{app}\AchievementAtlas.exe"; AppUserModelID: "AchievementAtlas.Desktop"; Tasks: desktopicon
 [Run]
-Filename: "{app}\AchievementAtlas.exe"; AppUserModelID: "AchievementAtlas.Desktop"; Description: "Achievement Atlas'ı başlat"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\AchievementAtlas.exe"; Description: "Achievement Atlas'ı başlat"; Flags: nowait postinstall skipifsilent

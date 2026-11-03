@@ -45,3 +45,51 @@ class SyncTests(unittest.TestCase):
                 end=time.time()+2
                 while c.public_guard.locked() and time.time()<end:time.sleep(.01)
                 self.assertTrue(c.store.status['public_job']['cancelled']);self.assertEqual(c.store.library,before);media.assert_not_called()
+
+class MediaBatchTests(unittest.TestCase):
+    def test_cached_icons_do_not_fetch_and_progress_finishes(self):
+        from atlas import media_sync
+        from atlas.core import Library
+        with tempfile.TemporaryDirectory() as root:
+            store=Library(root);store.library['achievements']=[{'id':'a1','game_id':'g','name':'Icon','icon_url':'https://xboxlive.com/a.png'}]
+            events=[]
+            with patch('atlas.artwork.cached',return_value=True),patch('atlas.artwork.cache_image') as fetch:
+                result=media_sync.download(store,lambda *x:events.append(x))
+            fetch.assert_not_called();self.assertEqual(result['downloaded'],0);self.assertEqual(events[-1][:2],(1,1))
+    def test_bounded_icon_downloads_and_batched_writes(self):
+        from atlas import media_sync
+        from atlas.core import Library
+        import threading
+        with tempfile.TemporaryDirectory() as root:
+            store=Library(root);store.library['achievements']=[{'id':f'a{i}','game_id':'g','name':'Icon','icon_url':f'https://xboxlive.com/{i}.png'} for i in range(32)]
+            active=0;peak=0;guard=threading.Lock()
+            def download(*args):
+                nonlocal active,peak
+                with guard:active+=1;peak=max(peak,active)
+                time.sleep(.005)
+                with guard:active-=1
+            with patch('atlas.artwork.cached',return_value=None),patch('atlas.artwork.cache_image',side_effect=download),patch.object(store,'save',wraps=store.save) as save:
+                result=media_sync.download(store)
+                self.assertEqual(result['downloaded'],32);self.assertLessEqual(peak,4);self.assertGreater(peak,1);self.assertLessEqual(save.call_count,3)
+    def test_stop_does_not_schedule_next_batch(self):
+        from atlas import media_sync
+        from atlas.core import Library
+        stopped=False
+        with tempfile.TemporaryDirectory() as root:
+            store=Library(root);store.library['achievements']=[{'id':f'a{i}','game_id':'g','name':'Icon','icon_url':f'https://xboxlive.com/{i}.png'} for i in range(40)]
+            def download(*args):
+                nonlocal stopped
+                stopped=True
+            with patch('atlas.artwork.cached',return_value=None),patch('atlas.artwork.cache_image',side_effect=download) as fetch:
+                result=media_sync.download(store,stop=lambda:stopped)
+                self.assertLessEqual(fetch.call_count,4);self.assertLessEqual(result['downloaded'],4)
+
+class MigrationTests(unittest.TestCase):
+    def test_legacy_csv_keeps_ids_and_raw_date(self):
+        from atlas.core import Library
+        with tempfile.TemporaryDirectory() as root:
+            s=Library(root);s.library['games']=[{'id':'g','platform':'xbox'}]
+            s.library['achievements']=[{'id':'ta:12','game_id':'g','unlocked':True,'unlock_time':'03 Nov 2026','source':'trueachievements_csv'}];s.state['pins']=['ta:12'];s.save()
+            new=Library(root);a=new.library['achievements'][0]
+            self.assertEqual((a['id'],a['platform'],a['unlock_time']),('ta:12','xbox','2026-11-03'))
+            self.assertEqual(a['unlock_time_raw'],'03 Nov 2026');self.assertEqual(new.state['pins'],['ta:12'])

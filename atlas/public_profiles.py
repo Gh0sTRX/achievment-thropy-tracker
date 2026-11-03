@@ -189,6 +189,17 @@ def _psn(username, progress):
         g = game('psn', title.np_communication_id, title.title_name or title.np_communication_id,
                  ','.join(sorted(p.value for p in title.title_platform)), title.title_icon_url or '')
         g=editions.apply(g,[{'PSVITA':'psvita'}.get(p.value,p.value.lower()) for p in sorted(title.title_platform,key=lambda p:p.value)])
+        def count_trophies(value):
+            counts=[getattr(value,k,None) for k in ('bronze','silver','gold','platinum')]
+            return sum(counts) if all(type(v) is int and v>=0 for v in counts) else None
+        stamp=getattr(title,'last_updated_datetime',None)
+        summary={'lastUnlock':stamp.isoformat() if stamp else '',
+                 'currentAchievements':count_trophies(getattr(title,'earned_trophies',None)),
+                 'totalAchievements':count_trophies(getattr(title,'defined_trophies',None))}
+        g['api_generation']='psn:'+str(getattr(title,'trophy_set_version',''))
+        cached=sync_control.reuse(g,summary,str(user.account_id))
+        if cached is not None:
+            games.append(g);items.extend(cached);progress(len(games),len(titles),g['name']);continue
         trophies = user.trophies(title.np_communication_id, platform, include_progress=True,
                                  trophy_group_id='all', limit=None)
         for t in trophies:
@@ -204,6 +215,7 @@ def _psn(username, progress):
                 'rarity_percent':getattr(t,'trophy_earn_rate',None),
                 'rarity_source':'PSN API' if getattr(t,'trophy_earn_rate',None) is not None else '',
                 'progress_current': t.progress, 'progress_target': t.trophy_progress_target_value}))
+        sync_control.mark(g,summary)
         games.append(g); progress(len(games), len(titles), g['name'])
     return {'id': str(user.account_id), 'username': user.online_id}, games, items
 

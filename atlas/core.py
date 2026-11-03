@@ -131,6 +131,16 @@ class Library:
             self.state['pins'] = [x for x in self.state['pins'] if x not in removed]
             self.state['demo_removed'] = True
             self.save()
+        migrated=False
+        platform_by_game={g['id']:g.get('platform') for g in self.library.get('games',[])}
+        for item in self.library.get('achievements',[]):
+            if not item.get('platform') and platform_by_game.get(item.get('game_id')):
+                item['platform']=platform_by_game[item['game_id']];migrated=True
+            if item.get('source')=='trueachievements_csv' and item.get('unlock_time'):
+                old=item['unlock_time'];normal=normalize_unlock(old)
+                if normal!=old:
+                    item.setdefault('unlock_time_raw',old);item['unlock_time']=normal;migrated=True
+        if migrated:self.save()
         self.live_artwork={}
         self.steamgriddb_key=None
         self.status={'connected':False,'message':'No platform session','job':None,'art_job':None}

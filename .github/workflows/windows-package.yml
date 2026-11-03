@@ -53,7 +53,10 @@ jobs:
       - name: Run tests with real SDKs installed
         run: python -m unittest discover -s tests -v
       - name: Verify Ultimate UI projections
-        run: node tests/test_ui_model.cjs
+        run: |
+          node --check atlas/web/inline.js
+          node --check atlas/web/ui/ultimate.js
+          node tests/test_ui_model.cjs
       - name: Validate update helper syntax
         shell: pwsh
         run: |
@@ -121,15 +124,15 @@ jobs:
         run: |
           Copy-Item KURULUM.txt dist\AchievementAtlas\
           Copy-Item LICENSE dist\AchievementAtlas\
-          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.13.0-Windows-x64-Portable.zip
-          Compress-Archive preview -DestinationPath dist\installer\AchievementAtlas-0.13.0-Preview.zip
+          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.14.0-Windows-x64-Portable.zip
+          Compress-Archive preview -DestinationPath dist\installer\AchievementAtlas-0.14.0-Preview.zip
           Copy-Item app-signing.json dist/installer/
           Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json dist\installer\
           Get-ChildItem dist\installer\*.exe,dist\installer\*.zip | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist\installer\SHA256SUMS.txt
           python -m pip freeze | Set-Content dist\installer\dependencies.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: AchievementAtlas-0.13.0-Windows-x64
+          name: AchievementAtlas-0.14.0-Windows-x64
           path: dist/installer/*
           retention-days: 30
           if-no-files-found: error
@@ -143,7 +146,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: AchievementAtlas-0.13.0-Windows-x64
+          name: AchievementAtlas-0.14.0-Windows-x64
           path: release-files
       - name: Require a signed, matching stable release
         env:
@@ -180,7 +183,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: AchievementAtlas-0.13.0-Windows-x64
+          name: AchievementAtlas-0.14.0-Windows-x64
           path: release-files
       - name: Attest development installer provenance
         id: provenance
@@ -211,7 +214,7 @@ jobs:
           gh release upload development release-files/development-manifest.json --clobber
       - uses: actions/upload-artifact@v4
         with:
-          name: AchievementAtlas-0.13.0-Verified-Development-Channel
+          name: AchievementAtlas-0.14.0-Verified-Development-Channel
           path: |
             release-files/development-manifest.json
             release-files/update-bundle.json

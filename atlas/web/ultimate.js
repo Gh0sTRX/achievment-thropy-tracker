@@ -98,4 +98,5 @@ init=function(){baseInit();
  window.addEventListener('popstate',()=>navigate(location.hash.slice(1)||'home'));
 };
 const initialRoute=location.hash.slice(1);
-start().then(()=>{const target=initialRoute;if(target&&target!=='home')navigate(target)});
+function bootAtlas(){start().then(()=>{const target=initialRoute;if(target&&target!=='home')navigate(target)})}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootAtlas,{once:true});else bootAtlas();

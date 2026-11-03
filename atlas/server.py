@@ -111,8 +111,11 @@ class Controller:
                 report = self.store.apply_public_profile(snapshot)
                 with self.store.lock:
                     self.store.status['public_job']['message'] = f"{snapshot['username']}: {report['games']} oyun, {report['achievements']} kupa kaydedildi."
+                if self.public_stop.is_set():
+                    self.store.status['public_job']['message']='Profil kaydedildi; sonraki indirmeler durduruldu.'
+                    return
                 self.download_media()
-                if guides.configured():
+                if guides.configured() and not self.public_stop.is_set():
                     try:self.generate_guides({'platform': platform})
                     except ValueError as exc:self.store.status['public_job']['message'] += ' '+str(exc)
             except sync_control.Cancelled:
