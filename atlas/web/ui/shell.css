@@ -127,3 +127,9 @@ body.high-contrast #atlasThemeSkin,body.high-contrast #atlasConsoleButton{border
 /* Ten native destinations remain scrollable on compact desktop heights. */
 body .rail .nav{min-height:0;overflow-y:auto;scrollbar-width:thin}
 body[data-skin=xmb] .rail .nav{overflow-x:auto;overflow-y:hidden}
+
+/* The original navigation is grouped visually, but all links keep their native routes. */
+.atlas-nav-group{padding:15px 11px 5px;color:#92aac0;font-size:9px;font-weight:850;letter-spacing:.17em}
+body[data-skin=blades] .atlas-nav-group{color:#bde28d}
+body[data-skin=xmb] .atlas-nav-group{color:#b3d5f6}
+@media(min-width:1150px){body[data-skin=xmb] .atlas-nav-group{display:none}}
