@@ -246,3 +246,41 @@ jobs:
           fi
           gh release upload development release-files/*-Setup.exe release-files/SHA256SUMS.txt release-files/update-bundle.json release-files/development-verification.json --clobber
           gh release upload development release-files/development-manifest.json --clobber
+
+  publish-authorized-push:
+    # Explicit release commit marker; ordinary pushes only build candidates.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/public-profile-trophies' && contains(github.event.head_commit.message, '[publish-development]')
+    needs: build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: atlas-development-promotion
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      CANDIDATE_RUN_ID: ${{ github.run_id }}
+      CANDIDATE_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: AchievementAtlas-0.15.0-Windows-x64
+          path: release-files
+      - name: Reverify the exact successful push build
+        run: |
+          python -m pip install -r requirements-updates.txt
+          python scripts/verify_development_candidate.py release-files
+      - name: Publish explicitly authorized development update
+        run: |
+          if gh release view development >/dev/null 2>&1; then
+            gh release edit development --prerelease --title 'Achievement Atlas — Development' --notes '0.15.0 Windows installer. GitHub push provenance verified. Windows Authenticode signing may be absent.'
+          else
+            gh release create development --target "$CANDIDATE_COMMIT" --prerelease --title 'Achievement Atlas — Development' --notes '0.15.0 Windows installer. GitHub push provenance verified. Windows Authenticode signing may be absent.'
+          fi
+          gh release upload development release-files/*-Setup.exe release-files/SHA256SUMS.txt release-files/update-bundle.json release-files/development-verification.json --clobber
+          gh release upload development release-files/development-manifest.json --clobber
