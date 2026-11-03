@@ -10,9 +10,27 @@ This attribution describes the **intended provider if the application is accepte
 
 - Only **Achievement Atlas Windows application executables or installers** produced from the public source and build scripts of [Gh0sTRX/achievment-thropy-tracker](https://github.com/Gh0sTRX/achievment-thropy-tracker) are eligible.
 - Only a reproducible, provenance-verifiable **GitHub Actions release build**, running on a trusted GitHub-hosted runner from an identifiable release tag or approved commit, may be submitted to SignPath.
-- The current [GitHub Actions test workflow](.github/workflows/tests.yml) tests the project; **it is not yet a production EXE build-and-sign workflow**. A separate audited release workflow and SignPath configuration must be created before requesting production signatures.
+- The [unit workflow](.github/workflows/tests.yml) and [Windows packaging workflow](.github/workflows/windows-package.yml) now test and build the v0.14 application, native window, installer and uninstall path. Packaging can optionally use a configured trusted Authenticode certificate; it is **not an approved SignPath Foundation workflow**. SignPath-specific configuration, review and approval are still pending.
 - Manually compiled or manually uploaded EXE files may be published as **unsigned preliminary releases**, but must **not** be represented as verified SignPath builds and must not be submitted for Foundation signing without an approved origin-verification pipeline.
 - Third-party applications, game binaries, commercial artwork, bundled upstream runtime components and files downloaded by users are not signed as if they were original Achievement Atlas code. The provenance and license of all packaged dependencies must be reviewed.
+
+## Existing development updates versus Windows signing
+
+The `development` prerelease channel uses GitHub OIDC/Sigstore SLSA build provenance,
+validated against a bundled, pinned production trust root and fixed repository,
+owner, workflow, allowed push refs, commit/run and installer digest. Its manifest
+is distinct from the stable Authenticode manifest. This proves accepted build
+origin and byte identity; it does **not** give the EXE a trusted Windows publisher
+certificate, establish malware-free behavior or imply SignPath approval.
+
+The existing workflow can automatically publish development artifacts after its
+checks on trusted development/main push refs; PR builds do not publish. Versioned
+stable publication additionally requires a valid Authenticode-signed installer.
+SignPath's manual approval rules below apply if/when SignPath signing is configured;
+they are not a claim that current development uploads were approved by SignPath.
+Inspect each artifact's actual `signed` / `authenticode_signed` report. A future
+non-SignPath certificate's real publisher must be reported accurately as well.
+This audit creates only a review branch/PR and validation artifacts, **no new Release**.
 
 ## Maintainer and signing roles
 
@@ -42,12 +60,12 @@ All SignPath-related policies and restrictions, including any certificate suspen
 
 [Achievement Atlas Privacy Policy](PRIVACY.md).
 
-The application is local-first. It does not send personal information to external systems during ordinary offline use; network communications occur when the user explicitly starts Microsoft/Xbox login or sync, artwork retrieval, or opens external links. See the privacy policy for the exact data stored locally, token handling and third-party providers (Microsoft, OpenXbox, SteamGridDB, TrueAchievements).
+The application is local-first. It does not send personal information to external systems during ordinary offline use; network communications include startup GitHub update checks, reconnect/sync with saved Xbox access, post-sync artwork retrieval, explicit public Xbox/PSN lookups, optional Brave/OpenAI guide calls, and opened external links. Automatic guide generation requires the explicit preference in the audited code. See the privacy policy for actual data fields, credential storage, provider billing and deletion controls.
 
 ## For users verifying downloads
 
 - Until a release explicitly states it has been signed **and** that signature verifies, treat it as **unsigned**.
-- A signed Windows EXE should show a valid Authenticode signature with **SignPath Foundation** as publisher. A GitHub release upload alone is not evidence of code signing.
+- An EXE signed under an approved SignPath Foundation configuration should show its actual valid Authenticode publisher; **SignPath Foundation** is the intended publisher under that program, not a claim about current unsigned artifacts. A GitHub release upload alone is not evidence of code signing.
 - Prefer assets from the [official Releases page](https://github.com/Gh0sTRX/achievment-thropy-tracker/releases), compare published SHA-256 checksums, and inspect the linked source commit and CI history.
 - Windows SmartScreen or other security prompts may still occur; code signing is not a malware-free guarantee.
 
