@@ -103,6 +103,8 @@ class Controller:
         return self.store.export_archive()
 
     def restore_archive(self, data):
+        if data.get('confirm') is not True:
+            raise ValueError('Arşivi geri yüklemek için açık onay gerekli.')
         blockers = self.update_blockers()
         if blockers:
             raise ValueError('Geri yükleme bekliyor: ' + ', '.join(blockers))
