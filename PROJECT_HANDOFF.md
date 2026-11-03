@@ -98,3 +98,17 @@ Bu oturumda PR #5'in mevcut dalı üzerinde **yeni release üretmeden** şu işl
 - `docs/V015_IDENTITY_STORAGE_MOTION_TR.md` teknik sınırları ve testleri açıklar. Eski `profiles/`, artwork cache, Windows rollback hâlâ genel transaction kapsamı dışında.
 
 **Yayın tuzağı:** `.github/workflows/windows-package.yml` içindeki `push: codex/public-profile-trophies` yayın akışını (`publish-development`) otomatik tetikler! Kullanıcı mevcut Development sürümünü korumak istediğinden PR #4 / #5 önce bağımsız `integration/atlas-v015` dalında sıralı birleştirilmeli; son installer build için entegrasyon → codex yönünde ayrı draft PR açılmalı. `codex/public-profile-trophies`, `development` Release ve `main` üzerinde yayınlama/otomatik push olmamalıdır. Son test/PR durumunu yeni sohbette yeniden denetle.
+
+
+## 4 Kasım 2026 — Entegrasyon ve v0.15 Preview (SON DURUM)
+
+Bu önceki PR sıralama talimatının **güncel sonucu**dur:
+1. PR #4 (`feature/unified-native-themes`) `integration/atlas-v015` dalına **merge edildi**: `6d3f49a08b13b54261e128cb6d75fbbe8e4bdd3b`.
+2. PR #5 (`feature/v015-foundation-onboarding-recovery`) aynı entegrasyon dalına **merge edildi**: `c493b3787afd7be7778c82787c3735f1fcfbc78d`.
+3. `integration/atlas-v015` üzerinde gerçek `0.15.0` **Preview** sürüm ismi, Inno Setup installer ismi, HTML sürüm etiketi ve Windows Actions artifact isimleri güncellendi.
+4. `windows-package.yml` Development kanalının **otomatik** yayınını kaldırdı; yalnız `workflow_dispatch` + `publish_development=true` + `codex/public-profile-trophies` koşullarıyla açık manuel yayın mümkün. Bu kod birleşmeden mevcut codex dalındaki eski workflow hâlâ auto-publish yapabilir; codex'e doğrudan push/merge yalnız yayın etkisi değerlendirilerek yapılmalı.
+5. Final gözden geçirme PR #6: `integration/atlas-v015` → `codex/public-profile-trophies` **DRAFT**. Son installer ve unit/JS koşularının başarılı olduğundan emin ol. **PR #6'yı otomatik merge etme**; `main` ve `development` Release'i koru.
+
+Yeni oturumda şunları denetle: PR #6 head commit ve son Windows artifact; Python+JS sonuçları; gerçek Windows 0.14.1→0.15.0 preview upgrade/rollback testi; gerçek Xbox/PSN kimlik ve fiziksel gamepad testleri. Paket verileri kişisel arşivden görür, uydurma kupa veya AI yapımı oyun artı yoktur.
+
+**Not:** Başarılı CI gerçek kullanıcı Windows kurulumunda veri göçü/rollback, gerçek hesap bağlantısı ve fiziksel kontrolcü kanıtı değildir. Windows preview installer'ını otomatik güncelleme kanalıyla aynı sayma.
