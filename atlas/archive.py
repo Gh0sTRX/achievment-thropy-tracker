@@ -75,9 +75,10 @@ def _validate_data(data: object) -> dict:
     return data
 
 
-def make_archive(library: dict, state: dict) -> dict:
-    """Export active records only; never export credentials or secret settings."""
-    safe_state = {k: deepcopy(state[k]) for k in STATE_FIELDS if k in state}
+def make_archive(library: dict, state: dict, *, internal_recovery: bool = False) -> dict:
+    """Portable exports exclude secrets; private on-disk rollback keeps all state."""
+    safe_state = (deepcopy(state) if internal_recovery else
+                  {k: deepcopy(state[k]) for k in STATE_FIELDS if k in state})
     data = _validate_data({"library": deepcopy(library), "state": safe_state})
     raw = _encoded(data)
     if len(raw) > MAX_BYTES:
@@ -149,7 +150,7 @@ def restore_files(root: Path, document: dict, previous_library: dict,
     root = Path(root)
     data = verify_archive(document)
     recover_interrupted_restore(root)
-    backup = make_archive(previous_library, previous_state)
+    backup = make_archive(previous_library, previous_state, internal_recovery=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     name = f"pre-restore-{stamp}-{secrets.token_hex(6)}.json"
     _write_json(root / "recovery" / name, backup)
