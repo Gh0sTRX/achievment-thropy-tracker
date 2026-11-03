@@ -32,20 +32,24 @@ on:
       - '.github/workflows/windows-package.yml'
   workflow_dispatch:
     inputs:
-      publish_development:
-        description: 'Explicitly publish the verified installer to Development'
+      promote_run_id:
+        description: 'Optional: successful trusted PUSH run to promote without rebuilding'
         required: false
-        type: boolean
-        default: false
+        type: string
 concurrency:
-  group: atlas-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: atlas-${{ github.workflow }}-${{ github.ref }}-${{ inputs.promote_run_id != '' && 'promotion' || 'build' }}
+  cancel-in-progress: ${{ inputs.promote_run_id == '' }}
 permissions:
   contents: read
 jobs:
   build:
+    if: github.event_name != 'workflow_dispatch' || inputs.promote_run_id == ''
     runs-on: windows-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -141,6 +145,20 @@ jobs:
           Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json dist\installer\
           Get-ChildItem dist\installer\*.exe,dist\installer\*.zip | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist\installer\SHA256SUMS.txt
           python -m pip freeze | Set-Content dist\installer\dependencies.txt
+      - name: Attest push-built development installer
+        if: github.event_name == 'push' && github.ref == 'refs/heads/codex/public-profile-trophies'
+        id: provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/installer/*-Setup.exe
+      - name: Prepare authenticated development candidate without publishing
+        if: github.event_name == 'push' && github.ref == 'refs/heads/codex/public-profile-trophies'
+        shell: pwsh
+        env:
+          BUNDLE_PATH: ${{ steps.provenance.outputs.bundle-path }}
+        run: |
+          Copy-Item $env:BUNDLE_PATH dist/installer/update-bundle.json
+          python scripts/build_dev_manifest.py dist/installer
       - uses: actions/upload-artifact@v4
         with:
           name: AchievementAtlas-0.15.0-Windows-x64
@@ -182,51 +200,49 @@ jobs:
         run: |
           gh release create "$RELEASE_TAG" release-files/* --verify-tag --title "Achievement Atlas $RELEASE_TAG" --generate-notes
 
-  publish-development:
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_development == true && github.ref == 'refs/heads/codex/public-profile-trophies'
-    needs: build
+
+  promote-development:
+    if: github.event_name == 'workflow_dispatch' && inputs.promote_run_id != '' && github.ref == 'refs/heads/codex/public-profile-trophies'
+    concurrency:
+      group: atlas-development-promotion
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: write
-      id-token: write
-      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      CANDIDATE_RUN_ID: ${{ inputs.promote_run_id }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: AchievementAtlas-0.15.0-Windows-x64
-          path: release-files
-      - name: Attest development installer provenance
-        id: provenance
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: release-files/*-Setup.exe
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify attestation and prepare development manifest
-        env:
-          BUNDLE_PATH: ${{ steps.provenance.outputs.bundle-path }}
+      - name: Require successful trusted push run
         run: |
-          cp "$BUNDLE_PATH" release-files/update-bundle.json
+          python - <<'PY'
+          import json,os,re,subprocess
+          run=os.environ['CANDIDATE_RUN_ID']
+          if not re.fullmatch(r'[1-9][0-9]*',run): raise SystemExit('Invalid run ID')
+          data=json.loads(subprocess.check_output(['gh','api',f'repos/{os.environ["GH_REPO"]}/actions/runs/{run}']))
+          assert data['event']=='push' and data['conclusion']=='success'
+          assert data['head_branch']=='codex/public-profile-trophies'
+          assert data['path']=='.github/workflows/windows-package.yml'
+          assert data['head_repository']['full_name']==os.environ['GH_REPO']
+          with open(os.environ['GITHUB_ENV'],'a') as out:
+              out.write('CANDIDATE_COMMIT='+data['head_sha']+'\n')
+          PY
+      - name: Download original artifact without rebuilding
+        run: gh run download "$CANDIDATE_RUN_ID" --pattern 'AchievementAtlas-*-Windows-x64' --dir release-files
+      - name: Verify original installer, manifest and push provenance
+        run: |
           python -m pip install -r requirements-updates.txt
-          python scripts/build_dev_manifest.py release-files
-      - name: Publish the verified development channel
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
+          python scripts/verify_development_candidate.py release-files
+      - name: Publish verified development candidate
         run: |
-          if gh release view development >/dev/null 2>&1; then
-            gh release edit development --prerelease --title "Achievement Atlas — Development" --notes "Development prerelease (v0.15.0 Preview): unified themes, Foundation onboarding, portable backup/restore, crash-safe local journal, provider identity and native motion. Installer SHA256 and GitHub OIDC/Sigstore provenance are verified. Windows Authenticode signing may be absent; OS protections remain enabled. Details: docs/RELEASE_NOTES_0_14_1_TR.md"
-          else
-            gh release create development --target "$GITHUB_SHA" --prerelease --title "Achievement Atlas — Development" --notes "Automatic development channel verified by GitHub build provenance. Windows security checks remain enabled."
+          if ! gh release view development >/dev/null 2>&1; then
+            gh release create development --target "$CANDIDATE_COMMIT" --prerelease --title 'Achievement Atlas — Development' --notes 'GitHub push provenance verified. Windows Authenticode signing may be absent.'
           fi
           gh release upload development release-files/*-Setup.exe release-files/SHA256SUMS.txt release-files/update-bundle.json release-files/development-verification.json --clobber
           gh release upload development release-files/development-manifest.json --clobber
-      - uses: actions/upload-artifact@v4
-        with:
-          name: AchievementAtlas-0.15.0-Verified-Development-Channel
-          path: |
-            release-files/development-manifest.json
-            release-files/update-bundle.json
-            release-files/development-verification.json

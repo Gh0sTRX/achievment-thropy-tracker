@@ -50,6 +50,7 @@ class DevelopmentTests(unittest.TestCase):
         s=statement();s['predicate']['buildDefinition']['externalParameters']['workflow']['ref']='refs/heads/other';cases.append(s)
         s=statement();s['predicate']['buildDefinition']['internalParameters']['github']['repository_id']='1';cases.append(s)
         s=statement();s['predicate']['buildDefinition']['internalParameters']['github']['event_name']='pull_request';cases.append(s)
+        s=statement();s['predicate']['buildDefinition']['internalParameters']['github']['event_name']='workflow_dispatch';cases.append(s)
         s=statement();s['predicate']['runDetails']['metadata']['invocationId']='https://github.com/'+updater.REPOSITORY+'/actions/runs/999/attempts/1';cases.append(s)
         for s in cases:
             with self.assertRaises(ValueError):provenance.validate_statement(s,manifest())
