@@ -267,11 +267,13 @@ class Library:
 
     def apply_public_profile(self, snapshot):
         """Commit a fully fetched profile atomically; never mix two players' unlocks."""
-        platform = snapshot['platform']
+        from . import identity
+        platform, account_id = identity.validate_snapshot(snapshot)
         with self.lock:
             profiles = self.state.setdefault('public_profiles', {})
             previous = profiles.get(platform, {})
-            same = previous.get('id') == snapshot['id']
+            identity.reject_name_reuse(previous, snapshot)
+            same = str(previous.get('id')) == account_id
             if previous.get('id'):
                 previous_games = [g for g in self.library['games'] if g.get('platform') == platform]
                 previous_ids = {g['id'] for g in previous_games}
