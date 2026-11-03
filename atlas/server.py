@@ -43,6 +43,10 @@ class Controller:
         count = len(self.store.library['achievements'])
         if job.get('running'): return {'state':'syncing', 'message':f"Gerçek başarımlar alınıyor · {job.get('done',0)}/{job.get('total') or '?'} oyun · {job.get('message','')}"}
         if job.get('error'): return {'state':'error', 'message':job['error']}
+        warnings = self.store.state.get('sync_warnings') or []
+        if warnings:
+            names = ', '.join(w['game'] for w in warnings[:3])
+            return {'state':'partial', 'message':f'{count} kayıt mevcut. {len(warnings)} oyunun verisi yenilenemedi: {names}. Bu oyunların önceki kayıtları korundu.'}
         if count: return {'state':'stored', 'message':f"{count} kaynak kaydı · Son eşitleme: {self.store.state.get('sync_at') or 'CSV içe aktarımı'}"}
         if self.store.status.get('connected'): return {'state':'empty', 'message':'Xbox oturumu açık; henüz başarım indirilmedi. Gerçek verileri yenile.'}
         return {'state':'empty', 'message':'Henüz gerçek başarım verisi yok. Kullanıcı adını sorgula veya TrueAchievements CSV aktar. Örnek oyun gösterilmez.'}

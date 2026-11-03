@@ -1,4 +1,4 @@
-ACHIEVEMENT ATLAS 0.7.0 — WINDOWS KURULUMU
+ACHIEVEMENT ATLAS 0.8.0 — WINDOWS KURULUMU
 
 Hazır Setup.exe paketi Windows 10/11 64 bit içindir. Python veya yönetici
 izni gerekmez. Kurulum dosyasını aç, adımları tamamla, masaüstündeki
@@ -11,8 +11,8 @@ AchievementAtlas.exe dosyasını aç. _internal klasörünü silme.
 
 İLK KULLANIM
 1. Hesap & Veri ekranını aç.
-2. Veri servisi ayarlarını aşağıdaki açıklamaya göre kaydet.
-3. Xbox veya PlayStation seç; Gamertag / Online ID yaz; KUPALARIMI GETİR'e bas.
+2. Platformunu seç. Kayıtlı Xbox erişimi otomatik kullanılır.
+3. Gamertag / Online ID yaz; PROFİLİMİ YENİLE düğmesine bas.
 4. Oyun detayında BU OYUNU TAMAMLA düğmesine bas.
 
 CANLI VERİ İÇİN GEREKENLER
@@ -57,3 +57,12 @@ Microsoft girisi sonrasi tum oyun ve basarimlar otomatik indirilir.
 Kayitli oturum varsa yeniden acilista esitleme denenir. Bir oturumun acik
 olmasi basarimlarin indirildigi anlamina gelmez; durum ve hatalar ana
 merkezde gosterilir. Yeni API kayitlari yoksa ornek veri uretilmez.
+
+0.8 DUZELTMELERI
+Sifir olan gercek Xbox basarim kimligi korunur. Adi eksik basarim, kimligiyle
+ve adin alinamadigi belirtilerek gosterilir. Gercek kimligi veya kazanilma
+durumu eksik oyun ayri raporlanir; diger oyunlar kaydedilir. Ayni oyuncunun
+sorunlu oyunlardaki onceki kayitlari korunur. Kismi esitleme ekranda belirtilir.
+Hesap ekrani sadelestirildi. Teknik ayarlar istege bagli gelismis ekrandadir.
+JSON dosyalari uygulamanin yerel kayit bicimidir; elle duzenlemek gerekmez.
+Oyun Gorselleri yalnizca kapak/arka plan degistirir; kupa indirmez.

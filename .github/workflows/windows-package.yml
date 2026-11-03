@@ -73,13 +73,13 @@ jobs:
         run: |
           Copy-Item KURULUM.txt dist\AchievementAtlas\
           Copy-Item LICENSE dist\AchievementAtlas\
-          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.7.0-Windows-x64-Portable.zip
+          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.8.0-Windows-x64-Portable.zip
           Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json dist\installer\
           Get-ChildItem dist\installer\*.exe,dist\installer\*.zip | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist\installer\SHA256SUMS.txt
           python -m pip freeze | Set-Content dist\installer\dependencies.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: AchievementAtlas-0.7.0-Windows-x64
+          name: AchievementAtlas-0.8.0-Windows-x64
           path: dist/installer/*
           retention-days: 30
           if-no-files-found: error

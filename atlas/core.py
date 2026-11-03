@@ -203,6 +203,11 @@ class Library:
                     a['guide'] = prior['guide']
             new_games = deepcopy(snapshot['games'])
             prior_games = {g['id']: g for g in (self.library['games'] if same else cached.get('games', []))}
+            failed = set(snapshot.get('failed_title_ids', []))
+            retained_failed = [deepcopy(g) for g in prior_games.values() if g.get('title_id') in failed]
+            retained_failed_ids = {g['id'] for g in retained_failed}
+            new_games.extend(retained_failed)
+            new_items.extend(deepcopy(a) for a in old_items.values() if a['game_id'] in retained_failed_ids)
             for g in new_games:
                 prior = prior_games.get(g['id'], {})
                 for field in ('hero_url', 'plan', 'notes'):
@@ -219,6 +224,7 @@ class Library:
             valid = {a['id'] for a in self.library['achievements']}
             self.state['pins'] = [p for p in self.state['pins'] if p in valid]
             self.state['sync_at'] = snapshot['synced_at']
+            self.state['sync_warnings'] = deepcopy(snapshot.get('warnings', []))
             self.save()
         return {'games': len(new_games), 'achievements': len(new_items)}
 

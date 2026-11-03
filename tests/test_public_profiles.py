@@ -181,3 +181,50 @@ class ConnectionSyncTests(unittest.TestCase):
     def test_empty_remote_result_is_not_a_successful_sync(self):
         with patch.object(public,'_psn',return_value=({'id':'1','username':'Player1'},[],[])):
             with self.assertRaisesRegex(ValueError,'alınamadı'):public.fetch('psn','Player1')
+
+class IdentifierRegressionTests(unittest.TestCase):
+    def test_zero_and_missing_name_and_explicit_aliases(self):
+        from atlas.xbox import normalize_achievements
+        records=normalize_achievements({'achievements':[
+            {'id':0,'name':'','unlocked':True,'gamerscore':5},
+            {'achievementId':12,'name':'Actual achievement','unlocked':False},
+        ]},True)
+        self.assertEqual([a['id'] for a in records],['0','12'])
+        self.assertTrue(records[0]['unlocked'])
+        self.assertIn('adı alınamadı',records[0]['name'])
+
+    def test_bad_game_does_not_discard_valid_game(self):
+        calls=[]
+        async def profile(name):return {'profileUsers':[{'id':'222','settings':[{'id':'Gamertag','value':'Player1'}]}]}
+        async def get(url,**kw):
+            if '/history/titles' in url:
+                raw={'titles':[{'titleId':1,'name':'Valid'},{'titleId':2,'name':'Missing ID'}] if kw['headers']['x-xbl-contract-version']=='1' else []}
+            elif kw['params']['titleId']=='1':raw={'achievements':[{'id':0,'name':'Real','unlocked':True}]}
+            else:raw={'achievements':[{'name':'No ID','unlocked':False}]}
+            return SimpleNamespace(raise_for_status=lambda:None,json=lambda:raw)
+        client=SimpleNamespace(profile=SimpleNamespace(get_profile_by_gamertag=profile),session=SimpleNamespace(get=get))
+        @asynccontextmanager
+        async def service(path):yield client,'111'
+        with patch.dict('os.environ',{'ATLAS_XBOX_TOKEN_FILE':'unused'}),patch.object(public.xbox,'authenticated_client',service):
+            result=public.fetch('xbox','Player1')
+        self.assertEqual(len(result['games']),1)
+        self.assertEqual(result['achievements'][0]['provider_id'],'0')
+        self.assertEqual(result['failed_title_ids'],['2'])
+        self.assertEqual(result['warnings'][0]['game'],'Missing ID')
+
+    def test_partial_sync_preserves_old_failed_game_for_same_player(self):
+        from copy import deepcopy
+        with TemporaryDirectory() as root:
+            store=Library(root)
+            first=snapshot()
+            second=deepcopy(first['games'][0]);second['id']='secondgame';second['title_id']='title2'
+            item=deepcopy(first['achievements'][0]);item['id']='xbox:title2:0';item['game_id']='secondgame';item['unlocked']=True
+            first['games'].append(second);first['achievements'].append(item)
+            store.apply_public_profile(first)
+            partial=snapshot();partial['failed_title_ids']=['title2'];partial['warnings']=[{'title_id':'title2','game':'Second','reason':'missing ID'}]
+            store.apply_public_profile(partial)
+            self.assertEqual(len(store.library['games']),2)
+            self.assertTrue(next(a for a in store.library['achievements'] if a['id']=='xbox:title2:0')['unlocked'])
+            self.assertEqual(len(store.state['sync_warnings']),1)
+            partial['id']='another-player';store.apply_public_profile(partial)
+            self.assertEqual(len(store.library['games']),1)

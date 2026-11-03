@@ -1,4 +1,4 @@
-# Achievement Atlas 0.7 — Türkçe Kurulum
+# Achievement Atlas 0.8 — Türkçe Kurulum
 
 Windows 10/11 64 bit için hazır **Setup.exe** ve **Portable.zip** paketleri hazırlanır.
 Hazır paketlerde Python kurman gerekmez. Arayüz Microsoft Edge WebView2 ile kendi masaüstü penceresinde açılır. Setup masaüstü/Başlat menüsü kısayolu ve
@@ -13,8 +13,7 @@ uygulamayı açar. Sonraki açılışlarda `BASLAT_WINDOWS.bat` kullanılır.
 
 ## İlk kullanım
 
-Hesap & Veri ekranında **İlk kurulum** bölümünü aç. Servis erişimlerini yerel
-olarak kaydet, platformunu seç ve kullanıcı adını gir. Xbox / PSN için hedef
+Hesap & Veri ekranında platformunu seç, kullanıcı adını yaz ve **Profilimi yenile** düğmesine bas. Kayıtlı erişimler otomatik kullanılır. Teknik servis seçenekleri isteğe bağlı **Gelişmiş ayarlar** ekranındadır. Xbox / PSN için hedef
 oyuncunun hesabını bağlaman gerekmez; işletmeciye ait bir servis erişimi gerekir.
 **Paket hazır servis hesabı veya API anahtarı içermez.** Bunlar olmadan canlı
 kupa sorgulaması çalışmaz; TrueAchievements CSV aktarımı kullanılabilir.

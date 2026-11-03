@@ -92,7 +92,7 @@ async def _xbox(username, progress):
         except Exception:
             # Optional cover metadata must not replace or fabricate progression.
             pass
-        games = []; items = []; seen = set()
+        games = []; items = []; seen = set(); warnings = []; failed = []
         total = len({str(t.get('titleId')) for t, _ in histories})
         for title, version in histories:
             tid = str(title.get('titleId', ''))
@@ -101,14 +101,27 @@ async def _xbox(username, progress):
             seen.add(tid)
             g = game('xbox', tid, str(title.get('name') or tid), '360' if version == '1' else 'one', metadata.get(tid, {}).get('cover_url', ''))
             endpoint = 'titleachievements' if version == '1' else 'achievements'
-            records = await _pages(client, f'{base}/users/xuid({xuid})/{endpoint}',
-                                   {'x-xbl-contract-version': version}, 'achievements', {'titleId': tid})
-            normalized = xbox.normalize_achievements({'achievements': records}, version == '1')
-            if len(normalized) != len(records) or any(not a['id'] for a in normalized):
-                raise ValueError('Xbox başarım kimlikleri eksik; arşiv değiştirilmedi.')
-            games.append(g); items.extend(achievement(g, a) for a in normalized)
-            progress(len(games), total, g['name'])
-        return {'id': xuid, 'username': profile['gamertag']}, games, items
+            try:
+                records = await _pages(client, f'{base}/users/xuid({xuid})/{endpoint}',
+                                       {'x-xbl-contract-version': version}, 'achievements', {'titleId': tid})
+                normalized = xbox.normalize_achievements({'achievements': records}, version == '1')
+                missing = sum(not a['id'].strip() for a in normalized)
+                if len(normalized) != len(records) or missing:
+                    raise ValueError(f'{missing or len(records)-len(normalized)} kaydın gerçek kimliği okunamadı')
+                if len({a['id'] for a in normalized}) != len(normalized):
+                    raise ValueError('Aynı kimlikle birden fazla başarım bildirildi')
+                if not records:
+                    raise ValueError('Başarım listesi boş döndü')
+                games.append(g); items.extend(achievement(g, a) for a in normalized)
+            except Exception as exc:
+                code = getattr(getattr(exc, 'response', None), 'status_code', None)
+                if code in (401,403,429):raise
+                reason = str(exc) if type(exc) is ValueError else type(exc).__name__
+                warnings.append({'title_id':tid, 'game':g['name'], 'reason':reason[:180]})
+                failed.append(tid)
+            finally:
+                progress(len(seen), total, g['name'])
+        return {'id': xuid, 'username': profile['gamertag'], 'warnings': warnings, 'failed_title_ids':failed}, games, items
 
 
 def _psn(username, progress):
@@ -153,7 +166,8 @@ def fetch(platform, username, progress=lambda *args: None):
         # SDK exceptions can contain request headers or tokens; expose only the class.
         raise ValueError('Profil alınamadı: '+type(exc).__name__+'. Gizlilik, servis oturumu, ağ erişimi ve hız limitini kontrol et.') from None
     if not games or not items:
-        raise ValueError('Herkese açık oyun veya başarım alınamadı. Gizlilik ve servis erişimini kontrol et; önceki arşiv korundu.')
+        details = '; '.join(w['game']+': '+w['reason'] for w in identity.get('warnings', [])[:2])
+        raise ValueError('Oyun veya başarım alınamadı. '+(details or 'Gizlilik ve servis erişimini kontrol et.')+' Önceki arşiv korundu.')
     if len({a['id'] for a in items}) != len(items):
         raise ValueError('Tekrarlanan kupa kimliği; arşiv değiştirilmedi.')
     return {'platform': platform, **identity, 'games': games, 'achievements': items,
