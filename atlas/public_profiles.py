@@ -8,6 +8,7 @@ import re
 from datetime import datetime, timezone
 from . import xbox, artwork, editions, sync_control
 from .core import game_id
+from . import identity
 
 
 def validate(platform, username):
@@ -83,6 +84,7 @@ async def _xbox(username, progress):
             raise ValueError('Xbox profili bulunamadı.')
         profile = xbox.normalize_profile(raw, str(users[0].get('id', '')))
         xuid = profile['xuid']
+        identity.verify_requested_name('xbox', username, profile['gamertag'])
         histories = []
         base = 'https://achievements.xboxlive.com'
         for version in ('1', '2'):
@@ -179,6 +181,8 @@ def _psn(username, progress):
     except ImportError:
         raise ValueError('PSN bileşeni eksik: pip install -r requirements-psn.txt') from None
     user = PSNAWP(secret).user(online_id=username)
+    identity.verify_requested_name('psn', username, user.online_id)
+    identity.provider_key('psn', user.account_id)
     titles = list(user.trophy_titles(limit=None))
     games = []; items = []
     for title in titles:
@@ -238,5 +242,8 @@ def fetch(platform, username, progress=lambda *args: None, stop=lambda:False, ca
         raise ValueError('Oyun veya başarım alınamadı. '+(details or 'Gizlilik ve servis erişimini kontrol et.')+' Önceki arşiv korundu.')
     if len({a['id'] for a in items}) != len(items):
         raise ValueError('Tekrarlanan kupa kimliği; arşiv değiştirilmedi.')
-    return {'platform': platform, **identity, 'games': games, 'achievements': items,
-            'synced_at': datetime.now(timezone.utc).isoformat()}
+    result = {'platform': platform, **identity, 'games': games, 'achievements': items,
+              'synced_at': datetime.now(timezone.utc).isoformat()}
+    from . import identity as identity_rules
+    identity_rules.validate_snapshot(result)
+    return result
