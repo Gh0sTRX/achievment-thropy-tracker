@@ -225,9 +225,22 @@ class Library:
                     if prior.get(key):a[key]=prior[key]
                 if prior.get('unlocked') and not a['unlocked']:
                     a['unlocked']=True;a['unlock_time']=prior.get('unlock_time','')
+            # A TrueAchievements CSV is Xbox-only. Never delete an unrelated PSN/PC
+            # collection when importing a new Xbox export into a mixed library.
+            other_games = [deepcopy(g) for g in old['games']
+                           if g.get('platform') not in ('xbox', 'demo')]
+            other_ids = {g['id'] for g in other_games}
+            other_items = [deepcopy(a) for a in old['achievements']
+                           if a.get('game_id') in other_ids]
+            if other_games:
+                lib['games'] = other_games + lib['games']
+                lib['achievements'] = other_items + lib['achievements']
+                lib['schema'] = 2
+                lib['platform'] = 'mixed'
+                lib['complete_export'] = False
             self.library=lib;self.save()
         return {'games':len(lib['games']),'achievements':len(lib['achievements']),
-                'earned':sum(a['unlocked'] for a in lib['achievements']),'message':'Library imported; saved achievements never revoked.'}
+                'earned':sum(a['unlocked'] for a in lib['achievements']),'message':'Library imported; other platforms and earned achievements preserved.'}
 
     def set_preferences(self, values):
         from .preferences import validate
