@@ -35,6 +35,28 @@ class CoreTests(unittest.TestCase):
             result=a.apply_live_game(gid,[{'name':'B','gamerscore':50,'unlocked':True,'icon':'https://xboxlive.com/any.png','progress_current':3,'progress_target':5}])
             self.assertEqual(result['updated'],1)
             self.assertTrue(next(x for x in a.library['achievements'] if x['id']=='ta:124')['unlocked'])
+    def test_xbox_csv_import_preserves_psn_records_and_pins(self):
+        with tempfile.TemporaryDirectory() as td:
+            a = Library(td)
+            a.library = {'schema': 2, 'platform': 'mixed', 'gamertag': 'PS Player',
+                         'created_at': '', 'complete_export': False,
+                         'games': [{'id': 'psn:world', 'name': 'PS Game', 'platform': 'psn'}],
+                         'achievements': [{'id': 'psn:trophy', 'game_id': 'psn:world',
+                                           'name': 'Real trophy', 'platform': 'psn',
+                                           'unlocked': True, 'points': 0}]}
+            a.state['pins'] = ['psn:trophy']
+            a.save()
+            result = a.import_csv(self.EARN, self.LOCK, 'Xbox Player')
+            self.assertEqual((result['games'], result['achievements']), (1, 3))
+            self.assertEqual(result['preserved_other_platform_games'], 1)
+            loaded = Library(td)
+            self.assertEqual({g['platform'] for g in loaded.library['games']}, {'xbox','psn'})
+            self.assertEqual(len(loaded.library['achievements']), 4)
+            self.assertTrue(next(x for x in loaded.library['achievements']
+                                 if x['id'] == 'psn:trophy')['unlocked'])
+            self.assertIn('psn:trophy', loaded.state['pins'])
+            self.assertFalse(loaded.library['complete_export'])
+
     def test_xss_name_is_data(self):
         x=self.EARN.replace('Game A','<script>evil</script>')
         lib=build_library(x,self.LOCK)
