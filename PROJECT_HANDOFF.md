@@ -112,3 +112,16 @@ Bu önceki PR sıralama talimatının **güncel sonucu**dur:
 Yeni oturumda şunları denetle: PR #6 head commit ve son Windows artifact; Python+JS sonuçları; gerçek Windows 0.14.1→0.15.0 preview upgrade/rollback testi; gerçek Xbox/PSN kimlik ve fiziksel gamepad testleri. Paket verileri kişisel arşivden görür, uydurma kupa veya AI yapımı oyun artı yoktur.
 
 **Not:** Başarılı CI gerçek kullanıcı Windows kurulumunda veri göçü/rollback, gerçek hesap bağlantısı ve fiziksel kontrolcü kanıtı değildir. Windows preview installer'ını otomatik güncelleme kanalıyla aynı sayma.
+
+
+## 4 Kasım 2026 — PR #6 ANA GELIŞTIRME DALINDA BİRLEŞTİRİLDİ (güncel kayıt)
+
+Kullanıcı isteğiyle entegrasyon dalındaki son v0.15.0 Preview, final CI/Windows preview build başarılı olduktan sonra **PR #6 üzerinden `codex/public-profile-trophies` dalına birleştirildi**. Merge commit: `b1c77545a47e8a354e0c263e97a7bcb9197e1549`. PR #4 ve #5 önce `integration/atlas-v015` içine zaten alınmıştı; yeni commit onların değişikliklerini de içerir.
+
+- Versiyon: `0.15.0` **Preview**; yayımlanan `development` Release ile aynı şey değildir.
+- `main` değiştirilmedi. Geliştirme kanalına otomatik yayın artık `windows-package.yml` içinde `workflow_dispatch` + `publish_development=true` + doğru kod dalı koşullarına bağlıdır. Birleştirme otomatik Release üretmez.
+- Birleştirmeden önce `integration/atlas-v015` başlığındaki Windows installer build başarılıydı: https://github.com/Gh0sTRX/achievment-thropy-tracker/actions/runs/41725872621
+- Birleştirme sonrası **codex branch** GitHub Actions installer/job/attestation/artifact ve `publish-development` skip durumlarını ayrıca canlı denetle. Tam Windows 0.14.1→0.15.0 canlı yükseltme/başarısız rollback, gerçek Xbox/PSN erişimi ve fiziksel gamepad testi hâlâ eksik.
+- Kaynaklar: `docs/V015_FOUNDATION_PLAN_TR.md`, `docs/V015_ARCHIVE_RECOVERY_TR.md`, `docs/V015_IDENTITY_STORAGE_MOTION_TR.md`. Sadece gerçek oyun artwork'ü kullanılmalı, kişisel CSV/token repoya girmez.
+
+**Bu paragraf önceki 'PR #6'yı merge etme' bekleme notunun daha güncel sonucudur.** Sonraki oturumlar commit/Actions/Release durumlarını yeniden sorgulamalıdır.
