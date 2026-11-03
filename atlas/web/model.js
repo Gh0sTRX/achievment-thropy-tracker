@@ -28,14 +28,15 @@ const AtlasModel={
    const y=+iso[1],m=+iso[2],d=+iso[3],t=iso[4];
    if(!local(y,m,d))return null;
    if(!t)return local(y,m,d);
+   const timeParts=t.match(/^(\d{2}):(\d{2})(?::(\d{2}))?/);if(!timeParts||+timeParts[1]>23||+timeParts[2]>59||+(timeParts[3]||0)>59)return null;
    if(/Z|[+-]\d{2}:?\d{2}$/i.test(t)){const x=new Date(iso[1]+'-'+iso[2]+'-'+iso[3]+'T'+t.replace(/([+-]\d{2})(\d{2})$/,'$1:$2'));return Number.isFinite(x.getTime())?x:null;}
    const p=t.match(/^(\d{2}):(\d{2})(?::(\d{2}))?/);return p?local(y,m,d,+p[1],+p[2],+(p[3]||0)):null;
  }
- const months={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+ const months={jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,sep:9,sept:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
  let a=s.match(/^(\d{1,2})\s+([A-Za-z]{3,12})\s+(\d{4})(?:\s+(?:at\s+)?(.+))?$/i);
- if(a){const m=months[a[2].slice(0,3).toLowerCase()],t=clock(a[4]);return m&&t?local(+a[3],m,+a[1],...t):null;}
+ if(a){const m=months[a[2].toLowerCase()],t=clock(a[4]);return m&&t?local(+a[3],m,+a[1],...t):null;}
  a=s.match(/^([A-Za-z]{3,12})\s+(\d{1,2}),?\s+(\d{4})(?:\s+(?:at\s+)?(.+))?$/i);
- if(a){const m=months[a[1].slice(0,3).toLowerCase()],t=clock(a[4]);return m&&t?local(+a[3],m,+a[2],...t):null;}
+ if(a){const m=months[a[1].toLowerCase()],t=clock(a[4]);return m&&t?local(+a[3],m,+a[2],...t):null;}
  a=s.match(/^(\d{1,4})[/.](\d{1,2})[/.](\d{2,4})(?:\s+(?:at\s+)?(.+))?$/i);
  if(a){
    const t=clock(a[4]);if(!t)return null;

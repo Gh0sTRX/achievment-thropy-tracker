@@ -12,6 +12,10 @@ class NoRedirect(HTTPRedirectHandler):
         raise ValueError('Veri servisi yönlendirmesi reddedildi.')
 
 
+class Cancelled(Exception):
+    """Stop requested between paid provider requests."""
+
+
 def configured():
     return bool(settings.get('BRAVE_SEARCH_API_KEY') and settings.get('OPENAI_API_KEY'))
 
@@ -31,10 +35,11 @@ def fingerprint(a):
     return hashlib.sha256(json.dumps([a['id'], a['name'], a.get('description', ''), a.get('device_label',''),a.get('platform_edition','')], ensure_ascii=False).encode()).hexdigest()
 
 
-def create(a):
+def create(a, stop=lambda:False):
     if not configured():
         raise ValueError('Türkçe rehber servisi kurulmamış: BRAVE_SEARCH_API_KEY ve OPENAI_API_KEY gerekli.')
     try:
+        if stop():raise Cancelled()
         query = f"{a['game_name']} {a.get('device_label','')} {a.get('platform_edition','')} {a['name']} {'trophy' if a.get('platform') == 'psn' else 'achievement'} guide"
         result = _json('https://api.search.brave.com/res/v1/web/search?'+urlencode({'q': query, 'count': 5}),
                        {'X-Subscription-Token': settings.get('BRAVE_SEARCH_API_KEY')})
@@ -47,6 +52,7 @@ def create(a):
                                 'excerpt': str(entry.get('description', ''))[:1800]})
         if not sources:
             raise ValueError('Bu kupa için rehber kaynağı bulunamadı.')
+        if stop():raise Cancelled()
         response = _json('https://api.openai.com/v1/chat/completions',
             {'Authorization': 'Bearer '+settings.get('OPENAI_API_KEY')}, {
             'model': settings.get('ATLAS_GUIDE_MODEL', 'gpt-4.1-mini'),
@@ -67,7 +73,7 @@ def create(a):
                 'status': 'generated' if steps else 'insufficient_sources',
                 'fingerprint': fingerprint(a), 'generated_at': datetime.now(timezone.utc).isoformat(),
                 'model': settings.get('ATLAS_GUIDE_MODEL', 'gpt-4.1-mini')}
-    except ValueError:
+    except (ValueError, Cancelled):
         raise
     except Exception as exc:
         raise ValueError('Rehber servisine erişilemedi: '+type(exc).__name__) from None

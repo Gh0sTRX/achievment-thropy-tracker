@@ -1,4 +1,4 @@
-# Achievement Atlas 0.13 Ultimate — Türkçe Kurulum
+# Achievement Atlas 0.14.1 Ultimate — Türkçe Kurulum
 
 Windows 10/11 64 bit için hazır **Setup.exe** ve **Portable.zip** paketleri hazırlanır.
 Hazır paketlerde Python kurman gerekmez. Arayüz Microsoft Edge WebView2 ile kendi masaüstü penceresinde açılır. Setup masaüstü/Başlat menüsü kısayolu ve
@@ -86,3 +86,13 @@ yoluyla 0.13 alınabilir. [Uygulama ve doğrulama raporu](docs/ULTIMATE_IMPLEMEN
 Kupa ayrıntıları her iki arayüzde de satır altında açılır. İşlem durum çubuğundan
 profil/görsel/rehber indirmeleri durdurulabilir. **Tam yenile**, kısa süreli
 kupa önbelleğini kullanmadan sorgular. [Değişiklikler ve testler](docs/ULTIMATE_V5_INTEGRATION.md).
+
+
+## 0.14.1 — V5.1 bakım güncellemesi
+
+- Otomatik Türkçe rehber üretimi **varsayılan kapalıdır**. Brave ve OpenAI servislerinin otomatik kullanımı için açık izin gerekir. Elle rehber başlatma ayrıdır ve servis kullanımı maliyet oluşturabilir.
+- Eski kütüphane migrasyonu öncesi yedekleme; bozuk JSON'da fail-closed açılış; API durum/revision tutarlılığı; güvenli tarih ayrıştırma ve artwork crossfade/fallback düzeltmeleri.
+- Xbox/PSN canlı profil sorgulama servis oturumu gerektirir ve gerçek hesapta uçtan uca doğrulanmış değildir. PC/Steam hesabı bağlama henüz yoktur.
+- Yayın kanalı: **development prerelease**, Windows Authenticode imzası garanti değildir. GitHub/Sigstore köken kanıtı uygulamanın kendi güncelleme doğrulaması içindir, Windows yayıncı sertifikası değildir.
+
+[0.14.1 sürüm notları](docs/RELEASE_NOTES_0_14_1_TR.md) · [V5.1 denetimi](docs/ATLAS_V5_1_INTEGRATION_AUDIT_TR.md)

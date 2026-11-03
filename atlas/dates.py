@@ -1,11 +1,13 @@
 """Normalize explicitly identifiable unlock timestamps without guessing locale."""
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 
 MONTHS = {name:i for i,names in enumerate(
     ("jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"),1)
     for name in (names,)}
+MONTHS.update({name:i for i,name in enumerate(('january','february','march','april','may','june','july','august','september','october','november','december'),1)})
+MONTHS['sept']=9
 
 def _calendar(y, m, d, time=''):
     try:
@@ -30,6 +32,12 @@ def normalize_unlock_date(value):
     if not isinstance(value,str):return ''
     value=re.sub(r'\s+',' ',value.strip())[:100]
     if not value:return ''
+    if re.fullmatch(r'\d{5}(?:\.\d{1,10})?',value):
+        serial=float(value)
+        if 25569<=serial<=73415:
+            result=datetime(1899,12,30)+timedelta(seconds=round(serial*86400))
+            return result.date().isoformat() if serial.is_integer() else result.isoformat(timespec='seconds')
+        return ''
     iso=re.fullmatch(r'(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:Z|[+-]\d{2}:?\d{2})?))?',value,re.I)
     if iso:
         y,m,d=map(int,iso.group(1,2,3))
@@ -50,37 +58,17 @@ def normalize_unlock_date(value):
         if a>12 and b<=12:return _calendar(c,b,a,clock)  # dd/mm
         if b>12 and a<=12:return _calendar(c,a,b,clock)  # mm/dd
         return ''
-    english=re.fullmatch(r'(\d{1,2})\s+([A-Za-z]{3,12})\s+(\d{4})(?:\s+(?:at\s+)?(.+))?',value,re.I)
+    english=re.fullmatch(r'(\d{1,2})[ -]([A-Za-z]{3,12})[ ,\-]+(\d{4})(?:\s+(?:at\s+)?(.+))?',value,re.I)
     if english:
-        month=MONTHS.get(english[2][:3].lower())
+        month=MONTHS.get(english[2].lower())
         return _calendar(english[3],month,english[1],english[4] or '') if month else ''
     english=re.fullmatch(r'([A-Za-z]{3,12})\s+(\d{1,2}),?\s+(\d{4})(?:\s+(?:at\s+)?(.+))?',value,re.I)
     if english:
-        month=MONTHS.get(english[1][:3].lower())
+        month=MONTHS.get(english[1].lower())
         return _calendar(english[3],month,english[2],english[4] or '') if month else ''
     return ''
 
-from datetime import timedelta
+
 def normalize_unlock(value):
-    explicit=normalize_unlock_date(value)
-    if explicit:return explicit
-    text=str(value or '').strip()
-    if not text:return ''
-    try:
-        if re.fullmatch(r'\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:Z|[+-]\d{2}:?\d{2})?)?',text):
-            date=datetime.fromisoformat(text.replace('Z','+00:00'))
-            return date.date().isoformat() if len(text)==10 else date.isoformat()
-        # Explicit English month is independent of operating-system locale.
-        m=re.fullmatch(r'(\d{1,2})[ -]([A-Za-z]{3})[ ,\-]+(\d{4})(?: (\d{2}:\d{2}(?::\d{2})?))?',text)
-        if m and m[2].lower() in MONTHS:
-            date=datetime(int(m[3]),MONTHS[m[2].lower()],int(m[1]))
-            if m[4]:date=datetime.combine(date.date(),datetime.fromisoformat('2000-01-01T'+m[4]).time())
-            return date.isoformat() if m[4] else date.date().isoformat()
-        # Excel 1900-date-system serials only; exclude the fictitious 1900-02-29.
-        if re.fullmatch(r'\d{5}(?:\.\d{1,10})?',text):
-            serial=float(text)
-            if 25569<=serial<=73415:
-                date=datetime(1899,12,30)+timedelta(days=serial)
-                return date.date().isoformat() if serial.is_integer() else date.isoformat(timespec='seconds')
-    except (ValueError,OverflowError):pass
-    return ''
+    """Backward-compatible name; all import paths use the same validated parser."""
+    return normalize_unlock_date(value)

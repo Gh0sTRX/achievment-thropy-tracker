@@ -1,67 +1,136 @@
 # Privacy Policy — Achievement Atlas
 
-**Effective date:** November 3, 2026  
-**Project:** [Achievement Atlas](https://github.com/Gh0sTRX/achievment-thropy-tracker)  
-**Scope:** The public, open-source application described in this repository (currently the v0.5 pre-release), including its optional desktop window and browser-based local interface.
+**Reviewed source:** v0.14.0 / Ultimate v5.1 audit, November 3, 2026.
+**Project:** [Gh0sTRX/achievment-thropy-tracker](https://github.com/Gh0sTRX/achievment-thropy-tracker).
+This describes the source in this audit branch. The already published 0.14 binary
+is not updated merely by editing this document; in particular, its automatic-guide
+consent defect is corrected here and requires a later reviewed application update.
 
-## Summary
+## Local-first storage and network behavior
 
-Achievement Atlas is **local-first**. It does not operate a hosted account service for your achievement library and the published application source contains no built-in advertising, analytics tracker, or automatic upload of your library to the project's maintainer.
+The application runs a Python HTTP server on `127.0.0.1` and displays it in a native
+WebView2 window or an explicitly selected browser. It has no maintainer-hosted
+library service, built-in advertising or analytics. Local HTTP is not encrypted;
+a per-process token and Host/Origin checks protect write operations. This is not
+protection from malware running as your Windows user or a professional security audit.
 
-**The program does not transfer personal information to other networked systems unless the user chooses to initiate a network-enabled feature**, such as Microsoft/Xbox sign-in or synchronization, searching or downloading artwork, or opening an external link. Those features and providers are described below. Offline CSV import and the local library do not require internet access.
+Offline CSV use needs no account or API key. Network activity is **not limited to
+a single button click**: startup checks GitHub for updates; a saved linked Xbox
+session can reconnect/synchronize on startup; successful profile sync queues missing
+artwork downloads. Public-profile lookup, login, guide generation and artwork search
+also make the provider requests below. Remote image URLs rendered by the UI and
+external links can contact their hosts from the browser/WebView itself.
 
-This policy describes the code published in this repository, not hypothetical future integrations or modifications made by third-party distributors.
+## Data stored on your device
 
-## Information processed and stored on your device
+The default application folder is `%LOCALAPPDATA%\AchievementAtlas` on Windows
+(with `%APPDATA%` as a fallback); on other systems it uses `$XDG_DATA_HOME` or
+`~/.local/share/` under `AchievementAtlas`. `--data-dir` can select another folder.
 
-Depending on what you use, the application may process:
+- `library.json`: game/provider/title/edition identities, achievement names,
+  descriptions, IDs, points or trophy tiers, earned state, available unlock dates,
+  original CSV date text when retained, measured progress, source URLs, notes and
+  generated Turkish guide notes with cited snippets/URLs/model/timestamp.
+- `state.json`: pinned targets, appearance settings, mapped title IDs, linked
+  profile identity, target-profile identities and sync timestamps/warnings.
+- `profiles/*.json`: local snapshots of previously queried public profiles and
+  their games/achievements. Changing profile does not erase these histories.
+- `artwork/`: validated cached game art and achievement icons, including user files;
+  library metadata records sources and optional crop/lighting choices. Cached
+  filenames do not prove a redistribution licence.
+- `settings.json`: supported operator settings described below. Library JSON, notes,
+  history, artwork, migration backups and update files are not encrypted by DPAPI.
+- Migration backups (including `migration-v014-library.json` / `migration-v014-state.json`)
+  preserve original files before normalization. They contain the original personal
+  records and have the same retention considerations as the library.
+- `updates/`: downloaded installers, manifests, provenance bundles, plans, update
+  logs and backups of installed application files. These can consume disk space.
 
-- **Imported game/achievement records:** game titles, achievement names, unlock status and dates, Gamerscore, publicly linked achievement pages, completion statistics and an optional Xbox gamertag from CSV files you select.
-- **Preferences and saved state:** pinned achievements, game-to-service mappings, sync timestamps, chosen artwork and relevant settings.
-- **Optional Xbox profile details:** your gamertag, Xbox user ID (XUID), Gamerscore and game/achievement data retrieved after you request account connection or synchronization.
-- **Locally cached artwork:** game covers, hero images and achievement icons you choose to retrieve.
+The Classic UI uses local JSON preferences. Optional Ultimate V5 cosmetic preferences
+(mode, view, selected game/art adjustments) use a separate `localStorage` key,
+`achievement-atlas-ultimate-v5`; it contains no OAuth/session/API keys. Storage depends
+on the WebView/browser origin and session and is not the source of achievement truth.
 
-The application stores its library and settings as JSON files under the local `AchievementAtlas` application-data directory:
+## Providers and exactly what is sent
 
-- **Windows:** `%LOCALAPPDATA%\AchievementAtlas\` (or the operating system's configured application-data fallback).
-- **Linux/other supported environments:** `$XDG_DATA_HOME/AchievementAtlas/`, or `~/.local/share/AchievementAtlas/` if `XDG_DATA_HOME` is not set.
+| Provider / feature | Information sent or requested | Storage / limits |
+| --- | --- | --- |
+| Microsoft OAuth and Xbox Live through OpenXbox | Microsoft authorization flow in your browser; OAuth code exchange, token refresh and XSTS requests; service account XUID; requested Gamertag/XUID, title IDs, achievement history/catalog/progress requests | The app does not ask for your Microsoft password. OpenXbox OAuth/refresh tokens are in its user-local JSON token file (or an operator-selected file), separate from the library. That token file is **not** covered by the app's settings DPAPI wrapper. The installed SDK can also read its own configured token path. |
+| Public Xbox profile lookup | Target Gamertag resolved to a target XUID; target title history and achievements, using the operator's authorized service session | The target user does not supply a password; public visibility and service permissions/rate limits still apply. Service identity and target identity may differ. |
+| Sony/PlayStation via PSNAWP | Operator NPSSO session used for PSN authentication; target Online ID/account ID; trophy title/communication IDs and trophy-group/progress queries | NPSSO is a sensitive service credential. Only data exposed to that session is available; a public profile does not remove authentication requirements. No target password is requested. |
+| Brave Search (Turkish guides) | Search text containing game name, achievement/trophy name, device and edition plus the search API key in its authorization header | Queries are sent to `api.search.brave.com`. Returned titles, URLs and snippets are used as evidence; the app does not mirror a full guide site. |
+| OpenAI (Turkish guides) | Configured model, game name, platform/device/edition, game title ID, achievement name, its description/condition, and Brave source titles/URLs/snippets; API key in authorization header | Sent to `api.openai.com`. The request builder does not intentionally include Gamertag, XUID, NPSSO, OAuth tokens, the full CSV/library, personal notes or unlock history. A name/description you supplied could itself contain personal information. |
+| SteamGridDB | API key in authorization header; game-name search and selected SteamGridDB ID for cover/hero/logo choices; image requests | Key is held in process memory for that session, not persisted by the app's settings endpoint. Selection requires user confirmation of the matching game/edition. |
+| Other artwork hosts | Image URL/path from an allowed provider, IP address and normal HTTP headers | Xbox/Microsoft, PlayStation, SteamGridDB and allowed community artwork hosts can be contacted. Images may be downloaded after sync or displayed remotely. Server downloads have host/redirect and size checks; browser-rendered images also disclose a normal request to the host. |
+| GitHub update checks/downloads | Standard HTTPS request metadata, application User-Agent/version, fixed repository/channel URLs and requested assets | Startup checks `api.github.com`; installer, manifest and provenance assets use GitHub release/CDN hosts. No library, profile export or service keys are uploaded by the updater. Provenance validation uses a bundled Sigstore trust root offline; it does not upload your library to Sigstore. |
+| External guide/source links | Opening a link sends a browser request to that site under its own policies | User action; the application does not control that site's cookies, logs or retention. |
 
-No project-hosted central database receives these files as part of ordinary local use. The local HTTP interface listens on `127.0.0.1` (loopback), not on a public network interface. Browser-based access to this interface stays on your own computer.
+Provider retention, billing and account controls are governed by the providers'
+policies and your agreements with them. This project does not promise that a
+third-party provider retains no queries or images. There is currently **no live
+PC/Steam achievement adapter**; a PC-themed view is not a Steam account connection.
 
-## Optional network services
+## Automatic guides, explicit consent and cost
 
-Network features are optional and may transfer data to third parties when you explicitly invoke them:
+In this audit's corrected code, `ATLAS_AUTO_GUIDES` defaults to off. Merely saving
+Brave and OpenAI keys does not authorize automatic paid calls. Enabling the visible
+checkbox and saving settings (or explicitly setting environment variable
+`ATLAS_AUTO_GUIDES=1`) enables missing-guide generation after successful profile sync.
+Environment settings take precedence over stored values; remove an environment
+override to let the UI control it. Manual guide buttons can generate guides even
+when automatic generation is off; both service keys are still required.
 
-1. **Microsoft / Xbox Live (experimental):** If you select Microsoft sign-in or Xbox synchronization, authentication requests and Xbox API requests go to Microsoft/Xbox services. The application processes the returned account and achievement information locally. The optional open-source [OpenXbox / xbox-webapi-python](https://github.com/OpenXbox/xbox-webapi-python) dependency manages OAuth tokens in its **separate user-local storage**; those tokens are not committed to this GitHub repository. Treat the token file as a credential. [Microsoft privacy statement](https://www.microsoft.com/en-us/privacy/privacystatement).
-2. **SteamGridDB artwork:** If you enter an API key and search for artwork, requests containing the game/search term and your API key are sent to SteamGridDB. The API key is held in application memory for the active session rather than saved in the Achievement Atlas library. Selected images are downloaded from permitted image hosts to your local artwork cache. See [SteamGridDB](https://www.steamgriddb.com/) and its published terms/privacy notices.
-3. **Achievement image providers:** If you request caching of available achievement icons, the program fetches images from the associated allowed provider/CDN. Your device's IP address and ordinary connection metadata may be visible to that provider.
-4. **External links:** If you choose to visit a TrueAchievements achievement page or other external website, your browser communicates with that site under its own privacy policy, for example [TrueAchievements' privacy policy](https://www.trueachievements.com/privacypolicy).
+These services may charge per request. A large library can produce many calls;
+there is no hard monetary budget/cost estimator in this version. Stop All/Stop Guides
+lets an active request complete, prevents the next provider request (including an
+OpenAI request after a stopped Brave request), and retains completed guide notes.
+Already incurred provider charges cannot be undone by cancelling locally. Generated
+steps are model summaries of supplied snippets, not independently verified gameplay
+instructions; source inclusion is not proof that every claim is correct.
 
-These third parties independently determine their data handling. Achievement Atlas does not control their services, access logs, cookies, or retention policies. The project does not intentionally transmit local CSV files or its entire saved library to these services.
+The previously published v0.14 source started automatic guides whenever both keys
+were available. Until a binary containing this fix is installed, users who do not
+want that behavior should not configure those guide keys for that binary.
 
-## Authentication and security
+## Settings and credential protection
 
-- Microsoft login occurs through a browser-based authorization flow; the application is not intended to collect your Microsoft password.
-- The optional OpenXbox dependency stores sign-in tokens in its own local token file outside the repository. Signing out of a website does **not necessarily delete** those locally stored tokens.
-- The application uses a local HTTP server and request-origin / anti-CSRF checks. This is a pre-release project and has not received a professional security audit.
-- Do not publicly expose the local server, upload your personal library or token files, or commit your API keys to Git.
+Windows stored settings use DPAPI scoped to the current Windows user: Xbox token
+**file path**, NPSSO, Brave/OpenAI keys and guide preferences/model. On non-Windows
+systems settings are a plaintext JSON file created with restrictive user permissions.
+Environment variables are another supported source and are not written back by the
+app. UI status returns presence flags rather than secret values. This is not a
+credential vault against an attacker already running as you.
 
-For implementation details and responsible reporting, see [SECURITY.md](SECURITY.md).
+OpenXbox token-file contents, migration snapshots and library JSON are separate
+from DPAPI settings. Never attach them to a public issue, commit them, or paste
+NPSSO/API keys into chat. Clearing app settings does not remove environment variables,
+SDK token files, provider-side authorizations, archives or already saved guides.
 
-## Retention, deletion and your choices
+## Retention, deletion and revocation
 
-Your local library, preferences and cached artwork remain on your device until you delete or replace them. Uninstalling the application may not remove the application-data directory. To erase locally stored Achievement Atlas data, close the program and delete the relevant `AchievementAtlas` directory. **This is irreversible unless you have a backup.**
+There is no automatic cloud publication or profile sharing by the app. Local records
+remain until replaced or deleted. Profile changes preserve local historical snapshots.
+Stopping a transfer retains completed validated image files; cancelled incomplete
+public-profile snapshots do not replace the current library. History, caches and
+updater backups currently have no automatic retention/size policy.
 
-If you used Microsoft/Xbox sign-in, separately delete the optional OpenXbox token storage and revoke the app's Microsoft account authorization if desired. Removing the Achievement Atlas data directory alone does not revoke a Microsoft authorization or erase copies held by external services.
+To delete local data: close the app, back up anything you wish to keep, then remove
+the chosen `AchievementAtlas` data directory (including profiles, backups, artwork
+and updates). Uninstalling the per-user program may leave that directory. Separately
+remove the OpenXbox token file at its SDK/operator location; delete environment
+variables you configured; clear browser/WebView site data for cosmetic localStorage.
+Removing local files does not revoke Microsoft/Sony sessions or API keys: use each
+provider's account controls to revoke authorization, rotate keys and request any
+provider-side deletion. Deleting files is not a forensic secure-erase guarantee.
 
-You may use the local CSV functionality without connecting an Xbox account, entering an artwork API key, or using the network features. For data held by Microsoft, SteamGridDB or other providers, use their own account/privacy controls.
+## Signing, security and contact
 
-## Children and future changes
+[Code signing policy](CODE_SIGNING_POLICY.md) and [SECURITY.md](SECURITY.md) describe
+the current development distribution. A GitHub/Sigstore origin attestation is not
+Windows Authenticode publisher signing, a malware scan or SignPath approval.
+This audit does not publish a new Release or change signing approval.
 
-Achievement Atlas is not specifically directed at children and does not provide a child-oriented account service. Future features (including any PlayStation or PC integrations, telemetry or hosted services) will require this policy to be updated **before** those behaviors are deployed. Check the repository history for revisions.
-
-## Contact
-
-For a privacy question about the project, contact the maintainer **[@Gh0sTRX](https://github.com/Gh0sTRX)** through the [repository issue tracker](https://github.com/Gh0sTRX/achievment-thropy-tracker/issues). **Do not post tokens, passwords, private CSV exports or other sensitive personal data in public issues.** For sensitive security concerns, follow [SECURITY.md](SECURITY.md).
-
-Achievement Atlas is an independent community project and is not affiliated with Microsoft, Sony, SteamGridDB, TrueAchievements or SignPath Foundation.
+Questions: [repository issues](https://github.com/Gh0sTRX/achievment-thropy-tracker/issues)
+or maintainer [@Gh0sTRX](https://github.com/Gh0sTRX). Do not put sensitive data in public
+issues; follow SECURITY.md for sensitive concerns. Achievement Atlas is independent
+of Microsoft, Sony, OpenAI, Brave, SteamGridDB, TrueAchievements and SignPath Foundation.
