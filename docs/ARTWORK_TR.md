@@ -49,3 +49,22 @@ REAL_ART_SOURCES.json bu oturumda sağlanmadığından hayali 12 oyun eklenmedi.
 
 Kurulum paketi ticari oyun görselleri içermez. Windows markalama ikonu,
 uygulamanın mevcut altıgen/A işaretinden oluşturulmuştur.
+
+## 0.10 cihaz ve otomatik içerik
+
+Cihaz etiketi ve filtre, API'nin bildirdiği desteklenen cihazları gösterir;
+oyuncunun hangi fiziksel cihazda oynadığını kanıtlamaz. Başarım listesi kimliği
+Xbox Title ID / PSN NP Communication ID üzerinden korunur. Aynı adı taşıyan
+farklı kimlikli Minecraft sürümleri birleşmez. Bir PSN seti PS3/PS4/PS Vita
+arasında ortaksa tek set olarak, bütün cihaz etiketleriyle gösterilir.
+
+Xbox 360 için tüm başarım kataloğu ve oyuncunun kazandığı liste ayrı okunup
+birleştirilir. Eski imageId adresi önce adaydır; gerçek dosya indirilip çözülmeden
+ekrana ikon olarak konmaz. Bu ortamda Gh0sTRX55 hesabı üzerinde doğrulanmadı.
+
+Eşitlemeden sonra sağlayıcının aynı oyun kimliği için verdiği kapak/logo ve
+başarım ikonları otomatik önbelleğe alınır. API logo sağlamıyorsa başka sürümün
+logosu seçilmez; eksik olarak raporlanır. Rehber servisleri tanımlıysa tüm eksik
+rehberler cihaz/sürüm bilgisiyle araştırılır. Tam rehberlerin topluca kopyası
+indirilmez; kaynak bağlantılı kısa Türkçe notlar saklanır. Servis anahtarları
+olmadan bu işlem yapılamaz. Kaynak bulunamayan kayıtlar ayrıca raporlanır.

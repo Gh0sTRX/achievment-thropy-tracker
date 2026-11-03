@@ -199,7 +199,7 @@ class Library:
                 if prior.get('unlocked'):
                     a['unlocked'] = True
                     a['unlock_time'] = prior.get('unlock_time', '')
-                if prior.get('guide') and prior.get('description') == a.get('description'):
+                if prior.get('guide') and prior.get('description') == a.get('description') and prior.get('device_label','') == a.get('device_label','') and prior.get('platform_edition','') == a.get('platform_edition',''):
                     a['guide'] = prior['guide']
             new_games = deepcopy(snapshot['games'])
             prior_games = {g['id']: g for g in (self.library['games'] if same else cached.get('games', []))}

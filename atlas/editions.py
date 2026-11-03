@@ -3,7 +3,7 @@ import re
 
 LABELS={'xbox360':'Xbox 360','xboxone':'Xbox One','xboxseries':'Xbox Series X|S',
         'windows':'Windows / PC','gfwl':'Games for Windows Live','ios':'iOS','android':'Android',
-        'windowsphone':'Windows Phone','ps3':'PS3','ps4':'PS4','ps5':'PS5','psvita':'PS Vita','pspc':'PlayStation PC'}
+        'mobile':'Mobil (cihaz belirtilmemiş)','windowsphone':'Windows Phone','ps3':'PS3','ps4':'PS4','ps5':'PS5','psvita':'PS Vita','pspc':'PlayStation PC'}
 
 
 def xbox_devices(title, metadata=None, generation='2'):
@@ -12,7 +12,7 @@ def xbox_devices(title, metadata=None, generation='2'):
     if isinstance(raw,str):raw=[raw]
     if title.get('platform'):raw=list(raw)+[title['platform']]
     aliases={'xbox360':'xbox360','xboxone':'xboxone','scarlett':'xboxseries','xboxseriesxs':'xboxseries',
-             'xboxseries':'xboxseries','pc':'windows','win32':'windows','windows':'windows','windows10':'windows',
+             'xboxseries':'xboxseries','pc':'windows','win32':'windows','windows':'windows','windows10':'windows','windowsonecore':'windows','mobile':'mobile',
              'ios':'ios','iphone':'ios','ipad':'ios','android':'android','windowsphone':'windowsphone','gfwl':'gfwl'}
     devices=[]
     for value in raw:
