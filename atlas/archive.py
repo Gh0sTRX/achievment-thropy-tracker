@@ -68,10 +68,27 @@ def _validate_data(data: object) -> dict:
         if a.get("platform") not in (None, "", ids[gid]):
             raise ValueError("Başarım başka bir platformdaki oyuna bağlanamaz.")
         seen.add(ident)
-    if not isinstance(state.get("pins", []), list) or not isinstance(state.get("ui", {}), dict):
-        raise ValueError("Arşiv pinleri veya görünüm ayarları geçersiz.")
+    if not isinstance(library.get("gamertag", ""), str):
+        raise ValueError("Arşiv oyuncu adı geçersiz.")
+    for key in ("pins", "hidden", "log", "sync_warnings"):
+        if not isinstance(state.get(key, []), list):
+            raise ValueError("Arşiv yerel listesi geçersiz: " + key)
+    for key in ("custom_art", "xbox_titles", "ui", "public_profiles"):
+        if not isinstance(state.get(key, {}), dict):
+            raise ValueError("Arşiv yerel ayarları geçersiz: " + key)
+    if state.get("linked_profile") is not None and not isinstance(
+            state["linked_profile"], dict):
+        raise ValueError("Arşiv bağlantı bilgisi geçersiz.")
     if any(not isinstance(x, str) for x in state.get("pins", [])):
         raise ValueError("Arşiv pin listesi geçersiz.")
+    if any(not isinstance(x, dict) or not isinstance(x.get("game"), str)
+           for x in state.get("sync_warnings", [])):
+        raise ValueError("Arşiv eşitleme uyarıları geçersiz.")
+    for key, profile in state.get("public_profiles", {}).items():
+        if key not in ("xbox", "psn") or not isinstance(profile, dict):
+            raise ValueError("Arşiv profil eşleştirmesi geçersiz.")
+        if not isinstance(profile.get("username", ""), str):
+            raise ValueError("Arşiv profil adı geçersiz.")
     return data
 
 
