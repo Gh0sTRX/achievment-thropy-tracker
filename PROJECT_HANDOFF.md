@@ -87,3 +87,14 @@ Bu oturumda PR #5'in mevcut dalı üzerinde **yeni release üretmeden** şu işl
 ### Ek P0 veri izolasyonu düzeltmesi
 
 `Library.import_csv()` artık Xbox TrueAchievements CSV içe aktarımında önceden kayıtlı PSN/PC oyunlarını, kupalarını ve sabitlenmiş hedeflerini silmez. Yeni CSV sonuçlarının oyun/başarım sayısı yalnız içe aktarılan Xbox kayıtlarını raporlar; başka platformla çakışan oyun ID'sinde içe aktarma iptal edilir. Karma arşiv `platform=mixed` ve `complete_export=False` işaretlenir. Regresyon: `tests/test_core.py::test_xbox_csv_import_preserves_psn_records_and_pins`. Bu, aynı adlı Xbox edition/DLC kayıtlarının güvenilir eşlenmesi sorununu henüz çözmez.
+
+
+## 4 Kasım 2026 — Yeni P0 + native motion devamı
+
+- `atlas/identity.py`: Xbox XUID ve PSN account ID'nin platform kapsamlı kontrolü; aynı görünen ad/farklı kalıcı ID çakışmasında yazmayı reddetme; gelen oyun/kupa platform ve oyun bağı doğrulaması.
+- `atlas/public_profiles.py` kimlik kontrolü; `atlas/core.py::apply_public_profile` kayıt öncesi kimlik güvenliği. Canlı hesap testi yapılmadı. `tests/test_identity.py` ve mevcut profile testleri.
+- `atlas/journal.py`: sıradan `Library.save()` çağrılarını iki JSON dosyalı kurtarılabilir yazma günlüğüne geçirir. Başlangıçta yarıda kesilmiş işlem geri alınır; `tests/test_journal.py` donma/başarısız disk yazımı senaryoları.
+- `atlas/web/ui/motion.js/css`: tek yerel shell üzerinde temaya göre sayfa/filtre/oyun geçişleri; `prefers-reduced-motion` ve uygulama hareket azaltma tercihi dikkate alınır. Eski Atlas Ultimate overlay'i etkinleştirilmez.
+- `docs/V015_IDENTITY_STORAGE_MOTION_TR.md` teknik sınırları ve testleri açıklar. Eski `profiles/`, artwork cache, Windows rollback hâlâ genel transaction kapsamı dışında.
+
+**Yayın tuzağı:** `.github/workflows/windows-package.yml` içindeki `push: codex/public-profile-trophies` yayın akışını (`publish-development`) otomatik tetikler! Kullanıcı mevcut Development sürümünü korumak istediğinden PR #4 / #5 önce bağımsız `integration/atlas-v015` dalında sıralı birleştirilmeli; son installer build için entegrasyon → codex yönünde ayrı draft PR açılmalı. `codex/public-profile-trophies`, `development` Release ve `main` üzerinde yayınlama/otomatik push olmamalıdır. Son test/PR durumunu yeni sohbette yeniden denetle.
