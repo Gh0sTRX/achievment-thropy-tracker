@@ -254,6 +254,11 @@ class Handler(BaseHTTPRequestHandler):
         if path in ('/','/index.html'):
             body=(BASE/'web'/'index.html').read_text(encoding='utf-8').replace('__TOKEN__',self.server.token).encode('utf-8')
             return self.blob(body,'text/html; charset=utf-8')
+        # Exact-path allowlist: no arbitrary file read or traversal.
+        if path in ('/ui/ultimate.js', '/ui/ultimate.css'):
+            name = path.rsplit('/', 1)[-1]
+            payload = (BASE / 'web' / 'ui' / name).read_bytes()
+            return self.blob(payload, 'text/javascript' if name.endswith('.js') else 'text/css')
         if path in ('/app.js','/style.css'):
             return self.blob((BASE/'web'/path[1:]).read_bytes(), 'text/javascript' if path.endswith('.js') else 'text/css')
         if path=='/api/data':return self.reply(self.server.controller.status())
@@ -318,7 +323,7 @@ def main(browser=False):
         if not browser:
             try:
                 import webview
-                webview.create_window('Achievement Atlas • Xbox',app.url,width=1500,height=950,min_size=(980,640),background_color='#07130f')
+                webview.create_window('Achievement Atlas • Ultimate',app.url,width=1500,height=950,min_size=(980,640),background_color='#07130f')
                 webview.start();return
             except (ImportError,RuntimeError) as e:print('WebView not available:',e)
         webbrowser.open(app.url)
