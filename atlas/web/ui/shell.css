@@ -123,3 +123,7 @@ body[data-skin] .progress-track i,body[data-skin] .bar i{background:var(--lime)}
 @media(prefers-reduced-motion:reduce){.atlas-console-card.selected{transform:none}body[data-skin] .featured,body[data-skin] .game-card{animation:none!important;transition:none!important}}
 body.reduced-motion .atlas-console-card.selected{transform:none}
 body.high-contrast #atlasThemeSkin,body.high-contrast #atlasConsoleButton{border:2px solid #fff}
+
+/* Ten native destinations remain scrollable on compact desktop heights. */
+body .rail .nav{min-height:0;overflow-y:auto;scrollbar-width:thin}
+body[data-skin=xmb] .rail .nav{overflow-x:auto;overflow-y:hidden}

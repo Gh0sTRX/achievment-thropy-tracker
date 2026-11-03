@@ -141,7 +141,7 @@
     showGame();
     dialog.showModal();
     document.body.classList.add('atlas-console-open');
-    dialog.querySelector('[data-atlas-console="close"]').focus({preventScroll:true});
+    dialog.querySelector('[data-atlas-console="open"]').focus({preventScroll:true});
     raf = requestAnimationFrame(pollController);
   }
 
