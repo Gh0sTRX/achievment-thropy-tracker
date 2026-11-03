@@ -31,8 +31,8 @@ Source: "..\KURULUM.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\docs\PUBLIC_PROFILES_TR.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 [Icons]
-Name: "{group}\Achievement Atlas"; Filename: "{app}\AchievementAtlas.exe"
+Name: "{group}\Achievement Atlas"; Filename: "{app}\AchievementAtlas.exe"; AppUserModelID: "AchievementAtlas.Desktop"
 Name: "{group}\Kaldır"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\Achievement Atlas"; Filename: "{app}\AchievementAtlas.exe"; Tasks: desktopicon
+Name: "{autodesktop}\Achievement Atlas"; Filename: "{app}\AchievementAtlas.exe"; AppUserModelID: "AchievementAtlas.Desktop"; Tasks: desktopicon
 [Run]
-Filename: "{app}\AchievementAtlas.exe"; Description: "Achievement Atlas'ı başlat"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\AchievementAtlas.exe"; AppUserModelID: "AchievementAtlas.Desktop"; Description: "Achievement Atlas'ı başlat"; Flags: nowait postinstall skipifsilent

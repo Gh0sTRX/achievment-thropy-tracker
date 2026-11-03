@@ -6,7 +6,7 @@ import asyncio
 from . import settings
 import re
 from datetime import datetime, timezone
-from . import xbox, artwork, editions
+from . import xbox, artwork, editions, sync_control
 from .core import game_id
 
 
@@ -56,7 +56,8 @@ async def _pages(client, url, headers, key, params=None):
     for _ in range(1000):
         limits = getattr(getattr(client, 'achievements', None), 'rate_limit_read', None)
         options = {'rate_limits': limits} if limits is not None else {}
-        res = await client.session.get(url, headers=headers, params=params, **options)
+        sync_control.check()
+        res = await sync_control.request(client.session.get(url, headers=headers, params=params, **options))
         res.raise_for_status()
         raw = res.json()
         if not isinstance(raw, dict) or not isinstance(raw.get(key), list):
@@ -99,7 +100,12 @@ async def _xbox(username, progress):
         for title,version in histories:
             tid=str(title.get('titleId',''))
             if tid.isdigit():groups.setdefault(tid,[]).append((title,version))
-        for index,(tid,variants) in enumerate(groups.items()):
+        async def load_title(tid, variants):
+            async with semaphore:
+                return await load_one(tid,variants)
+
+        async def load_one(tid,variants):
+            sync_control.check()
             meta=metadata.get(tid,{})
             known=editions.xbox_devices(variants[0][0],meta,variants[0][1])
             if known and 'xbox360' not in known:
@@ -117,6 +123,9 @@ async def _xbox(username, progress):
                     kind='logo' if 'logo' in typ else 'cover' if any(w in typ for w in ('box','poster','cover')) else ''
                     url=str(image.get('uri') or image.get('url') or '')
                     if kind and artwork.safe_url(url):g['art_candidates'].append({'kind':kind,'url':url,'provider':'Xbox TitleHub'})
+                cached=sync_control.reuse(g,title,xuid)
+                if cached is not None:
+                    games.append(g);items.extend(cached);loaded=True;break
                 try:
                     endpoint='titleachievements' if version=='1' else 'achievements'
                     records=await _pages(client,f'{base}/users/xuid({xuid})/{endpoint}',{'x-xbl-contract-version':version},'achievements',{'titleId':tid})
@@ -140,14 +149,24 @@ async def _xbox(username, progress):
                     rows=[achievement(g,a) for a in normalized]
                     for row,remote in zip(rows,normalized):
                         if remote.get('icon_candidate'):row['icon_candidate']=remote['icon_candidate']
+                    sync_control.mark(g,title)
                     games.append(g);items.extend(rows);loaded=True;break
+                except sync_control.Cancelled:raise
                 except Exception as exc:
                     code=getattr(getattr(exc,'response',None),'status_code',None)
                     if code in (401,403,429):raise
                     errors.append(str(exc) if type(exc) is ValueError else type(exc).__name__)
             if not loaded:
                 failed.append(tid);warnings.append({'title_id':tid,'game':variants[0][0].get('name',tid),'reason':'; '.join(errors)[:180]})
-            progress(index+1,len(groups),variants[0][0].get('name',tid))
+            progress(len(games)+len(failed),len(groups),variants[0][0].get('name',tid))
+        semaphore=asyncio.Semaphore(3)
+        tasks=[asyncio.create_task(load_title(tid,variants)) for tid,variants in groups.items()]
+        try:await asyncio.gather(*tasks)
+        except BaseException:
+            for task in tasks:task.cancel()
+            await asyncio.gather(*tasks,return_exceptions=True)
+            raise
+        sync_control.check()
         return {'id':xuid,'username':profile['gamertag'],'warnings':warnings,'failed_title_ids':failed},games,items
 
 
@@ -163,6 +182,7 @@ def _psn(username, progress):
     titles = list(user.trophy_titles(limit=None))
     games = []; items = []
     for title in titles:
+        sync_control.check()
         if not title.np_communication_id or not title.title_platform:
             raise ValueError('PSN oyun kimliği eksik; arşiv değiştirilmedi.')
         platform = sorted(title.title_platform, key=lambda p: p.value)[0]
@@ -172,6 +192,7 @@ def _psn(username, progress):
         trophies = user.trophies(title.np_communication_id, platform, include_progress=True,
                                  trophy_group_id='all', limit=None)
         for t in trophies:
+            sync_control.check()
             if t.trophy_id is None or t.earned is None:
                 raise ValueError('PSN kazanılma verisi eksik; arşiv değiştirilmedi.')
             moment = t.earned_date_time
@@ -187,15 +208,19 @@ def _psn(username, progress):
     return {'id': str(user.account_id), 'username': user.online_id}, games, items
 
 
-def fetch(platform, username, progress=lambda *args: None):
+def fetch(platform, username, progress=lambda *args: None, stop=lambda:False, cache=None, force=False):
     username = validate(platform, username)
+    token=sync_control.context.set({'stop':stop,'cache':cache,'force':force})
     try:
+        sync_control.check()
         identity, games, items = asyncio.run(_xbox(username, progress)) if platform == 'xbox' else _psn(username, progress)
-    except (ValueError, xbox.DirectError):
+    except (ValueError, xbox.DirectError, sync_control.Cancelled):
         raise
     except Exception as exc:
         # SDK exceptions can contain request headers or tokens; expose only the class.
         raise ValueError('Profil alınamadı: '+type(exc).__name__+'. Gizlilik, servis oturumu, ağ erişimi ve hız limitini kontrol et.') from None
+    finally:sync_control.context.reset(token)
+    if stop():raise sync_control.Cancelled()
     if not games or not items:
         details = '; '.join(w['game']+': '+w['reason'] for w in identity.get('warnings', [])[:2])
         raise ValueError('Oyun veya başarım alınamadı. '+(details or 'Gizlilik ve servis erişimini kontrol et.')+' Önceki arşiv korundu.')

@@ -18,7 +18,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit
 from .core import Library,normalize
 from . import recommendations,artwork
-from . import xbox, public_profiles, guides, settings, media_sync, updater
+from . import xbox, public_profiles, guides, settings, media_sync, updater, sync_control
 
 BASE=Path(__file__).resolve().parent
 
@@ -32,6 +32,10 @@ class Controller:
         self.guide_guard=threading.Lock()
         self.guide_stop=threading.Event()
         self.media_guard=threading.Lock()
+        self.public_stop=threading.Event()
+        self.media_stop=threading.Event()
+        self.icons_stop=threading.Event()
+        self.xbox_stop=threading.Event()
         self.updates=updater.Updater(self.store.root)
         self.allow_update_install=False
         self.action_guard=threading.RLock()
@@ -45,7 +49,7 @@ class Controller:
             scoped={**library,'games':games,'achievements':[a for a in library['achievements'] if a['game_id'] in ids]}
             reports[platform]={'recommendations':recommendations.rank(scoped,pins),'insights':recommendations.insights(scoped)}
         reports['all']={'recommendations':recommendations.rank(library,pins),'insights':recommendations.insights(library)}
-        return {'library':payload, 'recommendations':recommendations.rank(library,pins),
+        return {'revision':self.store.revision,'library':payload, 'recommendations':recommendations.rank(library,pins),
                 'insights':recommendations.insights(library),'platform_reports':reports,
                 'providers':public_profiles.readiness(), 'guides_ready':guides.configured(),
                 'settings':settings.status(), 'data_status':self.data_status(), 'update':self.updates.snapshot()}
@@ -90,6 +94,7 @@ class Controller:
         if (self.store.status.get('job') or {}).get('running'):
             self.public_guard.release()
             raise ValueError('Xbox eşitlemesinin bitmesini bekle.')
+        self.public_stop.clear()
         self.store.status['public_job'] = {'running': True, 'done': 0, 'total': 0,
                                            'message': 'Profil sorgulanıyor…', 'error': ''}
         def progress(done, total, name):
@@ -97,7 +102,12 @@ class Controller:
                 self.store.status['public_job'].update(done=done, total=total, message=name)
         def worker():
             try:
-                snapshot = public_profiles.fetch(platform, username, progress)
+                with self.store.lock:
+                    profile=self.store.state.get('public_profiles',{}).get(platform,{})
+                    prior=self.store.payload()['library']
+                    cache={'id':profile.get('id'),'games':prior['games'],'achievements':prior['achievements']}
+                snapshot = public_profiles.fetch(platform, username, progress, stop=self.public_stop.is_set,cache=cache,force=data.get('force') is True)
+                if self.public_stop.is_set():raise sync_control.Cancelled()
                 report = self.store.apply_public_profile(snapshot)
                 with self.store.lock:
                     self.store.status['public_job']['message'] = f"{snapshot['username']}: {report['games']} oyun, {report['achievements']} kupa kaydedildi."
@@ -105,6 +115,8 @@ class Controller:
                 if guides.configured():
                     try:self.generate_guides({'platform': platform})
                     except ValueError as exc:self.store.status['public_job']['message'] += ' '+str(exc)
+            except sync_control.Cancelled:
+                self.store.status['public_job'].update(cancelled=True,message='Eşitleme durduruldu; önceki arşiv korundu.')
             except Exception as exc:
                 # Only application-authored messages are safe for the browser.
                 message = str(exc) if type(exc) is ValueError else type(exc).__name__
@@ -117,16 +129,27 @@ class Controller:
 
     def download_media(self):
         if not self.media_guard.acquire(blocking=False):return {'message':'Görsel indirmesi zaten çalışıyor.'}
+        self.media_stop.clear()
         self.store.status['media_job']={'running':True,'done':0,'total':0,'message':'Kapak, logo ve ikonlar kontrol ediliyor.'}
         def progress(done,total,name):self.store.status['media_job'].update(done=done,total=total,message=name)
         def worker():
             try:
-                report=media_sync.download(self.store,progress)
-                self.store.status['media_job'].update(report=report,message=f"{report['downloaded']} görsel kaydedildi; {len(report['missing'])} görsel kaynakta bulunamadı. {'; '.join(report['errors'])}")
+                report=media_sync.download(self.store,progress,stop=self.media_stop.is_set)
+                self.store.status['media_job'].update(report=report,cancelled=self.media_stop.is_set(),message=('İndirme durduruldu; tamamlanan görseller korundu. ' if self.media_stop.is_set() else '')+f"{report['downloaded']} görsel kaydedildi; {len(report['missing'])} görsel kaynakta bulunamadı. {'; '.join(report['errors'])}")
             except Exception as exc:self.store.status['media_job']['message']='Görsel indirmesi: '+type(exc).__name__
             finally:self.store.status['media_job']['running']=False;self.media_guard.release()
         threading.Thread(target=worker,daemon=True).start()
         return {'message':'Mevcut oyunların resmi kapak/logo ve başarım ikonları indiriliyor.'}
+
+    def stop_downloads(self,data):
+        kind=data.get('kind','all')
+        if kind not in ('all','profile','media'):raise ValueError('İşlem türü geçersiz.')
+        if kind in ('all','profile'):self.public_stop.set();self.xbox_stop.set()
+        if kind in ('all','media'):self.media_stop.set();self.icons_stop.set()
+        if kind=='all':self.guide_stop.set()
+        for key in (('public_job','job') if kind=='profile' else ('media_job','art_job') if kind=='media' else ('public_job','job','media_job','art_job','guide_job')):
+            if (self.store.status.get(key) or {}).get('running'):self.store.status[key]['stopping']=True
+        return {'message':'Durdurma istendi. Devam eden ağ isteği kapanırken tamamlanmış dosyalar korunacak.'}
 
     def stop_guides(self):
         self.guide_stop.set()
@@ -391,6 +414,7 @@ class Controller:
         games=[g for g in self.store.library['games'] if g.get('title_id') and (not gid or g['id']==gid)]
         if not games:raise ValueError('Map a title ID first')
         if self.store.status.get('job',{}).get('running'):raise ValueError('Sync already running')
+        self.xbox_stop.clear()
         self.store.status['job']={'running':True,'total':len(games),'done':0,'errors':[]}
         def worker():
             async def sync():
@@ -398,6 +422,7 @@ class Controller:
                     profile=self.store.state.get('linked_profile') or {}
                     if str(profile.get('xuid',''))!=str(xuid):raise ValueError('Profile XUID changed. Login again.')
                     for index,game in enumerate(games):
+                        if self.xbox_stop.is_set():break
                         try:
                             records=await xbox.fetch_title_achievements(client,xuid,game['title_id'],game.get('platform_edition') or 'auto')
                             report=self.store.apply_live_game(game['id'],records)
@@ -421,9 +446,11 @@ class Controller:
             if ident not in index:raise ValueError('Unknown achievement')
             if index[ident].get('icon_url') and not artwork.cached(self.store.root,'icon',ident):selected.append(index[ident])
         if self.store.status.get('art_job',{}).get('running'):raise ValueError('Image download is already running')
+        self.icons_stop.clear()
         self.store.status['art_job']={'running':True,'done':0,'total':len(selected),'found':0,'message':''}
         def worker():
             for i,a in enumerate(selected):
+                if self.icons_stop.is_set():break
                 try:
                     if artwork.safe_url(a['icon_url']):
                         artwork.cache_image(self.store.root,'icon',a['id'],a['icon_url'])
@@ -461,8 +488,13 @@ class Handler(BaseHTTPRequestHandler):
         if path in ('/','/index.html'):
             body=(BASE/'web'/'index.html').read_text(encoding='utf-8').replace('__TOKEN__',self.server.token).encode('utf-8')
             return self.blob(body,'text/html; charset=utf-8')
-        if path in ('/ui/ultimate.js','/ui/ultimate.css','/app.js','/visuals.js','/ultimate.js','/model.js','/style.css','/ultimate.css'):
+        if path in ('/ui/ultimate.js','/ui/ultimate.css','/app.js','/visuals.js','/ultimate.js','/model.js','/inline.js','/style.css','/ultimate.css'):
             return self.blob((BASE/'web'/path[1:]).read_bytes(), 'text/javascript' if path.endswith('.js') else 'text/css')
+        if path=='/brand/atlas-mark.svg':return self.blob((BASE.parent/'assets'/'atlas-mark.svg').read_bytes(),'image/svg+xml')
+        if path=='/api/status':
+            c=self.server.controller
+            with c.store.lock:
+                return self.reply({'revision':c.store.revision,'status':c.store.status,'data_status':c.data_status(),'update':c.updates.snapshot()})
         if path=='/api/data':return self.reply(self.server.controller.status())
         if path=='/api/art/sources':return self.reply(artwork.sources())
         seg=path.split('/')
@@ -487,6 +519,7 @@ class Handler(BaseHTTPRequestHandler):
             methods={
                '/api/import':self.server.controller.import_csv,
                '/api/settings':self.server.controller.save_settings,
+               '/api/downloads/stop':self.server.controller.stop_downloads,
                '/api/profiles/sync':self.server.controller.public_sync,
                '/api/guides/generate':self.server.controller.generate_guides,
                '/api/guides/stop':lambda d:self.server.controller.stop_guides(),

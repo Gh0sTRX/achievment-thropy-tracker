@@ -11,6 +11,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
+from .dates import normalize_unlock
 
 MAX_CSV_BYTES = 5_000_000
 TA_ID = re.compile(r'/a(\d{2,12})/')
@@ -61,9 +62,10 @@ def parse_csv_text(data: str, earned: bool) -> list[dict]:
         parsed.append({'id':'ta:'+m.group(1),'provider_id':m.group(1),
             'game_id':game_id('xbox',game),'game_name':game,'name':name,'points':max(0,min(10000,gs)),
             'ratio':round(max(0,min(1000,ratio)),2),'dlc':(r.get('DLCName') or '').strip()[:140],
-            'source_url':url,'unlocked':earned,'unlock_time':(r.get('UnlockDate') or '') if earned else '',
+            'source_url':url,'unlocked':earned,'unlock_time':normalize_unlock(r.get('UnlockDate')) if earned else '',
+            'unlock_time_raw':str(r.get('UnlockDate') or '')[:120] if earned else '',
             'flag':str(r.get('Unachieveable') or '').strip().lower() in ('true','yes','1'),
-            'description':'','icon_url':'','source':'trueachievements_csv'})
+            'description':'','icon_url':'','source':'trueachievements_csv','platform':'xbox'})
     return parsed
 
 
@@ -107,6 +109,7 @@ class Library:
         self.library_path=self.root/'library.json'
         self.state_path=self.root/'state.json'
         self.lock=threading.RLock()
+        self.revision=0
         self.library=self._read(self.library_path, empty_library())
         self.state=self._read(self.state_path, {'pins':[],'hidden':[],'custom_art':{},'xbox_titles':{},'linked_profile':None,'sync_at':None,'log':[]})
         for key,default in [('pins',[]),('hidden',[]),('custom_art',{}),('xbox_titles',{}),('linked_profile',None),('sync_at',None),('log',[])]:
@@ -138,6 +141,7 @@ class Library:
         except (OSError,ValueError):return deepcopy(default)
 
     def save(self):
+        self.revision+=1
         atomic_write(self.library_path,self.library)
         atomic_write(self.state_path,self.state)
 

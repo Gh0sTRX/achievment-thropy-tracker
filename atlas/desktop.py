@@ -5,9 +5,24 @@ import time
 
 def open_window(url, smoke_report=None, shutdown_event=None):
     import webview
+    import sys
+    from pathlib import Path
+    icon_path=Path(__file__).resolve().parent.parent/'assets'/'achievement-atlas.ico'
+    if sys.platform=='win32':
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('AchievementAtlas.Desktop')
     window = webview.create_window('Achievement Atlas', url, width=1500, height=950,
         min_size=(980, 640), background_color='#07130f', hidden=False)
     errors = []
+    icon_set=[]
+    def set_native_icon():
+        if sys.platform=='win32':
+            try:
+                from System.Drawing import Icon
+                window.native.Icon=Icon(str(icon_path))
+                icon_set.append(True)
+            except Exception as exc:errors.append('Window icon: '+type(exc).__name__)
+    window.events.shown += set_native_icon
     def verify():
         try:
             if not window.events.loaded.wait(timeout=40):
@@ -18,6 +33,7 @@ def open_window(url, smoke_report=None, shutdown_event=None):
                 if ready:break
                 time.sleep(.2)
             else:raise RuntimeError('Desktop UI did not become ready')
+            if sys.platform=='win32' and not icon_set:raise RuntimeError('Taskbar icon was not applied')
             window.evaluate_js("navigate('artwork'); true")
             deadline=time.monotonic()+15
             while time.monotonic()<deadline:
@@ -40,7 +56,7 @@ def open_window(url, smoke_report=None, shutdown_event=None):
                 raise RuntimeError('Ultimate data projection failed')
             from pathlib import Path
             import json
-            Path(smoke_report).write_text(json.dumps({'ok':True,'renderer':'edgechromium','checks':['Ultimate screens','honest empty metrics','native window','HTML loaded','JavaScript app ready','data status visible','11 artwork sources','platform switch','PC planned state','simple account screen','update screen blocks unverified install']}), encoding='utf-8')
+            Path(smoke_report).write_text(json.dumps({'ok':True,'renderer':'edgechromium','checks':['taskbar icon','Ultimate screens','honest empty metrics','native window','HTML loaded','JavaScript app ready','data status visible','11 artwork sources','platform switch','PC planned state','simple account screen','update screen blocks unverified install']}), encoding='utf-8')
         except Exception as exc:
             errors.append(str(exc))
         finally:
