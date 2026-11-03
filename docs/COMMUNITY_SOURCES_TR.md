@@ -37,3 +37,13 @@ ana merkez hata nedenini ve mevcut kayıt durumunu gösterir.
 Gh0sTRX55'in cihazındaki oturuma bu geliştirme ortamından erişilemiyor. Bu
 hesabın gerçek ilerlemesi uzaktan doğrulanmadı. Otomatik akış, sayfalama ve
 veri bütünlüğü regresyon testleriyle kontrol edilir.
+
+## Ek kaynak kontrolü
+
+https://www.xboxachievements.com/ ana sayfası okunabildi. Sayfada Xbox Series,
+Xbox One ve Xbox 360 için ayrı başarım listeleri ve rehber bölümleri bulunuyor.
+Bu, genel başarım kataloğu/rehber kaynağı olabileceğini gösterir; bir oyuncunun
+kişisel kazanılma durumunun anonim olarak sunulduğunu kanıtlamaz.
+Black Ops II rehber adresine yapılan istek 403 döndürdü; içeriği doğrulanmadı.
+PSNProfiles ve Exophase üzerinde Gh0sTRX55 profil adresleri de araştırma
+aracından okunamadı. Bu sitelerden hesap verisi indirildiği iddia edilmez.
