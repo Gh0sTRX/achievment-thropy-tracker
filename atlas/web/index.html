@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07120e">
+<title>Achievement Atlas — Your Next Move</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body data-token="__TOKEN__">
+<div id="app" class="app">
+  <aside class="rail">
+    <div class="identity"><div class="brand-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8 55 21v23L32 57 9 44V21z" fill="none" stroke="currentColor" stroke-width="4"/><path d="M20 39 32 18 44 39M25 31h14" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg></div><div><strong>ACHIEVEMENT<br><span>ATLAS</span></strong><small>YOUR NEXT MOVE.</small></div></div>
+    <div class="rail-label">WORKSPACE</div>
+    <nav class="nav" aria-label="Sayfalar">
+      <button class="nav-link active" data-page="home"><span class="nav-mark">◈</span> Komuta Merkezi <span class="nav-index">01</span></button>
+      <button class="nav-link" data-page="games"><span class="nav-mark">▦</span> Oyun Kütüphanesi <span class="nav-index">02</span></button>
+      <button class="nav-link" data-page="achievements"><span class="nav-mark">✦</span> Başarım Kasası <span class="nav-index">03</span></button>
+      <button class="nav-link" data-page="artwork"><span class="nav-mark">▧</span> Görsel Stüdyosu <span class="nav-index">04</span></button>
+      <button class="nav-link" data-page="account"><span class="nav-mark">⌘</span> Hesap & Veri <span class="nav-index">05</span></button>
+    </nav>
+    <div class="rail-bottom"><div class="pulse-dot"></div><div><b>LOCAL FIRST</b><small>Verilerin bu bilgisayarda.</small></div></div>
+    <div class="rail-foot">v0.5 ALPHA · OPEN SOURCE</div>
+  </aside>
+  <main class="content">
+    <header class="topbar"><div class="breadcrumbs"><span class="bread-quiet">ATLAS</span><span class="sep">/</span><strong id="breadcrumb">KOMUTA MERKEZİ</strong></div><div class="top-right"><span class="live-indicator" id="apiIndicator"><i></i> YEREL MOD</span><div class="profile-chip"><span class="profile-avatar" id="profileAvatar">P</span><span id="profileName">Oyuncu</span></div></div></header>
+    <div id="notification" role="status" class="notification hidden"></div>
+    <section class="page" id="home">
+      <div class="section-head"><span class="eyebrow">THE OVERVIEW</span><div class="head-flex"><h1>Bir sonraki <em>hamlen</em> ne?</h1><span class="version">AI DEĞİL, AÇIKLANABİLİR HEDEF MOTORU <i>●</i></span></div><p>Oyunlarını tamamlamaktan fazlası. İlerlemene, fırsatlara ve hedeflerine göre sıradaki adımı seç.</p></div>
+      <section id="featured" class="featured"><div class="featured-art" id="featuredArt"></div><div class="featured-grid"></div><div class="featured-copy"><span class="tag green">⭑ ODAK NOKTASI</span><h2 id="featuredGame">İlk hedefini seç</h2><p id="featuredSubtitle">Kütüphanen analiz ediliyor.</p><div class="featured-progress"><div><b id="featuredProgress">0%</b><span>BAŞARIM İLERLEMESİ</span></div><div class="progress-track"><i id="featuredBar"></i></div></div><div class="featured-actions"><button class="cta" id="featuredAction">OYUNU AÇ <span>↗</span></button><button class="button-glass" data-page="games">TÜM OYUNLAR</button></div></div><div class="feature-letter" id="featureLetter">A</div></section>
+      <div class="stat-grid"><div class="metric"><span class="metric-label">TOPLAM BAŞARIM</span><div class="metric-main"><strong id="statEarned">0</strong><span class="metric-glyph">✦</span></div><span class="metric-sub" id="statEarnedSub">0 kayıt</span></div><div class="metric"><span class="metric-label">KÜTÜPHANE</span><div class="metric-main"><strong id="statGames">0</strong><span class="metric-glyph">▦</span></div><span class="metric-sub">oyun / sürüm</span></div><div class="metric"><span class="metric-label">GAMERSCORE</span><div class="metric-main"><strong id="statScore">0</strong><span class="metric-glyph">◈</span></div><span class="metric-sub" id="statScoreSub">mevcut kazanımlar</span></div><div class="metric"><span class="metric-label">TAMAMLAMA</span><div class="metric-main"><strong id="statPercent">0%</strong><span class="metric-glyph">↗</span></div><span class="metric-sub">kayıtlı başarımlara göre</span></div></div>
+      <div class="heading-row"><div><span class="eyebrow">QUEST ENGINE / 01</span><h2>Sana önerilen <span>hedefler</span></h2></div><button class="ghost-link" data-page="achievements">TÜM BAŞARIMLARI GÖR <span>↗</span></button></div>
+      <div class="suggestions" id="recommendations"></div>
+      <div class="split-panels"><section class="panel"><div class="panel-heading"><span class="eyebrow">CLOSE TO FINISH</span><h3>Bitirmeye yakın oyunlar</h3></div><div id="closest" class="mini-game-list"></div></section><section class="panel"><div class="panel-heading"><span class="eyebrow">SCORE OPPORTUNITY</span><h3>Biriken Gamerscore</h3></div><div id="highest" class="mini-game-list"></div></section></div>
+      <section class="riskstrip"><div class="risk-icon">!</div><div><strong>Erişilebilirlik, başarımla aynı şey değil.</strong><p id="riskText">Sunucusu kapanan veya erişimi şüpheli hedefleri ayrı tutuyoruz.</p></div><button class="ghost-link" data-page="games">İNCELE ↗</button></section>
+    </section>
+    <section class="page hidden" id="games">
+      <div class="section-head"><span class="eyebrow">LIBRARY / BROWSE</span><h1>Oyun <em>kütüphanesi</em></h1><p>Her oyunun ilerlemesi, görseli ve sıradaki hamleleri bir arada.</p></div>
+      <div class="filters"><input id="gameSearch" placeholder="⌕  Oyun adında ara..." aria-label="Oyun ara"><select id="gameSort"><option value="progress">İlerlemeye göre</option><option value="near">Bitirmeye en yakın</option><option value="score">Kalan Gamerscore</option><option value="alpha">Alfabetik</option></select></div>
+      <div id="gameGrid" class="game-grid"></div>
+      <div class="panel detail hidden" id="gameDetail"><div id="detailHero" class="detail-art"></div><button id="detailClose" class="detail-close">✕</button><div class="detail-body"><span class="eyebrow">GAME ANALYSIS</span><h2 id="detailName"></h2><div id="detailStats" class="detail-stats"></div><p id="detailHint" class="muted"></p><div class="detail-buttons"><button id="detailAchievements" class="cta">BAŞARIMLARI GÖR ↗</button><button id="detailArt" class="button-glass">GÖRSELLERİ BUL</button><button id="detailSync" class="button-glass">XBOX SENKRONİZE ET</button></div></div></div>
+    </section>
+    <section class="page hidden" id="achievements">
+      <div class="section-head"><span class="eyebrow">TROPHY VAULT</span><h1>Başarım <em>kasası</em></h1><p>Hedefleri sabitle, oyunlara göre filtrele ve gerçek ikonlarını gör.</p></div>
+      <div class="filters"><input id="achSearch" placeholder="⌕  Başarım veya oyun ara..."><select id="achGame"><option value="all">Tüm oyunlar</option></select><select id="achStatus"><option value="locked">Kilitli</option><option value="all">Tümü</option><option value="earned">Kazanılmış</option><option value="pinned">Sabitlenenler</option><option value="flagged">Erişim bayraklı</option></select><select id="achSort"><option value="recommend">Öneri puanı</option><option value="gs">Gamerscore ↓</option><option value="ratio">TA oranı ↑</option></select></div>
+      <div class="ach-meta"><span id="achCount">0 kayıt</span><button class="ghost-link" id="cacheIcons">GÖRÜNEN İKONLARI ÖNBELLEĞE AL ↗</button></div><div id="achievementList" class="achievement-list"></div><div class="pager"><button id="prevPage" class="secondary">← ÖNCEKİ</button><span id="pageLabel">1/1</span><button id="nextPage" class="secondary">SONRAKİ →</button></div>
+    </section>
+    <section class="page hidden" id="artwork">
+      <div class="section-head"><span class="eyebrow">VISUAL STUDIO / ARTWORK</span><h1>Oyunların <em>kimliği.</em></h1><p>Kapak ve geniş banner görsellerini SteamGridDB üzerinden ara. Yalnız seçtiklerin cihazına kaydedilir.</p></div>
+      <div class="panel art-info"><div class="art-monogram">▧</div><div><h3>Görseller sana aittir, projeye gömülü değildir.</h3><p>SteamGridDB geliştirici anahtarı gereklidir; telifli oyun görselleri açık kaynak paketimize dahil edilmez. Xbox bağlantısı oyun görsellerini ve bazı başarım simgelerini ayrıca sağlayabilir.</p></div></div>
+      <div class="panel form-panel"><div class="formline"><label>STEAMGRIDDB API KEY <small>(yalnızca bellekte)</small><input type="password" id="sgdbKey" placeholder="Developer API key"></label><button id="setArtKey" class="cta">BAĞLA</button></div><div class="formline"><label>GÖRSEL ARANACAK OYUN<select id="artGame"></select></label><button id="searchArtwork" class="cta">KAPAK & WALLPAPER ARA ↗</button></div><div class="formline"><label>ARAMA SONUÇLARI<select id="sgdbMatches"><option>Önce oyun ara</option></select></label><button class="secondary" id="loadArtwork">GÖRSELLERİ LİSTELE</button></div></div>
+      <div class="heading-row"><div><span class="eyebrow">PREVIEW / SELECT</span><h2>Görsel <span>galerisi</span></h2></div></div><div id="artChoices" class="art-grid"><div class="empty">Henüz görsel aranmadı.</div></div>
+    </section>
+    <section class="page hidden" id="account">
+      <div class="section-head"><span class="eyebrow">ACCOUNT / CONNECT</span><h1>Senin hesabın. <em>Senin verin.</em></h1><p>Veriler yerel saklanır. İstersen CSV aktar, istersen Microsoft Xbox oturumu bağla.</p></div>
+      <div class="split-panels"><div class="panel"><div class="panel-heading"><span class="eyebrow">IMPORT / FIRST STEP</span><h3>TrueAchievements CSV içe aktar</h3></div><p class="muted">İki dosyanı birlikte seç: kazanılmış ve kilitli. Eski kazanımlar üzerine yazılarak silinmez.</p><label class="form-label">GAMERTAG <span>(isteğe bağlı)</span><input id="importGamertag" placeholder="Oyuncu adı"></label><label class="form-label">KAZANILMIŞ CSV<input type="file" id="earnedCSV" accept=".csv,text/csv"></label><label class="form-label">KİLİTLİ CSV<input type="file" id="lockedCSV" accept=".csv,text/csv"></label><button id="importBtn" class="cta wide">KÜTÜPHANE OLUŞTUR ↗</button><p class="helper">CSV dosyaları tarayıcıda okunur, yalnızca yerel uygulama işlemine gönderilir.</p></div><div class="panel"><div class="panel-heading"><span class="eyebrow">PLATFORM / XBOX</span><h3>Microsoft ile bağlan</h3></div><p class="muted">OpenXbox Python kütüphanesi ile Xbox hesabına giriş. Ayrı OpenXBL / XAPI anahtarına gerek yok.</p><div class="account-status" id="xboxStatus">Henüz bağlanmadı.</div><button class="cta wide" id="loginXbox">MICROSOFT İLE OTURUM AÇ ↗</button><button class="secondary wide" id="reconnectXbox">KAYITLI OTURUMA BAĞLAN</button><button class="secondary wide" id="discoverXbox">XBOX OYUN LİSTESİNİ BUL</button><button class="secondary wide" id="syncXbox">EŞLEŞEN OYUNLARI YENİLE</button><p class="helper">API bağlantısı mevcut değilse CSV ve öneri motoru çalışmaya devam eder. Xbox Live entegrasyonu deneyseldir.</p></div></div>
+      <div class="panel" style="margin-top:20px"><div class="panel-heading"><span class="eyebrow">IDENTITY / MATCHING</span><h3>Xbox oyun eşleştirmeleri</h3></div><p class="muted">Aynı isimli farklı Xbox sürümlerini otomatik birleştirmiyoruz. Eşleşmeyi sen onaylıyorsun.</p><div id="xboxTitles" class="xbox-titles"></div></div>
+    </section>
+    <footer class="footer">ACHIEVEMENT ATLAS <b>0.5 ALPHA</b> — Open-source community project · Unofficial, not endorsed by Microsoft or Sony · Art remains with its respective owners.</footer>
+  </main>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

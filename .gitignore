@@ -1,0 +1,16 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+.venv/
+build/
+dist/
+*.spec
+.env
+*.token
+tokens.json
+state.json
+library.json
+artwork/
+local-data/
+*.csv
