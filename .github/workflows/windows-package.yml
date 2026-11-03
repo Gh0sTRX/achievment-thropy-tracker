@@ -82,7 +82,7 @@ jobs:
         run: |
           $process = Start-Process -FilePath .\dist\AchievementAtlas\AchievementAtlas.exe -ArgumentList '--desktop-test','--report','desktop-test-report.json' -PassThru
           if (!$process.WaitForExit(120000)) { $process.Kill(); throw 'Desktop window test timed out' }
-          if ($process.ExitCode -ne 0 -or !(Test-Path desktop-test-report.json)) { throw 'Desktop window test failed' }
+          if ($process.ExitCode -ne 0 -or !(Test-Path desktop-test-report.json)) { if (Test-Path desktop-test-report.json) { Get-Content desktop-test-report.json }; throw 'Desktop window test failed' }
       - name: Build per-user installer
         shell: pwsh
         run: |

@@ -75,8 +75,12 @@ def cli():
         from atlas.server import main
         if args.desktop_test:
             if not args.report:parser.error('--desktop-test requires --report')
-            with tempfile.TemporaryDirectory() as root:
-                main(root=root, desktop_report=args.report)
+            try:
+                with tempfile.TemporaryDirectory() as root:
+                    main(root=root, desktop_report=args.report)
+            except Exception as exc:
+                Path(args.report).write_text(json.dumps({'ok':False,'error':type(exc).__name__+': '+str(exc)[:500]}),encoding='utf-8')
+                raise SystemExit(2)
         else:
             try:main(browser=args.browser, root=args.data_dir)
             except Exception as exc:
