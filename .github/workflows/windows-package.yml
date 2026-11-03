@@ -1,7 +1,16 @@
 name: Windows installer
 on:
+  pull_request:
+    paths:
+      - 'atlas/**'
+      - 'tests/**'
+      - 'run.py'
+      - 'requirements*.txt'
+      - 'packaging/**'
+      - 'KURULUM.txt'
+      - '.github/workflows/windows-package.yml'
   push:
-    branches: [main, 'codex/**']
+    branches: [main]
     paths:
       - 'atlas/**'
       - 'tests/**'
