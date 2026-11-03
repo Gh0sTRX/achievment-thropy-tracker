@@ -109,6 +109,8 @@ class Library:
         self.library_path=self.root/'library.json'
         self.state_path=self.root/'state.json'
         self.lock=threading.RLock()
+        from . import archive
+        archive.recover_interrupted_restore(self.root)
         self.revision=0
         self.library=self._read(self.library_path, empty_library())
         self.state=self._read(self.state_path, {'pins':[],'hidden':[],'custom_art':{},'xbox_titles':{},'linked_profile':None,'sync_at':None,'log':[]})
@@ -170,6 +172,35 @@ class Library:
         self.revision+=1
         atomic_write(self.library_path,self.library)
         atomic_write(self.state_path,self.state)
+
+    def export_archive(self):
+        """Portable current library and non-secret state, not OAuth or image cache."""
+        from . import archive
+        with self.lock:
+            return archive.make_archive(self.library, self.state)
+
+    def restore_archive(self, document):
+        """Restore is guarded by a disk rollback snapshot; credentials never imported."""
+        from . import archive
+        from .preferences import DEFAULTS
+        with self.lock:
+            verified = archive.verify_archive(document)
+            state = verified['state']
+            defaults = {'pins': [], 'hidden': [], 'custom_art': {}, 'xbox_titles': {},
+                        'linked_profile': None, 'sync_at': None, 'log': []}
+            for key, value in defaults.items():
+                state.setdefault(key, deepcopy(value))
+            state['ui'] = {**deepcopy(DEFAULTS), **state.get('ui', {})}
+            document = archive.make_archive(verified['library'], state)
+            restored = archive.restore_files(self.root, document, self.library, self.state)
+            self.library, self.state = restored['library'], restored['state']
+            self.revision += 1
+            self.status = {'connected': False,
+                           'message': 'Arşiv geri yüklendi; oturum yeniden doğrulanmalı.',
+                           'job': None, 'art_job': None}
+            return {'message': 'Kayıtlar güvenle geri yüklendi. Canlı hesap erişimini yeniden doğrula.',
+                    'games': len(self.library['games']),
+                    'achievements': len(self.library['achievements'])}
 
     def payload(self):
         with self.lock:
