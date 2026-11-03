@@ -68,3 +68,14 @@ depo/workflow/dallar kabul edilir. İlk 0.12 kurulumu bir kez yapılmalıdır;
 sonraki güncellemeler uygulamadaki Güncellemeler ekranından yapılabilir.
 Bu, ilk indirmedeki Chrome/SmartScreen uyarısını kaldırmaz ve OS korumalarını
 atlatmaz. Ayrıntılar: [Güncelleme kanalı](docs/UPDATES_TR.md).
+
+## 0.13 Ultimate arayüzü
+
+Atlas Hub, üç kütüphane düzeni, sağdan açılan başarım detayı, Hedef Panosu,
+Koleksiyon Müzesi ve yerel oyuncu profili eklendi. Tema rengi ile veri filtresi
+ayrıdır; Xbox 360 / Windows / mobil ve PS3 / PS4 / PS5 / Vita kimlikleri korunur.
+Görsel Stüdyosu kapak, hero ve logo seçimiyle odak/karartma/bulanıklık ayarlarını
+cihazda saklar. Gerçek oyun görselleri dağıtıma gömülmez.
+
+0.12 Setup kuruluysa **Güncellemeler → Güncellemeyi indir → Kur ve yeniden başlat**
+yoluyla 0.13 alınabilir. [Uygulama ve doğrulama raporu](docs/ULTIMATE_IMPLEMENTATION_TR.md).

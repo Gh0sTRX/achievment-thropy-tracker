@@ -110,3 +110,11 @@ Gelistirme kanalinda Windows sertifikasi yerine GitHub'in kriptografik derleme
 kokeni kaniti ve SHA256 dogrulanir. Baska depo/dal/workflow kabul edilmez.
 Bu, ilk indirmedeki Chrome/SmartScreen uyarisini kaldirmaz ve Defender/Windows
 korumalarini atlatmaz. Kayitlar ve onceki uygulama dosyalari korunur.
+
+0.13 ULTIMATE
+Atlas Hub, Izgara / Vitrin / Koleksiyon, basarim detay paneli,
+Hedef Panosu, Koleksiyon Muzesi ve oyuncu profili eklendi.
+Tema, yazi boyutu ve erisilebilirlik tercihleri cihazda saklanir.
+Tema rengi verinin platformunu degistirmez. Muzede eksik kaynak
+verisine kesin %100 etiketi verilmez. Yeni ekranlar maket puan eklemez.
+0.12 Setup kuruluysa uygulama icindeki Guncellemeler bolumunu kullan.
