@@ -1,0 +1,120 @@
+ACHIEVEMENT ATLAS 0.13.0 — WINDOWS KURULUMU
+
+Hazır Setup.exe paketi Windows 10/11 64 bit içindir. Python veya yönetici
+izni gerekmez. Kurulum dosyasını aç, adımları tamamla, masaüstündeki
+Achievement Atlas kısayolunu çalıştır. Arayüz kendi masaüstü penceresinde açılır. Microsoft Edge WebView2 Runtime
+kurulu olmalıdır (Windows 10/11 sistemlerinde genellikle bulunur). Pencereyi
+kapatmak uygulamayı kapatır. Microsoft oturum açma sayfası tarayıcıda açılabilir.
+
+Portable.zip sürümünü kullanırsan TÜM dosyaları bir klasöre çıkar ve
+AchievementAtlas.exe dosyasını aç. _internal klasörünü silme.
+
+İLK KULLANIM
+1. Hesap & Veri ekranını aç.
+2. Platformunu seç. Kayıtlı Xbox erişimi otomatik kullanılır.
+3. Gamertag / Online ID yaz; PROFİLİMİ YENİLE düğmesine bas.
+4. Oyun detayında BU OYUNU TAMAMLA düğmesine bas.
+
+CANLI VERİ İÇİN GEREKENLER
+Bu paket ortak bir ücretli servis hesabı veya API anahtarı içermez.
+Kullanıcı adının herkese açık olması anonim API erişimi sağlamaz.
+Oyuncu hesabını uygulamaya bağlamadan sorgulamak için işletmeciye ait:
+- Xbox OpenXbox oturum dosyası veya
+- PSN servis hesabı NPSSO değeri gerekir.
+Bunları yalnızca uygulamanın yerel ayarlar ekranına gir; sohbete/GitHub'a koyma.
+Servis kurulmamışsa uygulama açılır ancak canlı kupaları getiremez.
+TrueAchievements CSV içe aktarımı servis anahtarı gerektirmez. Bu sürüm
+örnek oyun veya başarım içermez. Eski demo kayıtları otomatik kaldırılır;
+gerçek kayıtlar ve oturum bilgileri korunur.
+Ayrıntı: docs/PUBLIC_PROFILES_TR.md.
+
+TÜRKÇE REHBERLER
+Brave Search API ve OpenAI API anahtarları isteğe bağlıdır.
+Bu servisler ücretlidir. Otomatik rehber seçeneği varsayılan kapalıdır;
+açarsan her yeni kupa için web araması ve model isteği yapılabilir.
+Alternatif: yalnızca seçtiğin oyunun rehberlerini düğmeyle hazırla.
+Rehberler kaynak alıntılarına dayalı yapay zekâ özetleridir.
+Canlı kupa erişimi ve rehber doğruluğu Gh0sTRX55 hesabıyla doğrulanmadı.
+
+VERİLER VE GÜNCELLEME
+Kütüphane, profil arşivleri ve ayarlar Windows kullanıcı klasöründeki
+%LOCALAPPDATA%\AchievementAtlas altında saklanır. Servis anahtarları
+Windows DPAPI ile kullanıcı hesabına bağlı şifrelenir. Bu klasörü
+başka Windows hesabına kopyalamak anahtarları taşımaya yetmez.
+Yeni sürümü aynı yere kurabilirsin; kaldırma işlemi kişisel arşivi silmez.
+Tam silmek istersen uygulamayı kapatıp bu veri klasörünü ayrıca sil.
+
+KAYNAK KOD PAKETİ
+Kaynak ZIP kullanıyorsan önce Python 3.11+ kur; sonra KUR_WINDOWS.bat
+çalıştır. Bu işlem .venv klasörü oluşturur ve internetten Xbox/PSN
+bileşenlerini kurar. Sonraki açılışlar: BASLAT_WINDOWS.bat. BASLAT_TARAYICI.bat isteğe bağlıdır.
+
+Bu ön sürüm Microsoft veya Sony tarafından yayımlanmamıştır.
+Kurulum dosyası kod imzası içermez.
+
+0.7 DUZELTMELERI
+Microsoft girisi sonrasi tum oyun ve basarimlar otomatik indirilir.
+Kayitli oturum varsa yeniden acilista esitleme denenir. Bir oturumun acik
+olmasi basarimlarin indirildigi anlamina gelmez; durum ve hatalar ana
+merkezde gosterilir. Yeni API kayitlari yoksa ornek veri uretilmez.
+
+0.8 DUZELTMELERI
+Sifir olan gercek Xbox basarim kimligi korunur. Adi eksik basarim, kimligiyle
+ve adin alinamadigi belirtilerek gosterilir. Gercek kimligi veya kazanilma
+durumu eksik oyun ayri raporlanir; diger oyunlar kaydedilir. Ayni oyuncunun
+sorunlu oyunlardaki onceki kayitlari korunur. Kismi esitleme ekranda belirtilir.
+Hesap ekrani sadelestirildi. Teknik ayarlar istege bagli gelismis ekrandadir.
+JSON dosyalari uygulamanin yerel kayit bicimidir; elle duzenlemek gerekmez.
+Oyun Gorselleri yalnizca kapak/arka plan degistirir; kupa indirmez.
+
+0.9 GERCEK OYUN GORSELLERI
+Oyun Gorselleri ekraninda kutuphanenden oyun sec, bilgisayarindan PNG/JPEG/WebP
+gorselini sec. Kapak, genis arka plan, logo, banner ve ekran goruntusu ayri
+kaydedilir. Secilen dosya yeniden baslatma ve esitleme sonrasinda korunur.
+Odak surgu cubuklariyla yuzleri ve logolari koruyacak bir konum secilebilir.
+11 kaynak kesif karti eklenmistir; hepsi otomatik API entegrasyonu degildir.
+Xbox/PlayStation istatistikleri ayridir. PC veri saglayicisi planlaniyor.
+Orijinal ticari oyun gorselleri bu kurulum paketine dahil degildir.
+
+0.10 CIHAZ/SURUM VE ESKI XBOX OYUNLARI
+Oyunlarda ve basarimlarda cihaz etiketi vardir; oyunlar cihaz filtresiyle
+aranabilir. PS3/PS4/PS5/PS Vita listeleri kimlikleriyle korunur. Ayni kupa
+listesi birden fazla cihazi destekliyorsa ortak liste olarak belirtilir.
+Xbox agina bagli Windows, iOS ve Android oyunlari Xbox sekmesinde kendi
+cihaz etiketiyle gorunur. Steam baglantisi halen planlaniyor.
+Xbox 360 katalog ve kazanilmis basarim yanitlari birlestirilir. Eski ikon
+adresi ancak gercek gorsel yaniti dogrulanirsa kullanilir. Profil esitlemesi
+sonrasinda saglayicinin sundugu kapak/logo/ikonlar otomatik onbellege alinir.
+Kaynak logo veya gorsel sunmazsa baska surumun gorseliyle doldurulmaz.
+Rehber servisleri ayarliysa tum eksik rehberler esitlemeden sonra arastirilir.
+Kaynak bulunamayan basarim digerlerinin arastirilmasini engellemez.
+Bu paket guvenilir yayinci sertifikasi olmadigi icin imzasizdir. Chrome veya
+SmartScreen uyarilarinin kalktigi iddia edilmez; korumayi kapatman onerilmez.
+
+0.11 UYGULAMA ICI GUNCELLEME
+Guncellemeler ekranindan GitHub Releases kararlı surumlerini kontrol edebilirsin.
+Yeni surum varsa indir, dogrulandiktan sonra Kur ve yeniden baslat dugmesini
+kullan. Calisan esitleme islemleri tamamlanmadan kurulum baslatilmaz. Veriler
+korunur ve onceki uygulama dosyalari yedeklenir.
+Bu ozellik Actions ZIP dosyalarini guncelleme kanali olarak kullanmaz. Yayinlanan
+kurulumun SHA256, boyut ve ayni guvenilir yayinci imzasi dogrulanir. Imzasiz
+gelistirme paketleri otomatik kurulmaz. Ilk imzali surum elle kurulmalidir.
+Bu ozellik Chrome/SmartScreen korumasini atlatmaz. Kod imzalama erisimi henuz
+kurulmadiysa ve imzali GitHub Release yoksa otomatik kurulum etkin olmaz.
+Kaynak ve tasinabilir surumler bu otomatik Setup akisina dahil degildir.
+
+0.12 ETKIN GELISTIRME KANALI
+Bu surum bir kez kurulduktan sonra Guncellemeler ekranindan yeni gelistirme
+surumlerini tarayici acmadan indirebilir, dogrulayabilir ve kurabilirsin.
+Gelistirme kanalinda Windows sertifikasi yerine GitHub'in kriptografik derleme
+kokeni kaniti ve SHA256 dogrulanir. Baska depo/dal/workflow kabul edilmez.
+Bu, ilk indirmedeki Chrome/SmartScreen uyarisini kaldirmaz ve Defender/Windows
+korumalarini atlatmaz. Kayitlar ve onceki uygulama dosyalari korunur.
+
+0.13 ULTIMATE
+Atlas Hub, Izgara / Vitrin / Koleksiyon, basarim detay paneli,
+Hedef Panosu, Koleksiyon Muzesi ve oyuncu profili eklendi.
+Tema, yazi boyutu ve erisilebilirlik tercihleri cihazda saklanir.
+Tema rengi verinin platformunu degistirmez. Muzede eksik kaynak
+verisine kesin %100 etiketi verilmez. Yeni ekranlar maket puan eklemez.
+0.12 Setup kuruluysa uygulama icindeki Guncellemeler bolumunu kullan.

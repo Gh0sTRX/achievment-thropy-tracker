@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict'),m=require('../atlas/web/model.js');
+const games=[{id:'360',platform:'xbox',devices:['xbox360'],name:'Minecraft'},{id:'win',platform:'xbox',devices:['windows'],name:'Minecraft'},{id:'ios',platform:'xbox',devices:['ios'],name:'Minecraft'},{id:'ps4',platform:'psn',devices:['ps4']},{id:'pc',platform:'pc',devices:['windows']}];
+const items=Array.from({length:15000},(_,i)=>({id:String(i),game_id:games[i%5].id,platform:games[i%5].platform,points:10,unlocked:i%2===0}));
+const xbox=m.scope({games,achievements:items},'xbox');assert.equal(xbox.games.length,3);assert.equal(xbox.achievements.length,9000);
+assert.equal(m.scope({games,achievements:items},'xbox','xbox360').achievements.length,3000);
+assert.equal(m.index(items).get('360').length,3000);assert.equal(m.metrics(items).xboxScore,45000);
+assert.equal(m.metrics(items).psn,1500);assert.equal(m.progress([]).ratio,0);
+assert.equal(m.completion(games[0],[{unlocked:true}],false).verified,false);assert.equal(m.completion(games[0],[{unlocked:true}],true).verified,true);
+assert.equal(m.completion(games[0],[],true).verified,false);assert.equal(m.completion(games[3],[{unlocked:true,platform:'psn',trophy_type:'platinum'}],false).platinum,true);
+assert.equal(m.measured({progress_current:0,progress_target:50}).value,0);assert.equal(m.measured({progress_current:null,progress_target:50}),null);assert.equal(m.measured({progress_current:4,progress_target:0}),null);
+assert.equal(m.timeline([{unlocked:true,unlock_time:'bad'},{unlocked:false,unlock_time:'2026-01-01'},{unlocked:true,unlock_time:'2026-01-02'}]).length,1);
+assert.equal(m.secret({hidden:true,unlocked:false}),true);assert.equal(m.secret({hidden:true,unlocked:true}),false);
+assert.deepEqual(games.map(g=>g.id),['360','win','ios','ps4','pc']);console.log('UI projections: scope, editions, 15k records, honest metrics, completion, measured progress, timeline and spoilers passed');

@@ -1,0 +1,218 @@
+name: Windows installer
+on:
+  pull_request:
+    paths:
+      - '.gitattributes'
+      - 'atlas/**'
+      - 'tests/**'
+      - 'run.py'
+      - 'requirements*.txt'
+      - 'packaging/**'
+      - 'scripts/**'
+      - 'spec/**'
+      - 'assets/**'
+      - 'preview/**'
+      - 'KURULUM.txt'
+      - '.github/workflows/windows-package.yml'
+  push:
+    branches: [main, 'codex/public-profile-trophies']
+    tags: ['v*']
+    paths:
+      - '.gitattributes'
+      - 'atlas/**'
+      - 'tests/**'
+      - 'run.py'
+      - 'requirements*.txt'
+      - 'packaging/**'
+      - 'scripts/**'
+      - 'spec/**'
+      - 'assets/**'
+      - 'preview/**'
+      - 'KURULUM.txt'
+      - '.github/workflows/windows-package.yml'
+  workflow_dispatch:
+concurrency:
+  group: atlas-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install platform SDKs and packager
+        run: python -m pip install -r requirements-windows.txt
+      - name: Embed build identity
+        run: python scripts/generate_build_info.py
+      - name: Run tests with real SDKs installed
+        run: python -m unittest discover -s tests -v
+      - name: Verify Ultimate UI projections
+        run: node tests/test_ui_model.cjs
+      - name: Validate update helper syntax
+        shell: pwsh
+        run: |
+          $tokens=$null; $errors=$null
+          [Management.Automation.Language.Parser]::ParseFile((Resolve-Path scripts/apply_update.ps1),[ref]$tokens,[ref]$errors) | Out-Null
+          if ($errors.Count) { $errors | Format-List; throw 'Update helper syntax error' }
+      - name: Build standalone application
+        run: python -m PyInstaller --noconfirm packaging/windows.spec
+      - name: Sign application when a trusted certificate is configured
+        shell: pwsh
+        env:
+          ATLAS_SIGNING_PFX: ${{ secrets.ATLAS_SIGNING_PFX }}
+          ATLAS_SIGNING_PASSWORD: ${{ secrets.ATLAS_SIGNING_PASSWORD }}
+        run: ./scripts/sign_windows.ps1 -TargetPath dist/AchievementAtlas/AchievementAtlas.exe -Report app-signing.json
+      - name: Verify frozen application and Windows secret storage
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath .\dist\AchievementAtlas\AchievementAtlas.exe -ArgumentList '--self-test','--report','frozen-test-report.json' -Wait -PassThru -NoNewWindow
+          if ($process.ExitCode -ne 0) { throw "Frozen self-test failed: $($process.ExitCode)" }
+          if (!(Test-Path frozen-test-report.json)) { throw 'Self-test report missing' }
+      - name: Verify native desktop window
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath .\dist\AchievementAtlas\AchievementAtlas.exe -ArgumentList '--desktop-test','--report','desktop-test-report.json' -PassThru
+          if (!$process.WaitForExit(120000)) { $process.Kill(); throw 'Desktop window test timed out' }
+          if ($process.ExitCode -ne 0 -or !(Test-Path desktop-test-report.json)) { throw 'Desktop window test failed' }
+      - name: Build per-user installer
+        shell: pwsh
+        run: |
+          $compiler = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (!(Test-Path $compiler)) { throw 'Inno Setup compiler missing' }
+          & $compiler packaging\windows.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+      - name: Sign installer when a trusted certificate is configured
+        shell: pwsh
+        env:
+          ATLAS_SIGNING_PFX: ${{ secrets.ATLAS_SIGNING_PFX }}
+          ATLAS_SIGNING_PASSWORD: ${{ secrets.ATLAS_SIGNING_PASSWORD }}
+        run: |
+          $setup = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
+          ./scripts/sign_windows.ps1 -TargetPath $setup.FullName -Report dist/installer/installer-signing.json
+      - name: Generate verified update channel manifest
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
+          python scripts/build_update_manifest.py $setup.FullName
+      - name: Record Windows Defender scan when available
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
+          ./scripts/scan_windows.ps1 -TargetPath $setup.FullName -Report dist/installer/defender-report.json
+      - name: Verify installed application
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist\installer\*-Setup.exe | Select-Object -First 1
+          $installDir = Join-Path $env:RUNNER_TEMP 'Atlas install smoke test'
+          $process = Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=`"$installDir`"" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode)" }
+          $process = Start-Process (Join-Path $installDir 'AchievementAtlas.exe') -ArgumentList '--self-test','--report','installed-test-report.json' -Wait -PassThru -NoNewWindow
+          if ($process.ExitCode -ne 0 -or !(Test-Path installed-test-report.json)) { throw 'Installed self-test failed' }
+          $process = Start-Process (Join-Path $installDir 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw 'Uninstall failed' }
+      - name: Prepare portable app, setup and checksums
+        shell: pwsh
+        run: |
+          Copy-Item KURULUM.txt dist\AchievementAtlas\
+          Copy-Item LICENSE dist\AchievementAtlas\
+          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.13.0-Windows-x64-Portable.zip
+          Compress-Archive preview -DestinationPath dist\installer\AchievementAtlas-0.13.0-Preview.zip
+          Copy-Item app-signing.json dist/installer/
+          Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json dist\installer\
+          Get-ChildItem dist\installer\*.exe,dist\installer\*.zip | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist\installer\SHA256SUMS.txt
+          python -m pip freeze | Set-Content dist\installer\dependencies.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AchievementAtlas-0.13.0-Windows-x64
+          path: dist/installer/*
+          retention-days: 30
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: AchievementAtlas-0.13.0-Windows-x64
+          path: release-files
+      - name: Require a signed, matching stable release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PYTHON'
+          import json,os,hashlib
+          from pathlib import Path
+          root=Path('release-files')
+          manifest=json.loads((root/'update-manifest.json').read_text())
+          assert manifest['signed'] is True, 'Unsigned development artifacts cannot become automatic updates'
+          assert os.environ['RELEASE_TAG']=='v'+manifest['version'], 'Tag/version mismatch'
+          installer=root/manifest['installer']
+          assert installer.stat().st_size==manifest['size']
+          assert hashlib.sha256(installer.read_bytes()).hexdigest()==manifest['sha256']
+          PYTHON
+      - name: Publish stable GitHub update channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" release-files/* --verify-tag --title "Achievement Atlas $RELEASE_TAG" --generate-notes
+
+  publish-development:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/codex/public-profile-trophies' || github.ref == 'refs/heads/main')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: AchievementAtlas-0.13.0-Windows-x64
+          path: release-files
+      - name: Attest development installer provenance
+        id: provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: release-files/*-Setup.exe
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify attestation and prepare development manifest
+        env:
+          BUNDLE_PATH: ${{ steps.provenance.outputs.bundle-path }}
+        run: |
+          cp "$BUNDLE_PATH" release-files/update-bundle.json
+          python -m pip install -r requirements-updates.txt
+          python scripts/build_dev_manifest.py release-files
+      - name: Publish the verified development channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view development >/dev/null 2>&1; then
+            gh release edit development --prerelease --title "Achievement Atlas — Development" --notes "Automatic development channel. Every installer is verified with GitHub OIDC/Sigstore build provenance. Windows Authenticode signing may be absent; OS security checks remain enabled."
+          else
+            gh release create development --target "$GITHUB_SHA" --prerelease --title "Achievement Atlas — Development" --notes "Automatic development channel verified by GitHub build provenance. Windows security checks remain enabled."
+          fi
+          gh release upload development release-files/*-Setup.exe release-files/SHA256SUMS.txt release-files/update-bundle.json release-files/development-verification.json --clobber
+          gh release upload development release-files/development-manifest.json --clobber
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AchievementAtlas-0.13.0-Verified-Development-Channel
+          path: |
+            release-files/development-manifest.json
+            release-files/update-bundle.json
+            release-files/development-verification.json

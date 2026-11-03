@@ -1,6 +1,8 @@
 """Localhost-only, no cloud server; import-first architecture with optional Xbox sync."""
 from __future__ import annotations
 import asyncio
+import base64
+import math
 import json
 import mimetypes
 import os
@@ -16,23 +18,162 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit
 from .core import Library,normalize
 from . import recommendations,artwork
-from . import xbox
+from . import xbox, public_profiles, guides, settings, media_sync, updater
 
 BASE=Path(__file__).resolve().parent
 
 class Controller:
     def __init__(self,root=None):
         self.store=Library(root)
+        settings.activate(self.store.root)
         self.active_matches=[]
         self.start_guard=threading.Lock()
+        self.public_guard=threading.Lock()
+        self.guide_guard=threading.Lock()
+        self.guide_stop=threading.Event()
+        self.media_guard=threading.Lock()
+        self.updates=updater.Updater(self.store.root)
+        self.allow_update_install=False
+        self.action_guard=threading.RLock()
 
     def status(self):
-        s=self.store
-        return {'library':s.payload(),
-                'recommendations':recommendations.rank(s.library,s.state['pins']),
-                'insights':recommendations.insights(s.library)}
+        payload=self.store.payload();library=payload['library'];pins=payload['state']['pins']
+        reports={}
+        for platform in ('xbox','psn','pc'):
+            games=[g for g in library['games'] if g.get('platform')==platform]
+            ids={g['id'] for g in games}
+            scoped={**library,'games':games,'achievements':[a for a in library['achievements'] if a['game_id'] in ids]}
+            reports[platform]={'recommendations':recommendations.rank(scoped,pins),'insights':recommendations.insights(scoped)}
+        reports['all']={'recommendations':recommendations.rank(library,pins),'insights':recommendations.insights(library)}
+        return {'library':payload, 'recommendations':recommendations.rank(library,pins),
+                'insights':recommendations.insights(library),'platform_reports':reports,
+                'providers':public_profiles.readiness(), 'guides_ready':guides.configured(),
+                'settings':settings.status(), 'data_status':self.data_status(), 'update':self.updates.snapshot()}
+
+    def data_status(self):
+        job = self.store.status.get('public_job') or {}
+        count = len(self.store.library['achievements'])
+        if job.get('running'): return {'state':'syncing', 'message':f"Gerçek başarımlar alınıyor · {job.get('done',0)}/{job.get('total') or '?'} oyun · {job.get('message','')}"}
+        if job.get('error'): return {'state':'error', 'message':job['error']}
+        warnings = self.store.state.get('sync_warnings') or []
+        if warnings:
+            names = ', '.join(w['game'] for w in warnings[:3])
+            return {'state':'partial', 'message':f'{count} kayıt mevcut. {len(warnings)} oyunun verisi yenilenemedi: {names}. Bu oyunların önceki kayıtları korundu.'}
+        if count: return {'state':'stored', 'message':f"{count} kaynak kaydı · Son eşitleme: {self.store.state.get('sync_at') or 'CSV içe aktarımı'}"}
+        if self.store.status.get('connected'): return {'state':'empty', 'message':'Xbox oturumu açık; henüz başarım indirilmedi. Gerçek verileri yenile.'}
+        return {'state':'empty', 'message':'Henüz gerçek başarım verisi yok. Kullanıcı adını sorgula veya TrueAchievements CSV aktar. Örnek oyun gösterilmez.'}
+
+    def install_update(self):
+        if not self.allow_update_install:raise ValueError('Güncellemeyi masaüstü uygulamasından başlat.')
+        if self.public_guard.locked() or self.guide_guard.locked() or self.media_guard.locked() or self.store.status.get('login_running') or self.store.status.get('reconnect_running') or (self.store.status.get('job') or {}).get('running'):
+            raise ValueError('Güncellemeden önce çalışan eşitleme/indirme işlemlerinin bitmesini bekle.')
+        with self.store.lock:self.store.save()
+        return self.updates.install()
+
+    def sync_linked_profile(self):
+        profile = self.store.state.get('linked_profile') or {}
+        if not profile.get('gamertag'): raise ValueError('Önce Xbox oturumunu aç.')
+        return self.public_sync({'platform':'xbox', 'username':profile['gamertag']})
+
+    def save_settings(self, data):
+        if self.public_guard.locked() or self.guide_guard.locked() or (self.store.status.get('job') or {}).get('running') or self.store.status.get('login_running'):
+            raise ValueError('Ayarları değiştirmeden önce çalışan işlemin bitmesini bekle.')
+        return settings.save(self.store.root, data.get('values', {}), data.get('clear', []))
+
+    def public_sync(self, data):
+        platform = str(data.get('platform', ''))
+        username = public_profiles.validate(platform, data.get('username', ''))
+        if not public_profiles.readiness()[platform]:
+            raise ValueError('Bu platformun veri servisi kurulmamış. Kurulum için docs/PUBLIC_PROFILES_TR.md dosyasına bak. Oyuncunun hesabını bağlaması gerekmez.')
+        if not self.public_guard.acquire(blocking=False):
+            raise ValueError('Profil eşitlemesi zaten çalışıyor.')
+        if (self.store.status.get('job') or {}).get('running'):
+            self.public_guard.release()
+            raise ValueError('Xbox eşitlemesinin bitmesini bekle.')
+        self.store.status['public_job'] = {'running': True, 'done': 0, 'total': 0,
+                                           'message': 'Profil sorgulanıyor…', 'error': ''}
+        def progress(done, total, name):
+            with self.store.lock:
+                self.store.status['public_job'].update(done=done, total=total, message=name)
+        def worker():
+            try:
+                snapshot = public_profiles.fetch(platform, username, progress)
+                report = self.store.apply_public_profile(snapshot)
+                with self.store.lock:
+                    self.store.status['public_job']['message'] = f"{snapshot['username']}: {report['games']} oyun, {report['achievements']} kupa kaydedildi."
+                self.download_media()
+                if guides.configured():
+                    try:self.generate_guides({'platform': platform})
+                    except ValueError as exc:self.store.status['public_job']['message'] += ' '+str(exc)
+            except Exception as exc:
+                # Only application-authored messages are safe for the browser.
+                message = str(exc) if type(exc) is ValueError else type(exc).__name__
+                self.store.status['public_job']['error'] = message[:350]
+            finally:
+                self.store.status['public_job']['running'] = False
+                self.public_guard.release()
+        threading.Thread(target=worker, daemon=True).start()
+        return {'message': 'Herkese açık profil eşitlemesi başladı.'}
+
+    def download_media(self):
+        if not self.media_guard.acquire(blocking=False):return {'message':'Görsel indirmesi zaten çalışıyor.'}
+        self.store.status['media_job']={'running':True,'done':0,'total':0,'message':'Kapak, logo ve ikonlar kontrol ediliyor.'}
+        def progress(done,total,name):self.store.status['media_job'].update(done=done,total=total,message=name)
+        def worker():
+            try:
+                report=media_sync.download(self.store,progress)
+                self.store.status['media_job'].update(report=report,message=f"{report['downloaded']} görsel kaydedildi; {len(report['missing'])} görsel kaynakta bulunamadı. {'; '.join(report['errors'])}")
+            except Exception as exc:self.store.status['media_job']['message']='Görsel indirmesi: '+type(exc).__name__
+            finally:self.store.status['media_job']['running']=False;self.media_guard.release()
+        threading.Thread(target=worker,daemon=True).start()
+        return {'message':'Mevcut oyunların resmi kapak/logo ve başarım ikonları indiriliyor.'}
+
+    def stop_guides(self):
+        self.guide_stop.set()
+        return {'message': 'Rehber araştırması mevcut istek tamamlandığında duracak.'}
+
+    def generate_guides(self, data):
+        if not guides.configured():
+            raise ValueError('Rehber veri servisi kurulmamış. docs/PUBLIC_PROFILES_TR.md dosyasına bak.')
+        if not self.guide_guard.acquire(blocking=False):
+            raise ValueError('Rehber araştırması zaten çalışıyor.')
+        with self.store.lock:
+            items = [dict(a) for a in self.store.library['achievements']
+                if (not data.get('game_id') or a['game_id'] == data['game_id'])
+                and (not data.get('platform') or a.get('platform') == data['platform'])
+                and (a.get('guide') or {}).get('fingerprint') != guides.fingerprint(a)]
+        self.guide_stop.clear()
+        self.store.status['guide_job'] = {'running': True, 'done': 0, 'total': len(items), 'error': ''}
+        def worker():
+            try:
+                for i, a in enumerate(items):
+                    if self.guide_stop.is_set():
+                        self.store.status['guide_job']['error'] = 'Araştırma durduruldu; tamamlanan rehberler korundu.'
+                        break
+                    try:
+                        guide = guides.create(a)
+                        with self.store.lock:
+                            current = next((x for x in self.store.library['achievements'] if x['id'] == a['id']), None)
+                            if current and guides.fingerprint(current) == guides.fingerprint(a):
+                                current['guide'] = guide
+                                self.store.save()
+                    except Exception as exc:
+                        job=self.store.status['guide_job']
+                        job.setdefault('failures',[]).append({'id':a['id'],'reason':str(exc)[:180] if type(exc) is ValueError else type(exc).__name__})
+                        if type(exc) is not ValueError or 'servisine erişilemedi' in str(exc):raise
+                    finally:self.store.status['guide_job']['done'] = i+1
+            except Exception as exc:
+                self.store.status['guide_job']['error'] = (str(exc) if type(exc) is ValueError else type(exc).__name__)[:250]
+            finally:
+                self.store.status['guide_job']['running'] = False
+                self.guide_guard.release()
+        threading.Thread(target=worker, daemon=True).start()
+        return {'message': f'{len(items)} kupa için Türkçe kaynak araştırması başladı.'}
 
     def import_csv(self,data):
+        if self.public_guard.locked():raise ValueError('Profil eşitlemesinin bitmesini bekle.')
+        if self.store.state.get('public_profiles'):
+            raise ValueError('Kullanıcı adıyla oluşturulan arşiv CSV ile birleştirilmez. CSV için ayrı bir veri klasörü kullan.')
         return self.store.import_csv(str(data.get('earned','')),str(data.get('locked','')),str(data.get('gamertag','')))
 
     def set_pin(self,data):return self.store.set_pin(str(data.get('id','')),bool(data.get('pinned')))
@@ -49,27 +190,84 @@ class Controller:
     def choices_art(self,data):
         return {'choices':artwork.candidates(data.get('sgdb_id'),self.store.steamgriddb_key)}
 
-    def select_art(self,data):
-        gid=str(data.get('game_id',''))
-        game=next((g for g in self.store.library['games'] if g['id']==gid),None)
-        if not game:raise ValueError('Game not found')
-        kind=str(data.get('kind',''))
-        if kind not in ('cover','hero'):raise ValueError('Image type unknown')
-        url=str(data.get('url',''))
-        # Only allow artwork that was offered by SGDB for selected game in this session.
-        choices=self.store.live_artwork.get(gid,[])
-        if not any(c['kind']==kind and c['url']==url for c in choices):
-            raise ValueError('Image choice must come from a verified search result')
-        artwork.cache_image(self.store.root,kind,gid,url)
+    def art_game(self, data):
+        game=next((g for g in self.store.library['games'] if g['id']==str(data.get('game_id',''))),None)
+        if not game:raise ValueError('Önce kütüphanenden bir oyun seç.')
+        return game
+
+    def save_art(self, data, metadata):
+        from datetime import datetime, timezone
         with self.store.lock:
-            game[kind+'_url']='local';game['image_source']='SteamGridDB'
+            game=self.art_game(data);kind=str(data.get('kind','hero'))
+            previous=(game.get('artwork_meta') or {}).get(kind,{})
+            original=previous.get('original_url',game.get(kind+'_url',''))
+            game.setdefault('artwork_meta',{})[kind]={**metadata,'original_url':original if original!='local' else '',
+                'saved_at':datetime.now(timezone.utc).isoformat()}
+            game[kind+'_url']='local';game['image_source']=metadata['provider']
             self.store.save()
-        return {'message':'Artwork downloaded to your local cache. No copyrighted images are redistributed.'}
+        return {'message':'Görsel oyununa kaydedildi. Çevrimdışıyken de kullanılabilir.'}
+
+    def upload_art(self, data):
+        game=self.art_game(data);kind=str(data.get('kind','hero'))
+        if kind not in ('cover','hero','logo','banner','screenshot'):raise ValueError('Geçersiz görsel kategorisi.')
+        encoded=data.get('image','')
+        if not isinstance(encoded,str) or len(encoded)>10_666_672:raise ValueError('Görsel en fazla 8 MB olabilir.')
+        try:raw=base64.b64decode(encoded,validate=True)
+        except (ValueError,TypeError):raise ValueError('Görsel dosyası okunamadı.') from None
+        meta=artwork.store_bytes(self.store.root,kind,game['id'],raw)
+        return self.save_art(data,{**meta,'provider':'user_file','provider_id':'', 'source_url':'',
+            'rights_note':'Kullanıcının seçtiği yerel dosya; dağıtım izni doğrulanmadı.'})
+
+    def reset_art(self, data):
+        with self.store.lock:
+            game=self.art_game(data);kind=str(data.get('kind','hero'))
+            if kind not in ('cover','hero','logo','banner','screenshot'):raise ValueError('Geçersiz görsel kategorisi.')
+            meta=game.setdefault('artwork_meta',{}).pop(kind,{})
+            if game.get(kind+'_url')=='local':game[kind+'_url']=meta.get('original_url','')
+            artwork.remove_cached(self.store.root,kind,game['id'])
+            self.store.save()
+        return {'message':'Özel görsel kaldırıldı; varsa önceki kaynak görseli kullanılacak.'}
+
+    def theme_art(self,data):
+        theme=str(data.get('theme','auto'))
+        if theme not in ('auto','ember','ice','forest','dusk','sunrise'):raise ValueError('Tema geçersiz.')
+        x=float(data.get('x',50));y=float(data.get('y',38))
+        overlay=float(data.get('overlay',.68));blur=float(data.get('blur',0))
+        if not math.isfinite(overlay) or not .5<=overlay<=.85 or not math.isfinite(blur) or not 0<=blur<=12:raise ValueError('Görsel görünüm değeri geçersiz.')
+        if not all(math.isfinite(v) and 0<=v<=100 for v in (x,y)):raise ValueError('Odak konumu geçersiz.')
+        with self.store.lock:
+            game=self.art_game(data)
+            game['art_theme']={'preset':theme,'x':x,'y':y,'overlay':overlay,'blur':blur}
+            self.store.save()
+        return {'message':'Görsel odağı ve atmosfer bu oyun için kaydedildi.'}
+
+    def save_notes(self,data):
+        notes=data.get('notes','')
+        if not isinstance(notes,str) or len(notes)>8000:raise ValueError('Not en fazla 8000 karakter olabilir.')
+        with self.store.lock:
+            game=self.art_game(data)
+            game['notes']=notes
+            self.store.save()
+        return {'message':'Oyun notların bu cihazda kaydedildi.'}
+
+    def select_art(self,data):
+        game=self.art_game(data);gid=game['id'];kind=str(data.get('kind',''))
+        if kind not in ('cover','hero','logo'):raise ValueError('Image type unknown')
+        url=str(data.get('url',''))
+        candidate=next((c for c in self.store.live_artwork.get(gid,[]) if c['kind']==kind and c['url']==url),None)
+        if not candidate:raise ValueError('Önce oyun ve sürüm eşleşmesini onaylayıp bir arama sonucu seç.')
+        if (game.get('artwork_meta') or {}).get(kind,{}).get('provider')=='user_file' and not data.get('replace_local'):
+            raise ValueError('Bu oyun için yerel dosya seçilmiş. Değiştirmek için önce özel görseli sıfırla.')
+        meta=artwork.cache_image(self.store.root,kind,gid,url)
+        return self.save_art(data,{**meta,'provider':'SteamGridDB','provider_id':candidate.get('provider_id',''),
+            'source_url':candidate.get('source_url','https://www.steamgriddb.com/'),
+            'rights_note':candidate.get('rights_note','Topluluk görseli; hak sahipliği bağımsızdır.')})
 
     def get_art_choices(self,data):
         gid=str(data.get('game_id',''))
         game=next((g for g in self.store.library['games'] if g['id']==gid),None)
         if not game:raise ValueError('Game unknown')
+        if data.get('confirmed') is not True:raise ValueError('Oyun ve sürüm eşleşmesini onayla; diğer platform kimlikleri otomatik eşleştirilmez.')
         choices=artwork.candidates(data.get('sgdb_id'),self.store.steamgriddb_key)
         self.store.live_artwork[gid]=choices
         return {'choices':choices}
@@ -135,6 +333,7 @@ class Controller:
                 with store.lock:
                     store.state['linked_profile']=profile;store.status.update({'connected':True,'message':'Xbox connected: '+profile['gamertag']})
                     store.save()
+                self.sync_linked_profile()
             except Exception as exc:
                 store.status.update({'connected':False,'message':'Xbox sign-in failed: '+str(exc)[:280]})
             finally:
@@ -150,7 +349,8 @@ class Controller:
         with self.store.lock:
             self.store.state['linked_profile']=profile;self.store.status.update({'connected':True,'message':'Xbox connected: '+profile['gamertag']})
             self.store.save()
-        return {'profile':profile}
+        self.sync_linked_profile()
+        return {'profile':profile, 'message':'Xbox oturumu doğrulandı; gerçek oyunlar ve başarımlar indiriliyor.'}
 
     def xbox_discover(self):
         if not self.store.status.get('connected'):raise ValueError('Sign in first')
@@ -180,6 +380,13 @@ class Controller:
         return {'message':'Mapped '+game['name']+' to Xbox Title ID '+tid}
 
     def xbox_sync(self,data):
+        if self.public_guard.locked():raise ValueError('Profil eşitlemesinin bitmesini bekle.')
+        if self.store.status.get('connected'):
+            return self.sync_linked_profile()
+        target=(self.store.state.get('public_profiles') or {}).get('xbox')
+        linked=self.store.state.get('linked_profile') or {}
+        if target and target['id']!=str(linked.get('xuid','')):
+            raise ValueError('Bu arşiv herkese açık hedef profile ait. Kullanıcı adıyla yenileme düğmesini kullan.')
         gid=str(data.get('game_id',''))
         games=[g for g in self.store.library['games'] if g.get('title_id') and (not gid or g['id']==gid)]
         if not games:raise ValueError('Map a title ID first')
@@ -254,16 +461,12 @@ class Handler(BaseHTTPRequestHandler):
         if path in ('/','/index.html'):
             body=(BASE/'web'/'index.html').read_text(encoding='utf-8').replace('__TOKEN__',self.server.token).encode('utf-8')
             return self.blob(body,'text/html; charset=utf-8')
-        # Exact-path allowlist: no arbitrary file read or traversal.
-        if path in ('/ui/ultimate.js', '/ui/ultimate.css'):
-            name = path.rsplit('/', 1)[-1]
-            payload = (BASE / 'web' / 'ui' / name).read_bytes()
-            return self.blob(payload, 'text/javascript' if name.endswith('.js') else 'text/css')
-        if path in ('/app.js','/style.css'):
+        if path in ('/ui/ultimate.js','/ui/ultimate.css','/app.js','/visuals.js','/ultimate.js','/model.js','/style.css','/ultimate.css'):
             return self.blob((BASE/'web'/path[1:]).read_bytes(), 'text/javascript' if path.endswith('.js') else 'text/css')
         if path=='/api/data':return self.reply(self.server.controller.status())
+        if path=='/api/art/sources':return self.reply(artwork.sources())
         seg=path.split('/')
-        if len(seg)==5 and seg[1]=='art' and seg[2] in ('cover','hero','icon'):
+        if len(seg)==5 and seg[1]=='art' and seg[2] in artwork.CATEGORIES:
             category=seg[2];ident=seg[3]
             # /art/{kind}/{id}/file; no arbitrary filesystem traversal.
             if seg[4]=='file' and re_id(ident):
@@ -283,20 +486,36 @@ class Handler(BaseHTTPRequestHandler):
             path=urlsplit(self.path).path
             methods={
                '/api/import':self.server.controller.import_csv,
+               '/api/settings':self.server.controller.save_settings,
+               '/api/profiles/sync':self.server.controller.public_sync,
+               '/api/guides/generate':self.server.controller.generate_guides,
+               '/api/guides/stop':lambda d:self.server.controller.stop_guides(),
                '/api/pin':self.server.controller.set_pin,
+               '/api/game/notes':self.server.controller.save_notes,
+               '/api/preferences':lambda d:self.server.controller.store.set_preferences(d),
                '/api/art/key':self.server.controller.set_sgdb_key,
                '/api/art/search':self.server.controller.search_art,
                '/api/art/choices':self.server.controller.get_art_choices,
                '/api/art/select':self.server.controller.select_art,
+               '/api/art/upload':self.server.controller.upload_art,
+               '/api/art/reset':self.server.controller.reset_art,
+               '/api/art/theme':self.server.controller.theme_art,
+               '/api/media/download':lambda d:self.server.controller.download_media(),
                '/api/xbox/login':lambda d:self.server.controller.xbox_login(),
                '/api/xbox/reconnect':lambda d:self.server.controller.xbox_reconnect(),
-               '/api/xbox/discover':lambda d:self.server.controller.xbox_discover(),
+               '/api/xbox/discover':lambda d:self.server.controller.sync_linked_profile(),
                '/api/xbox/map':self.server.controller.xbox_map,
                '/api/xbox/sync':self.server.controller.xbox_sync,
                '/api/icons':self.server.controller.cache_icons,
+               '/api/update/check':lambda d:self.server.controller.updates.check(),
+               '/api/update/download':lambda d:self.server.controller.updates.download(),
+               '/api/update/install':lambda d:self.server.controller.install_update(),
             }
             if path not in methods:return self.reply({'error':'Unknown action'},404)
-            return self.reply(methods[path](data))
+            with self.server.controller.action_guard:
+                if self.server.controller.updates.snapshot().get('state')=='installing':raise ValueError('Güncelleme kuruluyor; uygulamanın yeniden açılmasını bekle.')
+                result=methods[path](data)
+            return self.reply(result)
         except (ValueError,KeyError,xbox.DirectError,urllib.error.HTTPError,urllib.error.URLError) as e:
             return self.reply({'error':str(e)[:350]},400)
         except Exception:
@@ -315,17 +534,33 @@ class LocalApp(ThreadingHTTPServer):
     @property
     def url(self):return f'http://127.0.0.1:{self.server_port}/'
 
-def main(browser=False):
-    app=LocalApp()
+def main(browser=False, root=None, desktop_report=None):
+    from . import instance
+    lock=instance.acquire()
+    if lock is False:return
+    try:app=LocalApp(root)
+    except Exception:
+        instance.release(lock);raise
     t=threading.Thread(target=app.serve_forever,daemon=True);t.start()
-    print('Achievement Atlas:',app.url)
+    app.controller.allow_update_install=not browser and not desktop_report
+    if not desktop_report:app.controller.updates.check()
+    if not desktop_report and app.controller.store.state.get('linked_profile') and xbox.has_tokens():
+        def resume():
+            app.controller.store.status['reconnect_running']=True
+            try:app.controller.xbox_reconnect()
+            except Exception as exc:
+                message=str(exc) if type(exc) in (ValueError,xbox.DirectError) else type(exc).__name__
+                app.controller.store.status['public_job']={'running':False,'error':'Xbox yenilemesi başarısız: '+message[:250]}
+            finally:app.controller.store.status['reconnect_running']=False
+        threading.Thread(target=resume,daemon=True).start()
     try:
-        if not browser:
-            try:
-                import webview
-                webview.create_window('Achievement Atlas • Ultimate',app.url,width=1500,height=950,min_size=(980,640),background_color='#07130f')
-                webview.start();return
-            except (ImportError,RuntimeError) as e:print('WebView not available:',e)
-        webbrowser.open(app.url)
-        input('Press Enter to close Achievement Atlas…')
-    finally:app.shutdown()
+        if browser:
+            webbrowser.open(app.url)
+            input('Uygulamayi kapatmak icin Enter tusuna bas...')
+        else:
+            from .desktop import open_window
+            open_window(app.url, smoke_report=desktop_report, shutdown_event=app.controller.updates.exit_requested)
+    finally:
+        app.shutdown()
+        app.server_close()
+        instance.release(lock)

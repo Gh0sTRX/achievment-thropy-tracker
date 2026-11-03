@@ -1,3 +1,7 @@
+# Public profile providers
+
+Username-only target lookup is now implemented for Xbox (operator OpenXbox session) and PSN (operator PSNAWP session). Brave search + OpenAI produce cached, source-linked Turkish notes. See [setup and limitations](PUBLIC_PROFILES_TR.md). These integrations have fixture coverage; live target verification is pending.
+
 # Platform and artwork providers
 
 ## Current (experimental)
@@ -8,7 +12,7 @@
 
 ## Planned
 
-- **PlayStation adapter**: investigate legitimate authentication and permissions, account separation and trophy data; do not ship copied Sony credentials or claim that an unofficial API is stable.
+- **PlayStation adapter**: implemented in `atlas/public_profiles.py`; requires operator authentication.
 - **Recommendation plugins**: explainable rules such as near-100%, short-session options (only with trusted duration data), missable achievements, offline-only filters and cooperative targets.
 - **Artwork metadata**: source, attribution, cache expiration, missing assets and optional cache refresh.
 

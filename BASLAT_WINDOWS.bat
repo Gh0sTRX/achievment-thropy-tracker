@@ -1,9 +1,9 @@
 @echo off
 cd /d "%~dp0"
-where py >nul 2>nul
-if %errorlevel%==0 (
- py -3 run.py
-) else (
- python run.py
+if not exist ".venv\Scripts\python.exe" (
+  echo Once KUR_WINDOWS.bat calistir.
+  pause
+  exit /b 1
 )
+".venv\Scripts\python.exe" run.py
 if errorlevel 1 pause

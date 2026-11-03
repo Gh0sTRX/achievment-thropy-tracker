@@ -1,3 +1,5 @@
+> **Yeni:** Kullanıcı adıyla Xbox / PlayStation profil eşitleme, özgün kupa ikonları ve kaynak bağlantılı Türkçe rehber akışı eklendi. Servis kurulumu ve canlı doğrulama sınırları: [Kurulum](docs/PUBLIC_PROFILES_TR.md). Aşağıdaki OAuth/CSV açıklamaları mevcut alternatif akışları anlatır.
+
 # Achievement Atlas
 
 **A local-first, open-source achievement companion for PC gamers.** Track your games, unlocks, next goals, and artwork in a console-inspired desktop interface. Xbox is the first supported platform; the data model is designed for future adapters, including PlayStation where legitimate access is available.

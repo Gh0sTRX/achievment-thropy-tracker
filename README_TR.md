@@ -1,24 +1,32 @@
-# Achievement Atlas — Türkçe Başlangıç
+# Achievement Atlas 0.13 Ultimate — Türkçe Kurulum
 
-Achievement Atlas, **herkesin kendi hesabıyla** kullanabileceği açık kaynak, yerel çalışan başarım takip ve öneri uygulamasıdır. Xbox ilk platformdur; ileride PlayStation bağlantısı için ayrı bir sağlayıcı tasarlanmıştır.
+Windows 10/11 64 bit için hazır **Setup.exe** ve **Portable.zip** paketleri hazırlanır.
+Hazır paketlerde Python kurman gerekmez. Arayüz Microsoft Edge WebView2 ile kendi masaüstü penceresinde açılır. Setup masaüstü/Başlat menüsü kısayolu ve
+kaldırıcı ekler; portable sürümde klasörü çıkarıp AchievementAtlas.exe açılır.
+Paketler imzasız ön sürümdür. Kurulumun ayrıntıları [KURULUM.txt](KURULUM.txt) içinde.
 
-**Durum:** v0.5 ön sürüm. CSV içe aktarma ve yerel arayüz test edildi. Canlı Xbox OAuth ve otomatik ikon indirmeleri gerçek kullanıcı hesabıyla uçtan uca doğrulanmadı. Bu proje Microsoft, Xbox, Sony veya TrueAchievements ile ilişkili değildir.
+0.7 sürümü eski demo kayıtlarını otomatik temizler ve Xbox oturumundan sonra gerçek başarımları otomatik indirir. [Kaynak incelemesi ve düzeltme](docs/COMMUNITY_SOURCES_TR.md).
 
-## Kurulum
+Kaynak kod ZIP için Python 3.11+ gerekir: `KUR_WINDOWS.bat` dosyasını çalıştır.
+Bu betik uygulamaya özel `.venv` oluşturur, Xbox ve PSN bileşenlerini kurar ve
+uygulamayı açar. Sonraki açılışlarda `BASLAT_WINDOWS.bat` kullanılır.
 
-1. Windows'ta Python **3.11 veya üzeri** kur.
-2. `BASLAT_TARAYICI.bat` dosyasını aç (varsayılan tarayıcıda açılır).
-3. Masaüstü penceresini kullanmak istersen `pip install pywebview` sonrasında `BASLAT_WINDOWS.bat` çalıştır.
-4. TrueAchievements'tan indirdiğin **kazanılmış** ve **kilitli** CSV dosyalarını uygulama üzerinden içe aktar.
-5. Xbox Live'ı denemek için `XBOX_BILESENINI_KUR.bat` ile isteğe bağlı OpenXbox kütüphanesini kur, ardından uygulamada Microsoft girişini başlat.
+## İlk kullanım
 
-## Başlıca özellikler
+Hesap & Veri ekranında platformunu seç, kullanıcı adını yaz ve **Profilimi yenile** düğmesine bas. Kayıtlı erişimler otomatik kullanılır. Teknik servis seçenekleri isteğe bağlı **Gelişmiş ayarlar** ekranındadır. Xbox / PSN için hedef
+oyuncunun hesabını bağlaman gerekmez; işletmeciye ait bir servis erişimi gerekir.
+**Paket hazır servis hesabı veya API anahtarı içermez.** Bunlar olmadan canlı
+kupa sorgulaması çalışmaz; TrueAchievements CSV aktarımı kullanılabilir.
+Mevcut Xbox oturumun varsa uygulama onu kullanır; oturum dosyası yolunu yeniden
+girmen gerekmez.
 
-- Oyun kapağı ve wallpaper seçimi (SteamGridDB için **kendi API anahtarın** gerekir).
-- API'nin sağladığı resmî başarım simgeleri için yerel önbellek.
-- Hedef işaretleme, puan getirisine göre öneriler, bitmeye yakın oyunlar, veri kaynaklı risk uyarıları.
-- İlerleme yüzdesi ancak gerçek API verisi varsa gösterilir. TA oranı süre veya zorluk değildir.
-- Kullanıcı adı, oyun/başarım listesi veya Microsoft belirteci kaynak koduna gömülü değildir.
+Türkçe rehberler isteğe bağlı Brave Search ve OpenAI servislerini kullanır;
+ücretli çağrılar yapabilir. Otomatik rehber varsayılan kapalıdır. Kaynaklar,
+Türkçe notlar ve özgün kupa ikonları yerel saklanır. Oyun detayındaki **Bu oyunu
+tamamla** eksik kupaları ve kayıtlı notları gösterir. Zorluk kanıtı olmadan
+"en kolay" etiketi verilmez.
+
+[Servis kurulumu, yerel veri ve sınırlar](docs/PUBLIC_PROFILES_TR.md)
 
 ## İndirme, gizlilik ve kod imzalama
 
@@ -34,8 +42,40 @@ Her sürümün GitHub Release açıklamasında politika bağlantıları ve o EXE
 
 ## Test
 
-```bash
-python -m unittest discover -s tests -v
-```
+Gh0sTRX55 hesabının gerçek verileriyle canlı eşitleme doğrulanmadı. Bu proje
+Microsoft, Sony veya TrueAchievements ile ilişkili değildir.
 
-Ağ servisi 403/429 döndürürse uygulama erişim kontrolünü aşmaya çalışmaz. Özgün oyun görselleri ve ikonlar açık kaynak paketinin içinde dağıtılmaz. Geliştirme katkısı için `CONTRIBUTING.md`, sağlayıcı planı için `docs/PROVIDERS.md` dosyasına bak.
+## Geliştirici
+
+`python -m unittest discover -s tests -v`
+
+Windows paketi `.github/workflows/windows-package.yml` ile Windows üzerinde
+üretilir. Derlenmiş uygulamanın HTTP arayüzü, SDK içe aktarımları ve DPAPI ayar
+döngüsü test edilir; ardından kurulum ve kaldırma testi yapılır.
+
+## Gerçek oyun görselleri
+
+Oyun Görselleri ekranında kendi dosyanı oyununa ata; arka plan atmosferi, odak ve
+tema otomatik/elle seçilebilir. 11 kaynak kartı erişim koşullarıyla listelenir.
+SteamGridDB aramasında sürüm eşleşmesi onaylanır. Oyun görselleri pakete gömülü
+değildir; PC sağlayıcısı planlanıyor olarak gösterilir.
+
+## Uygulama içi güncelleme
+
+0.12'den itibaren geliştirme kanalı etkindir. Windows sertifikası yerine GitHub
+OIDC/Sigstore derleme kökeni kanıtı ve SHA256 doğrulanır. Yalnız belirlenmiş
+depo/workflow/dallar kabul edilir. İlk 0.12 kurulumu bir kez yapılmalıdır;
+sonraki güncellemeler uygulamadaki Güncellemeler ekranından yapılabilir.
+Bu, ilk indirmedeki Chrome/SmartScreen uyarısını kaldırmaz ve OS korumalarını
+atlatmaz. Ayrıntılar: [Güncelleme kanalı](docs/UPDATES_TR.md).
+
+## 0.13 Ultimate arayüzü
+
+Atlas Hub, üç kütüphane düzeni, sağdan açılan başarım detayı, Hedef Panosu,
+Koleksiyon Müzesi ve yerel oyuncu profili eklendi. Tema rengi ile veri filtresi
+ayrıdır; Xbox 360 / Windows / mobil ve PS3 / PS4 / PS5 / Vita kimlikleri korunur.
+Görsel Stüdyosu kapak, hero ve logo seçimiyle odak/karartma/bulanıklık ayarlarını
+cihazda saklar. Gerçek oyun görselleri dağıtıma gömülmez.
+
+0.12 Setup kuruluysa **Güncellemeler → Güncellemeyi indir → Kur ve yeniden başlat**
+yoluyla 0.13 alınabilir. [Uygulama ve doğrulama raporu](docs/ULTIMATE_IMPLEMENTATION_TR.md).

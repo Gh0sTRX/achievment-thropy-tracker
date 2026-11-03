@@ -1,5 +1,5 @@
 import unittest
-from atlas.core import make_sample
+from fixtures import make_sample
 from atlas.recommendations import rank,insights
 
 class RecommendTests(unittest.TestCase):

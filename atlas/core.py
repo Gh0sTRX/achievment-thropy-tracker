@@ -89,23 +89,9 @@ def build_library(earned_csv: str, locked_csv: str, gamertag: str='') -> dict:
             'games':list(games.values()),'achievements':list(items.values())}
 
 
-def make_sample() -> dict:
-    names=['ORBITAL RANGER','PIXEL VALLEY','DEEP BLUE','NIGHT DRIVE']
-    badges=[('First Steps',10,1.05),('Explorer',25,1.35),('Challenge Accepted',40,1.9),('Final Chapter',100,3.1),('Collector',50,2.2)]
-    games=[];ach=[]
-    for i,name in enumerate(names):
-        gid=game_id('demo',name)
-        games.append({'id':gid,'name':name,'platform':'demo','title_id':'',
-            'platform_edition':'demo','cover_url':'','hero_url':'','image_source':'',
-            'plan':'Demo game — not a real platform title','notes':'','ownership':'unknown'})
-        for j,(t,pts,ratio) in enumerate(badges):
-            ach.append({'id':f'demo:{i}:{j}','provider_id':f'demo:{i}:{j}',
-                'game_id':gid,'game_name':name,'name':t,'points':pts,'ratio':ratio,
-                'dlc':'','source_url':'','unlocked':j < (i+1)%4,'unlock_time':'',
-                'flag':False,'description':'Demonstration only. Import your own data to replace this.',
-                'icon_url':'','source':'demo'})
-    return {'schema':1,'platform':'demo','gamertag':'','created_at':'',
-            'complete_export':False,'games':games,'achievements':ach}
+def empty_library():
+    return {'schema': 2, 'platform': 'empty', 'gamertag': '', 'created_at': '',
+            'complete_export': False, 'games': [], 'achievements': []}
 
 
 def atomic_write(path: Path, data: dict) -> None:
@@ -121,10 +107,27 @@ class Library:
         self.library_path=self.root/'library.json'
         self.state_path=self.root/'state.json'
         self.lock=threading.RLock()
-        self.library=self._read(self.library_path, make_sample())
+        self.library=self._read(self.library_path, empty_library())
         self.state=self._read(self.state_path, {'pins':[],'hidden':[],'custom_art':{},'xbox_titles':{},'linked_profile':None,'sync_at':None,'log':[]})
         for key,default in [('pins',[]),('hidden',[]),('custom_art',{}),('xbox_titles',{}),('linked_profile',None),('sync_at',None),('log',[])]:
             self.state.setdefault(key,deepcopy(default))
+        from .preferences import DEFAULTS
+        self.state['ui'] = {**deepcopy(DEFAULTS), **self.state.get('ui', {})}
+        # Migrate v0.5/v0.6 demonstration rows; keep every real record and session.
+        demo_games = {g['id'] for g in self.library.get('games', []) if g.get('platform') == 'demo'}
+        demo_items = [a for a in self.library.get('achievements', [])
+                      if a.get('source') == 'demo' or a.get('game_id') in demo_games or str(a.get('id', '')).startswith('demo:')]
+        if demo_games or demo_items or self.library.get('platform') == 'demo':
+            if self.library_path.exists():
+                backup = self.root/'migration-v06-demo-backup.json'
+                if not backup.exists(): atomic_write(backup, self.library)
+            self.library['games'] = [g for g in self.library['games'] if g['id'] not in demo_games]
+            removed = {a['id'] for a in demo_items}
+            self.library['achievements'] = [a for a in self.library['achievements'] if a['id'] not in removed]
+            if not self.library['games']: self.library = empty_library()
+            self.state['pins'] = [x for x in self.state['pins'] if x not in removed]
+            self.state['demo_removed'] = True
+            self.save()
         self.live_artwork={}
         self.steamgriddb_key=None
         self.status={'connected':False,'message':'No platform session','job':None,'art_job':None}
@@ -153,7 +156,7 @@ class Library:
             old_ach={a['id']:a for a in old['achievements']}
             for g in lib['games']:
                 prior=old_games.get(g['id']) or {}
-                for key in ('title_id','platform_edition','cover_url','hero_url','image_source','plan','notes','ownership'):
+                for key in ('title_id','platform_edition','cover_url','hero_url','image_source','plan','notes','ownership','artwork_meta','art_theme','logo_url','banner_url','screenshot_url'):
                     if prior.get(key):g[key]=prior[key]
             for a in lib['achievements']:
                 prior=old_ach.get(a['id']) or {}
@@ -165,6 +168,14 @@ class Library:
         return {'games':len(lib['games']),'achievements':len(lib['achievements']),
                 'earned':sum(a['unlocked'] for a in lib['achievements']),'message':'Library imported; saved achievements never revoked.'}
 
+    def set_preferences(self, values):
+        from .preferences import validate
+        with self.lock:
+            clean=validate(values,self.library['games'])
+            self.state['ui'].update(clean)
+            self.save()
+        return {'message':'Görünüm tercihleri kaydedildi.'}
+
     def set_pin(self,aid,pinned):
         if aid not in {a['id'] for a in self.library['achievements']}:raise ValueError('Unknown achievement')
         with self.lock:
@@ -173,6 +184,59 @@ class Library:
             else:pins.discard(aid)
             self.state['pins']=sorted(pins);self.save()
         return {'message':'Target updated'}
+
+    def apply_public_profile(self, snapshot):
+        """Commit a fully fetched profile atomically; never mix two players' unlocks."""
+        platform = snapshot['platform']
+        with self.lock:
+            profiles = self.state.setdefault('public_profiles', {})
+            previous = profiles.get(platform, {})
+            same = previous.get('id') == snapshot['id']
+            if previous.get('id'):
+                previous_games = [g for g in self.library['games'] if g.get('platform') == platform]
+                previous_ids = {g['id'] for g in previous_games}
+                atomic_write(self.root/'profiles'/(game_id(platform, previous['id'])+'.json'),
+                    {**previous, 'platform': platform, 'games': previous_games,
+                     'achievements': [a for a in self.library['achievements'] if a['game_id'] in previous_ids]})
+            # Archive each successful remote snapshot so changing the target is reversible.
+            key = game_id(platform, snapshot['id'])
+            archive = self.root/'profiles'/(key+'.json')
+            cached = self._read(archive, {})
+            old_items = {a['id']: a for a in (self.library['achievements'] if same else cached.get('achievements', []))}
+            new_items = deepcopy(snapshot['achievements'])
+            for a in new_items:
+                prior = old_items.get(a['id'], {})
+                if prior.get('unlocked'):
+                    a['unlocked'] = True
+                    a['unlock_time'] = prior.get('unlock_time', '')
+                if prior.get('guide') and prior.get('description') == a.get('description') and prior.get('device_label','') == a.get('device_label','') and prior.get('platform_edition','') == a.get('platform_edition',''):
+                    a['guide'] = prior['guide']
+            new_games = deepcopy(snapshot['games'])
+            prior_games = {g['id']: g for g in (self.library['games'] if same else cached.get('games', []))}
+            failed = set(snapshot.get('failed_title_ids', []))
+            retained_failed = [deepcopy(g) for g in prior_games.values() if g.get('title_id') in failed]
+            retained_failed_ids = {g['id'] for g in retained_failed}
+            new_games.extend(retained_failed)
+            new_items.extend(deepcopy(a) for a in old_items.values() if a['game_id'] in retained_failed_ids)
+            for g in new_games:
+                prior = prior_games.get(g['id'], {})
+                for field in ('hero_url', 'plan', 'notes', 'artwork_meta','art_theme','logo_url','banner_url','screenshot_url'):
+                    if prior.get(field): g[field] = prior[field]
+                if prior.get('cover_url') == 'local': g['cover_url'] = 'local'
+            atomic_write(archive, {**snapshot, 'games': new_games, 'achievements': new_items})
+            retained_games = [g for g in self.library['games'] if g.get('platform') not in (platform, 'demo')]
+            retained_ids = {g['id'] for g in retained_games}
+            retained_items = [a for a in self.library['achievements'] if a['game_id'] in retained_ids]
+            self.library = {'schema': 2, 'platform': 'mixed', 'gamertag': snapshot['username'],
+                'created_at': self.library.get('created_at', ''), 'complete_export': False,
+                'games': retained_games+new_games, 'achievements': retained_items+new_items}
+            profiles[platform] = {k: snapshot[k] for k in ('id', 'username', 'synced_at')}
+            valid = {a['id'] for a in self.library['achievements']}
+            self.state['pins'] = [p for p in self.state['pins'] if p in valid]
+            self.state['sync_at'] = snapshot['synced_at']
+            self.state['sync_warnings'] = deepcopy(snapshot.get('warnings', []))
+            self.save()
+        return {'games': len(new_games), 'achievements': len(new_items)}
 
     def apply_live_game(self,game_id,api_items):
         """Exact title identity first, unambiguous name + points second. Never cross game boundary."""

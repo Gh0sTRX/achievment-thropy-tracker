@@ -89,7 +89,7 @@ def parse_titles(titlehub: dict, recent360: dict|None=None, recent_one: dict|Non
         devices = obj.get('devices') or []
         platforms = [str(d) for d in devices]
         plat = '360' if any('360' in d for d in platforms) else 'one' if platforms else 'unknown'
-        found[(tid,plat)] = {'titleId':tid,'name':name,'platform':plat,'devices':platforms,'scid':obj.get('serviceConfigId') or '', 'source':'TitleHub','cover_url':str(obj.get('displayImage') or ''),'images':obj.get('images') or []}
+        found[(tid,plat)] = {'titleId':tid,'name':name,'platform':plat,'devices':platforms,'scid':obj.get('serviceConfigId') or '', 'source':'TitleHub','cover_url':str(obj.get('displayImage') or ''),'images':obj.get('images') or [], 'devices':platforms}
     for raw,plat in ((recent360,'360'),(recent_one,'one')):
         if not isinstance(raw,dict):continue
         for obj in _list(raw,'titles'):
@@ -114,15 +114,20 @@ def normalize_achievements(raw: dict, xbox360=False):
     result=[]
     for a in _list(raw,'achievements'):
         if not isinstance(a,dict):continue
+        ident = next((a[k] for k in ('id','achievementId','achievement_id') if a.get(k) is not None and str(a[k]).strip()), '')
         name=str(a.get('name') or '').strip()
-        if not name:continue
+        name_missing = not bool(name)
+        if name_missing:name = 'Başarım #' + str(ident) + ' (adı alınamadı)'
         if xbox360:
-            earned=bool(a.get('unlocked'))
+            if type(a.get('unlocked')) is not bool:raise ValueError('Xbox kazanılma durumu eksik')
+            earned=a['unlocked']
             image='' # Xbox 360 imageId is *not* a URL. Never fabricate one.
             score=int(a.get('gamerscore') or 0)
             moment=a.get('timeUnlocked') if earned else ''
         else:
-            earned=str(a.get('progressState','')).casefold() == 'achieved'
+            state=str(a.get('progressState','')).casefold()
+            if state not in ('achieved','notstarted','inprogress'):raise ValueError('Xbox kazanılma durumu eksik')
+            earned=state == 'achieved'
             imgs=a.get('mediaAssets') or []
             image=next((str(x['url']) for x in imgs if isinstance(x,dict) and x.get('url') and
                       str(x.get('type','')).casefold() in ('icon','achievementicon','tile')),'')
@@ -138,8 +143,8 @@ def normalize_achievements(raw: dict, xbox360=False):
                     if target>0 and 0<=current<=target:
                         measured_current=current;measured_target=target
                 except (ValueError,TypeError):pass
-        result.append({'name':name,'id':str(a.get('id') or ''),'unlocked':earned,
-                       'timeUnlocked':str(moment or ''),'icon':image,
+        result.append({'name':name,'id':str(ident), 'name_missing':name_missing,'unlocked':earned,
+                       'timeUnlocked':str(moment or ''),'icon':image,'is_secret':a.get('isSecret') is True,
                        'description':str(a.get('description') or a.get('lockedDescription') or ''),
                        'gamerscore':score,'progress_current':measured_current,'progress_target':measured_target})
     return result

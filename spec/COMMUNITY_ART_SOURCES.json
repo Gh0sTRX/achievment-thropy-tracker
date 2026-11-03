@@ -1,0 +1,252 @@
+{
+  "version": "2.1",
+  "purpose": "Developer research index for real existing artwork; not an image licence",
+  "not_ai_generated": true,
+  "rights_note": "Games' art copyrights are generally retained by rightsholders. Game ownership, achievements, free or open-source status do not automatically grant redistribution permission.",
+  "providers": [
+    {
+      "id": "xbox_wallpapers",
+      "name": "Xbox Wallpapers",
+      "category": "publisher",
+      "platforms": [
+        "xbox"
+      ],
+      "url": "https://www.xbox.com/tr-TR/wallpapers",
+      "media": [
+        "hero",
+        "wallpaper"
+      ],
+      "access": "public",
+      "notes": "Resmî Xbox duvar kağıdı galerisi. Gears, Halo, Forza gibi oyunların ilgili yayınlarını kontrol et. İndirme sayfası erişimi tekrar doğrulanmalı."
+    },
+    {
+      "id": "playstation_fan_kit",
+      "name": "PlayStation God of War Fan Kit",
+      "category": "publisher",
+      "platforms": [
+        "psn",
+        "pc"
+      ],
+      "url": "https://www.playstation.com/tr-tr/god-of-war/community/",
+      "media": [
+        "hero",
+        "wallpaper",
+        "logo",
+        "banner"
+      ],
+      "access": "public",
+      "notes": "God of War Ragnarök için 4K wallpaper, logo ve banner sunuluyor. Yayın kullanımında fan kit talimatlarına uy."
+    },
+    {
+      "id": "santa_monica_pc",
+      "name": "Santa Monica Studio PC Fan Kit",
+      "category": "publisher",
+      "platforms": [
+        "psn",
+        "pc"
+      ],
+      "url": "https://sms.playstation.com/stories/god-of-war-ragnarok-pc-fan-kit",
+      "media": [
+        "hero",
+        "wallpaper",
+        "banner"
+      ],
+      "access": "public",
+      "notes": "4K/1080p/ultrawide wallpaper; hak sahibi tarafından sunulan fan kaynakları."
+    },
+    {
+      "id": "steam_store",
+      "name": "Steam Store / Library Assets",
+      "category": "storefront",
+      "platforms": [
+        "xbox",
+        "psn",
+        "pc"
+      ],
+      "url": "https://store.steampowered.com/",
+      "media": [
+        "cover",
+        "hero",
+        "header"
+      ],
+      "access": "public",
+      "notes": "Ürün ve Steam kütüphane görselleri. Steam AppID PSN Trophy title ID veya Xbox Title ID değildir. İzinleri bağımsız değerlendir."
+    },
+    {
+      "id": "steamgriddb",
+      "name": "SteamGridDB",
+      "category": "community",
+      "platforms": [
+        "xbox",
+        "psn",
+        "pc"
+      ],
+      "url": "https://www.steamgriddb.com/",
+      "media": [
+        "grid",
+        "hero",
+        "logo",
+        "icon"
+      ],
+      "access": "account_or_api_key",
+      "notes": "Topluluk düzenlemesi; her görselin yükleyicisi ve kaynağı farklı olabilir. Mevcut atlas/artwork.py entegrasyonunu geliştir."
+    },
+    {
+      "id": "launchbox",
+      "name": "LaunchBox Games Database",
+      "category": "community",
+      "platforms": [
+        "xbox",
+        "psn",
+        "pc",
+        "retro"
+      ],
+      "url": "https://gamesdb.launchbox-app.com/",
+      "media": [
+        "fanart",
+        "boxart",
+        "screenshot",
+        "clearlogo",
+        "icon"
+      ],
+      "access": "public_browser",
+      "notes": "İndeks / görüntüleme herkese açık. Uygulama içi otomatik indirme ve dağıtım izinlerini ayrı kontrol et."
+    },
+    {
+      "id": "libretro",
+      "name": "Libretro Thumbnails",
+      "category": "homebrew",
+      "platforms": [
+        "retro",
+        "xbox",
+        "psn",
+        "pc"
+      ],
+      "url": "https://github.com/libretro-thumbnails/libretro-thumbnails",
+      "media": [
+        "boxart",
+        "titlescreen",
+        "screenshot",
+        "logo"
+      ],
+      "access": "public_repository",
+      "notes": "Özellikle retro konsollarda; libretro medya dosyaları oyunların hak sahiplerine ait olabilir, GitHub'da durmaları tümünü açık lisans yapmaz."
+    },
+    {
+      "id": "emumovies",
+      "name": "EmuMovies",
+      "category": "community",
+      "platforms": [
+        "retro",
+        "xbox",
+        "psn",
+        "pc"
+      ],
+      "url": "https://emumovies.com/files/category/2115-artwork/",
+      "media": [
+        "artwork",
+        "video_preview",
+        "manual"
+      ],
+      "access": "account_may_be_required",
+      "notes": "Ücretsiz hesabın artwork erişimi var; medya API ve üyelik şartlarını kontrol et. Giriş bilgilerini istemciye gömme."
+    },
+    {
+      "id": "gametdb",
+      "name": "GameTDB",
+      "category": "homebrew",
+      "platforms": [
+        "retro"
+      ],
+      "url": "https://www.gametdb.com/Main/FAQ",
+      "media": [
+        "boxart",
+        "disc_art",
+        "metadata"
+      ],
+      "access": "public",
+      "notes": "Wii / Nintendo homebrew kullanıcıları için kıymetli; kaynak sitesi uygulama kullanımında atıf bağlantısı istiyor."
+    },
+    {
+      "id": "igdb",
+      "name": "IGDB",
+      "category": "metadata",
+      "platforms": [
+        "xbox",
+        "psn",
+        "pc",
+        "retro"
+      ],
+      "url": "https://api-docs.igdb.com/",
+      "media": [
+        "cover",
+        "screenshots",
+        "artworks"
+      ],
+      "access": "twitch_developer_credentials",
+      "notes": "OAuth Client ID/Secret gerektirir, tarayıcı JS'ine secret koyma; sunucu/yerel backend üzerinden kullanıcıya ait izinler."
+    },
+    {
+      "id": "screenscraper",
+      "name": "ScreenScraper",
+      "category": "homebrew",
+      "platforms": [
+        "retro"
+      ],
+      "url": "https://www.screenscraper.fr/",
+      "media": [
+        "boxart",
+        "logo",
+        "screenshot",
+        "fanart",
+        "metadata"
+      ],
+      "access": "account_required_for_api",
+      "notes": "RetroBat gibi homebrew ön yüzler kullanır. API kota ve giriş gereksinimlerini kontrol et."
+    }
+  ],
+  "game_specific_official_resources": {
+    "godofwar": [
+      "playstation_fan_kit",
+      "santa_monica_pc"
+    ],
+    "gears": [
+      "xbox_wallpapers"
+    ],
+    "halo": [
+      "xbox_wallpapers"
+    ],
+    "forza": [
+      "xbox_wallpapers"
+    ],
+    "starfield": [
+      "xbox_wallpapers"
+    ]
+  },
+  "normalization": {
+    "game_identifier": "Prefer exact platform game id, edition, region and release year before title fallback",
+    "image_types": [
+      "hero_16_9",
+      "hero_ultrawide",
+      "cover_2_3",
+      "banner_4_1",
+      "clearlogo_png",
+      "achievement_icon",
+      "screenshot"
+    ],
+    "provider_priority": [
+      "user_file",
+      "publisher_fan_kit",
+      "official_store",
+      "steamgriddb_user_selected",
+      "community_archive",
+      "graceful_gradient_fallback"
+    ],
+    "avoid": [
+      "AI-generated game assets",
+      "wrong-edition matching",
+      "bypassing auth or API quotas",
+      "repo bundled commercial art without permission"
+    ]
+  }
+}
