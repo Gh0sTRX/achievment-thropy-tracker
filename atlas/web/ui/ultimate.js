@@ -23,8 +23,29 @@
     return p === 'demo' ? 'demo' : 'other';
   };
   const gamesInLibrary = () => typeof games === 'function' ? games() : [];
-  const achievementsFor = (id) => typeof achForGame === 'function' ? achForGame(id) : [];
-  const gameStats = (id) => typeof progress === 'function' ? progress(id) : {total:0,earned:0,ratio:0,remainingG:0,left:0};
+  // Index data once per library reload, O(G+A) instead of O(G*A).
+  let indexed={games:null,achievements:null,byGame:new Map()};
+  function ensureIndex(){
+    const gs=gamesInLibrary(),as=typeof achievements==='function'?achievements():[];
+    if(indexed.games===gs&&indexed.achievements===as)return indexed.byGame;
+    const map=new Map();
+    for(const g of gs)map.set(g.id,{list:[],total:0,earned:0,totalG:0,earnedG:0,blocked:0});
+    for(const a of as){
+      let x=map.get(a.game_id);
+      if(!x){x={list:[],total:0,earned:0,totalG:0,earnedG:0,blocked:0};map.set(a.game_id,x);}
+      const pts=Math.max(0,Number(a.points)||0);
+      x.list.push(a);x.total++;x.totalG+=pts;
+      if(a.unlocked){x.earned++;x.earnedG+=pts;}
+      if(a.flag&&!a.unlocked)x.blocked++;
+    }
+    for(const x of map.values()){
+      x.left=x.total-x.earned;x.remainingG=x.totalG-x.earnedG;
+      x.ratio=x.total?100*x.earned/x.total:0;
+    }
+    indexed={games:gs,achievements:as,byGame:map};return map;
+  }
+  const achievementsFor=id=>ensureIndex().get(id)?.list||[];
+  const gameStats=id=>ensureIndex().get(id)||{total:0,earned:0,ratio:0,remainingG:0,earnedG:0,left:0,blocked:0};
   const recommendations = () => typeof RECS !== 'undefined' ? RECS : [];
   const userPins = () => new Set(typeof DATA === 'undefined' ? [] : DATA.state?.pins || []);
   const artworkStyle = (g, kind = 'hero') => {
@@ -33,16 +54,44 @@
     if (typeof artStyle !== 'function') return '';
     return artStyle(g, kind) || (kind === 'hero' ? artStyle(g, 'cover') : '');
   };
-  const safeDate = (text) => {
-    if (typeof text !== 'string') return null;
-    const value = text.trim();
-    // Only unambiguous ISO timestamps or explicit yyyy-mm-dd dates. No locale date guessing.
-    if (!/^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(value)) return null;
-    const date = new Date(value.includes(' ') ? value.replace(' ', 'T') : value);
-    if (!Number.isFinite(date.getTime())) return null;
-    if (value.slice(0, 10) !== date.toISOString().slice(0, 10) && value.length === 10) return null;
-    return date;
-  };
+  const safeDate = function safeDate(text) {
+ if(typeof text!=='string')return null;
+ const s=text.trim().replace(/\s+/g,' ').slice(0,100);
+ const local=(y,m,d,h=0,min=0,sec=0)=>{
+   const x=new Date(y,m-1,d,h,min,sec);
+   return x.getFullYear()===y&&x.getMonth()===m-1&&x.getDate()===d&&x.getHours()===h&&x.getMinutes()===min?x:null;
+ };
+ const clock=(t)=>{
+   if(!t)return [0,0,0];
+   const x=t.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+   if(!x)return null;
+   let h=+x[1],m=+x[2],sec=+(x[3]||0);
+   if(x[4]){if(h<1||h>12)return null;h=h%12+(x[4].toUpperCase()==='PM'?12:0);}
+   return h<24&&m<60&&sec<60?[h,m,sec]:null;
+ };
+ const iso=s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:Z|[+-]\d{2}:?\d{2})?))?$/i);
+ if(iso){
+   const y=+iso[1],m=+iso[2],d=+iso[3],t=iso[4];
+   if(!local(y,m,d))return null;
+   if(!t)return local(y,m,d);
+   if(/Z|[+-]\d{2}:?\d{2}$/i.test(t)){const x=new Date(iso[1]+'-'+iso[2]+'-'+iso[3]+'T'+t.replace(/([+-]\d{2})(\d{2})$/,'$1:$2'));return Number.isFinite(x.getTime())?x:null;}
+   const p=t.match(/^(\d{2}):(\d{2})(?::(\d{2}))?/);return p?local(y,m,d,+p[1],+p[2],+(p[3]||0)):null;
+ }
+ const months={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+ let a=s.match(/^(\d{1,2})\s+([A-Za-z]{3,12})\s+(\d{4})(?:\s+(?:at\s+)?(.+))?$/i);
+ if(a){const m=months[a[2].slice(0,3).toLowerCase()],t=clock(a[4]);return m&&t?local(+a[3],m,+a[1],...t):null;}
+ a=s.match(/^([A-Za-z]{3,12})\s+(\d{1,2}),?\s+(\d{4})(?:\s+(?:at\s+)?(.+))?$/i);
+ if(a){const m=months[a[1].slice(0,3).toLowerCase()],t=clock(a[4]);return m&&t?local(+a[3],m,+a[2],...t):null;}
+ a=s.match(/^(\d{1,4})[/.](\d{1,2})[/.](\d{2,4})(?:\s+(?:at\s+)?(.+))?$/i);
+ if(a){
+   const t=clock(a[4]);if(!t)return null;
+   if(a[1].length===4)return local(+a[1],+a[2],+a[3],...t);
+   if(a[3].length!==4)return null;
+   if(+a[1]>12&&+a[2]<=12)return local(+a[3],+a[2],+a[1],...t);
+   if(+a[2]>12&&+a[1]<=12)return local(+a[3],+a[1],+a[2],...t);
+ }
+ return null;
+};
   const day = (date) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
   let prefs;
   try { prefs = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (_) { prefs = {}; }
@@ -63,6 +112,7 @@
   let hallFilter = 'all';
   let timelineDays = 90;
   let search = '';
+  let searchTimer = 0;
   const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch (_) {} };
   const relevant = () => gamesInLibrary().filter(g => prefs.platform === 'all' || platformKey(g) === prefs.platform);
   const activeGame = () => relevant().find(g => g.id === prefs.focus) || relevant()[0] || null;
@@ -194,7 +244,8 @@
   }
   function renderQuests() {
     const ids=new Set(relevant().map(g=>g.id)), pins=userPins();
-    const recs=recommendations().filter(r=> ids.has(r.game_id) || relevant().some(g=>g.name===r.game));
+    const names=new Set(relevant().map(g=>g.name));
+    const recs=recommendations().filter(r=>ids.has(r.game_id)||names.has(r.game));
     const list=recs.slice().sort((a,b)=>Number(pins.has(b.achievement_id))-Number(pins.has(a.achievement_id))).slice(0,30);
     return `<div class="au-page-head"><span class="au-kicker">YOUR NEXT MOVE</span><h1>Quest <em>Board</em></h1><p>Mevcut öneri motoruna ve gerçek kayıtlarına bağlı hedefler.</p></div><div class="au-quest-grid">${list.length?list.map(r=>`<article class="au-quest"><span class="au-kicker">${pins.has(r.achievement_id)?'★ PINNED':'✦ RECOMMENDED'}</span><h3>${html(r.achievement)}</h3><p>${html(r.game)}</p><div class="au-quest-bottom"><span>${showNum(r.points)} G</span><button type="button" data-au-quest="${html(r.achievement_id)}">BAŞARIMI AÇ ↗</button></div></article>`).join(''):'<div class="au-empty">Bu platformda önerilecek kilitli başarım yok.</div>'}</div>`;
   }
@@ -245,7 +296,7 @@
     const ap=$u('art-image');const g=activeGame();if(ap&&g){const a=lighting(g);ap.style.filter=`brightness(${a.brightness}%) blur(${a.blur}px)`;ap.style.backgroundPosition=a.focus+'% center';}
   }
   function open() {createShell();focusReturn=document.activeElement;opened=true;$u('root').hidden=false;document.body.classList.add('au-lock');render();$u('content').focus({preventScroll:true});}
-  function close() {closeConsole();opened=false;$u('root').hidden=true;document.body.classList.remove('au-lock');focusReturn?.focus?.({preventScroll:true});}
+  function close() {closeConsole();opened=false;clearTimeout(searchTimer);$u('root').hidden=true;document.body.classList.remove('au-lock');focusReturn?.focus?.({preventScroll:true});}
   function go(view) {if(!VIEWS.includes(view))return;prefs.view=view;persist();render();$u('content').scrollTop=0;$u('content').focus({preventScroll:true});}
   function focusGame(gid){if(!relevant().some(g=>g.id===gid))return;prefs.focus=gid;prefs.view='game';persist();render();}
   function onClick(e) {
@@ -269,7 +320,7 @@
   }
   function onChange(e){if(e.target.id==='au-platform'){prefs.platform=PLATFORMS.includes(e.target.value)?e.target.value:'all';prefs.focus='';persist();render();}
     if(e.target.id==='au-mode'){prefs.mode=MODES.includes(e.target.value)?e.target.value:'cinematic';persist();render();}}
-  function onInput(e){if(e.target.dataset.auSearch!==undefined){const pos=e.target.selectionStart;search=e.target.value;const selection = document.activeElement===e.target;render();if(selection){$u('search')?.focus();$u('search')?.setSelectionRange(pos,pos);}return;}
+  function onInput(e){if(e.target.dataset.auSearch!==undefined){const pos=e.target.selectionStart;search=e.target.value;clearTimeout(searchTimer);searchTimer=setTimeout(()=>{if(!opened||prefs.view!=='library')return;const focus=document.activeElement?.id==='au-search';render();if(focus){$u('search')?.focus();$u('search')?.setSelectionRange(pos,pos);}},100);return;}
     const field=e.target.dataset.auLighting;if(!field)return;const g=activeGame();if(!g)return;const a=lighting(g);a[field]=Number(e.target.value);prefs.lighting[fileKey(g.id)]=a;persist();updateTheme();
     const preview=$u('art-image');if(preview){preview.style.filter=`brightness(${a.brightness}%) blur(${a.blur}px)`;preview.style.backgroundPosition=a.focus+'% center';}
     const output=$u('output-'+field);if(output)output.textContent=e.target.value+(field==='blur'?'px':'%');}
