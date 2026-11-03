@@ -1,6 +1,8 @@
 """Localhost-only, no cloud server; import-first architecture with optional Xbox sync."""
 from __future__ import annotations
 import asyncio
+import base64
+import math
 import json
 import mimetypes
 import os
@@ -31,10 +33,15 @@ class Controller:
         self.guide_stop=threading.Event()
 
     def status(self):
-        s=self.store
-        return {'library':s.payload(),
-                'recommendations':recommendations.rank(s.library,s.state['pins']),
-                'insights':recommendations.insights(s.library),
+        payload=self.store.payload();library=payload['library'];pins=payload['state']['pins']
+        reports={}
+        for platform in ('xbox','psn','pc'):
+            games=[g for g in library['games'] if g.get('platform')==platform]
+            ids={g['id'] for g in games}
+            scoped={**library,'games':games,'achievements':[a for a in library['achievements'] if a['game_id'] in ids]}
+            reports[platform]={'recommendations':recommendations.rank(scoped,pins),'insights':recommendations.insights(scoped)}
+        return {'library':payload, 'recommendations':recommendations.rank(library,pins),
+                'insights':recommendations.insights(library),'platform_reports':reports,
                 'providers':public_profiles.readiness(), 'guides_ready':guides.configured(),
                 'settings':settings.status(), 'data_status':self.data_status()}
 
@@ -152,27 +159,73 @@ class Controller:
     def choices_art(self,data):
         return {'choices':artwork.candidates(data.get('sgdb_id'),self.store.steamgriddb_key)}
 
+    def art_game(self, data):
+        game=next((g for g in self.store.library['games'] if g['id']==str(data.get('game_id',''))),None)
+        if not game:raise ValueError('Önce kütüphanenden bir oyun seç.')
+        return game
+
+    def save_art(self, data, metadata):
+        from datetime import datetime, timezone
+        with self.store.lock:
+            game=self.art_game(data);kind=str(data.get('kind','hero'))
+            previous=(game.get('artwork_meta') or {}).get(kind,{})
+            original=previous.get('original_url',game.get(kind+'_url',''))
+            game.setdefault('artwork_meta',{})[kind]={**metadata,'original_url':original if original!='local' else '',
+                'saved_at':datetime.now(timezone.utc).isoformat()}
+            game[kind+'_url']='local';game['image_source']=metadata['provider']
+            self.store.save()
+        return {'message':'Görsel oyununa kaydedildi. Çevrimdışıyken de kullanılabilir.'}
+
+    def upload_art(self, data):
+        game=self.art_game(data);kind=str(data.get('kind','hero'))
+        if kind not in ('cover','hero','logo','banner','screenshot'):raise ValueError('Geçersiz görsel kategorisi.')
+        encoded=data.get('image','')
+        if not isinstance(encoded,str) or len(encoded)>10_666_672:raise ValueError('Görsel en fazla 8 MB olabilir.')
+        try:raw=base64.b64decode(encoded,validate=True)
+        except (ValueError,TypeError):raise ValueError('Görsel dosyası okunamadı.') from None
+        meta=artwork.store_bytes(self.store.root,kind,game['id'],raw)
+        return self.save_art(data,{**meta,'provider':'user_file','provider_id':'', 'source_url':'',
+            'rights_note':'Kullanıcının seçtiği yerel dosya; dağıtım izni doğrulanmadı.'})
+
+    def reset_art(self, data):
+        with self.store.lock:
+            game=self.art_game(data);kind=str(data.get('kind','hero'))
+            if kind not in ('cover','hero','logo','banner','screenshot'):raise ValueError('Geçersiz görsel kategorisi.')
+            meta=game.setdefault('artwork_meta',{}).pop(kind,{})
+            if game.get(kind+'_url')=='local':game[kind+'_url']=meta.get('original_url','')
+            artwork.remove_cached(self.store.root,kind,game['id'])
+            self.store.save()
+        return {'message':'Özel görsel kaldırıldı; varsa önceki kaynak görseli kullanılacak.'}
+
+    def theme_art(self,data):
+        theme=str(data.get('theme','auto'))
+        if theme not in ('auto','ember','ice','forest','dusk','sunrise'):raise ValueError('Tema geçersiz.')
+        x=float(data.get('x',50));y=float(data.get('y',38))
+        if not all(math.isfinite(v) and 0<=v<=100 for v in (x,y)):raise ValueError('Odak konumu geçersiz.')
+        with self.store.lock:
+            game=self.art_game(data)
+            game['art_theme']={'preset':theme,'x':x,'y':y}
+            self.store.save()
+        return {'message':'Görsel odağı ve atmosfer bu oyun için kaydedildi.'}
+
     def select_art(self,data):
-        gid=str(data.get('game_id',''))
-        game=next((g for g in self.store.library['games'] if g['id']==gid),None)
-        if not game:raise ValueError('Game not found')
-        kind=str(data.get('kind',''))
+        game=self.art_game(data);gid=game['id'];kind=str(data.get('kind',''))
         if kind not in ('cover','hero'):raise ValueError('Image type unknown')
         url=str(data.get('url',''))
-        # Only allow artwork that was offered by SGDB for selected game in this session.
-        choices=self.store.live_artwork.get(gid,[])
-        if not any(c['kind']==kind and c['url']==url for c in choices):
-            raise ValueError('Image choice must come from a verified search result')
-        artwork.cache_image(self.store.root,kind,gid,url)
-        with self.store.lock:
-            game[kind+'_url']='local';game['image_source']='SteamGridDB'
-            self.store.save()
-        return {'message':'Artwork downloaded to your local cache. No copyrighted images are redistributed.'}
+        candidate=next((c for c in self.store.live_artwork.get(gid,[]) if c['kind']==kind and c['url']==url),None)
+        if not candidate:raise ValueError('Önce oyun ve sürüm eşleşmesini onaylayıp bir arama sonucu seç.')
+        if (game.get('artwork_meta') or {}).get(kind,{}).get('provider')=='user_file' and not data.get('replace_local'):
+            raise ValueError('Bu oyun için yerel dosya seçilmiş. Değiştirmek için önce özel görseli sıfırla.')
+        meta=artwork.cache_image(self.store.root,kind,gid,url)
+        return self.save_art(data,{**meta,'provider':'SteamGridDB','provider_id':candidate.get('provider_id',''),
+            'source_url':candidate.get('source_url','https://www.steamgriddb.com/'),
+            'rights_note':candidate.get('rights_note','Topluluk görseli; hak sahipliği bağımsızdır.')})
 
     def get_art_choices(self,data):
         gid=str(data.get('game_id',''))
         game=next((g for g in self.store.library['games'] if g['id']==gid),None)
         if not game:raise ValueError('Game unknown')
+        if data.get('confirmed') is not True:raise ValueError('Oyun ve sürüm eşleşmesini onayla; diğer platform kimlikleri otomatik eşleştirilmez.')
         choices=artwork.candidates(data.get('sgdb_id'),self.store.steamgriddb_key)
         self.store.live_artwork[gid]=choices
         return {'choices':choices}
@@ -366,11 +419,12 @@ class Handler(BaseHTTPRequestHandler):
         if path in ('/','/index.html'):
             body=(BASE/'web'/'index.html').read_text(encoding='utf-8').replace('__TOKEN__',self.server.token).encode('utf-8')
             return self.blob(body,'text/html; charset=utf-8')
-        if path in ('/app.js','/style.css'):
+        if path in ('/app.js','/visuals.js','/style.css'):
             return self.blob((BASE/'web'/path[1:]).read_bytes(), 'text/javascript' if path.endswith('.js') else 'text/css')
         if path=='/api/data':return self.reply(self.server.controller.status())
+        if path=='/api/art/sources':return self.reply(artwork.sources())
         seg=path.split('/')
-        if len(seg)==5 and seg[1]=='art' and seg[2] in ('cover','hero','icon'):
+        if len(seg)==5 and seg[1]=='art' and seg[2] in artwork.CATEGORIES:
             category=seg[2];ident=seg[3]
             # /art/{kind}/{id}/file; no arbitrary filesystem traversal.
             if seg[4]=='file' and re_id(ident):
@@ -399,6 +453,9 @@ class Handler(BaseHTTPRequestHandler):
                '/api/art/search':self.server.controller.search_art,
                '/api/art/choices':self.server.controller.get_art_choices,
                '/api/art/select':self.server.controller.select_art,
+               '/api/art/upload':self.server.controller.upload_art,
+               '/api/art/reset':self.server.controller.reset_art,
+               '/api/art/theme':self.server.controller.theme_art,
                '/api/xbox/login':lambda d:self.server.controller.xbox_login(),
                '/api/xbox/reconnect':lambda d:self.server.controller.xbox_reconnect(),
                '/api/xbox/discover':lambda d:self.server.controller.sync_linked_profile(),

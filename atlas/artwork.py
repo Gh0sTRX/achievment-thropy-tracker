@@ -51,20 +51,10 @@ def suffix(data):
     return None
 
 def cache_image(root:Path, category:str, ident:str, url:str)->str:
-    if category not in ('cover','hero','icon'):raise ValueError('Invalid image category')
-    if not re.fullmatch(r'[a-zA-Z0-9:_-]{2,120}',str(ident)):raise ValueError('Invalid image ID')
     data,mime=fetch(url)
-    ext=suffix(data)
-    if not ext or not mime.startswith('image/'):
-        raise ValueError('Image provider did not return an image')
-    directory=root/'artwork';directory.mkdir(parents=True,exist_ok=True)
-    clean=re.sub('[^a-zA-Z0-9_-]','_',ident)
-    for old in directory.glob(category+'_'+clean+'.*'):
-        if old.suffix in ('.png','.jpg','.webp'):old.unlink(missing_ok=True)
-    path=directory/(category+'_'+clean+ext)
-    tmp=path.with_suffix('.temp')
-    tmp.write_bytes(data);os.replace(tmp,path)
-    return path.name
+    if not mime.startswith('image/'):
+        raise ValueError('Görsel servisi bir görsel döndürmedi.')
+    return store_bytes(root, category, ident, data)
 
 def cached(root,category,ident):
     clean=re.sub('[^a-zA-Z0-9_-]','_',str(ident))
@@ -97,5 +87,70 @@ def candidates(sgdb_id,key):
         for x in records[:9]:
             url=str(x.get('url') or '')
             if safe_url(url):result.append({'kind':category,'url':url,'thumb':x.get('thumb') or url,
-                 'width':x.get('width'),'height':x.get('height'),'source':'SteamGridDB'})
+                 'width':x.get('width'),'height':x.get('height'),'source':'SteamGridDB',
+                 'provider_id':str(x.get('id','')), 'source_url':'https://www.steamgriddb.com/',
+                 'rights_note':'Topluluk görseli; haklar ilgili hak sahiplerine aittir.'})
     return result
+
+# Local files never accept an arbitrary path supplied by the browser.
+CATEGORIES = ('cover', 'hero', 'logo', 'banner', 'screenshot', 'icon')
+
+
+def store_bytes(root, category, ident, data):
+    import io
+    import warnings
+    from PIL import Image, ImageOps, UnidentifiedImageError
+    if category not in CATEGORIES or not re.fullmatch(r'[a-zA-Z0-9:_-]{2,120}', str(ident)):
+        raise ValueError('Geçersiz görsel kategorisi veya oyun kimliği.')
+    if not data or len(data) > MAX_BYTES:
+        raise ValueError('Görsel en fazla 8 MB olabilir.')
+    if not suffix(data):
+        raise ValueError('PNG, JPEG veya WebP görsel seç.')
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', Image.DecompressionBombWarning)
+            with Image.open(io.BytesIO(data)) as image:
+                width, height = image.size
+                if width*height > 16_000_000 or max(width, height) > 8192:
+                    raise ValueError('Görsel en fazla 16 megapiksel ve 8192 piksel kenar uzunluğunda olabilir.')
+                image.verify()
+            with Image.open(io.BytesIO(data)) as image:
+                if getattr(image, 'n_frames', 1) != 1:
+                    raise ValueError('Hareketli görseller desteklenmiyor.')
+                image = ImageOps.exif_transpose(image)
+                image.thumbnail((2560, 2560))
+                image = image.convert('RGBA' if image.mode in ('RGBA', 'LA', 'P') else 'RGB')
+                output = io.BytesIO()
+                image.save(output, format='WEBP', quality=90, method=4)
+                palette = image.convert('RGB').resize((1, 1)).getpixel((0, 0))
+                meta = {'width':image.width, 'height':image.height,
+                        'original_width':width, 'original_height':height,
+                        'accent':'#'+''.join(f'{max(90, min(225, c+35)):02x}' for c in palette)}
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError, Image.DecompressionBombWarning):
+        raise ValueError('Görsel bozuk veya güvenli boyut sınırını aşıyor.') from None
+    directory = Path(root)/'artwork'
+    directory.mkdir(parents=True, exist_ok=True)
+    clean = re.sub('[^a-zA-Z0-9_-]', '_', str(ident))
+    path = directory/(category+'_'+clean+'.webp')
+    temporary = path.with_suffix('.pending')
+    temporary.write_bytes(output.getvalue())
+    os.replace(temporary, path)
+    # Delete old formats only after a valid replacement is safely saved.
+    for ext in ('.png', '.jpg'):
+        (directory/(category+'_'+clean+ext)).unlink(missing_ok=True)
+    return meta
+
+
+def remove_cached(root, category, ident):
+    if category not in CATEGORIES or not re.fullmatch(r'[a-zA-Z0-9:_-]{2,120}', str(ident)):
+        raise ValueError('Geçersiz görsel kimliği.')
+    clean = re.sub('[^a-zA-Z0-9_-]', '_', str(ident))
+    for ext in ('.png', '.jpg', '.webp'):
+        (Path(root)/'artwork'/(category+'_'+clean+ext)).unlink(missing_ok=True)
+
+
+def sources():
+    # A curated discovery index, not an assertion that every provider has an API.
+    path = Path(__file__).resolve().parent.parent/'spec'/'COMMUNITY_ART_SOURCES.json'
+    raw = json.loads(path.read_text(encoding='utf-8'))
+    return {'providers':raw['providers'], 'rights_note':raw['rights_note']}

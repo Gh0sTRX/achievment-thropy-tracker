@@ -154,7 +154,7 @@ class Library:
             old_ach={a['id']:a for a in old['achievements']}
             for g in lib['games']:
                 prior=old_games.get(g['id']) or {}
-                for key in ('title_id','platform_edition','cover_url','hero_url','image_source','plan','notes','ownership'):
+                for key in ('title_id','platform_edition','cover_url','hero_url','image_source','plan','notes','ownership','artwork_meta','art_theme','logo_url','banner_url','screenshot_url'):
                     if prior.get(key):g[key]=prior[key]
             for a in lib['achievements']:
                 prior=old_ach.get(a['id']) or {}
@@ -210,7 +210,7 @@ class Library:
             new_items.extend(deepcopy(a) for a in old_items.values() if a['game_id'] in retained_failed_ids)
             for g in new_games:
                 prior = prior_games.get(g['id'], {})
-                for field in ('hero_url', 'plan', 'notes'):
+                for field in ('hero_url', 'plan', 'notes', 'artwork_meta','art_theme','logo_url','banner_url','screenshot_url'):
                     if prior.get(field): g[field] = prior[field]
                 if prior.get('cover_url') == 'local': g['cover_url'] = 'local'
             atomic_write(archive, {**snapshot, 'games': new_games, 'achievements': new_items})

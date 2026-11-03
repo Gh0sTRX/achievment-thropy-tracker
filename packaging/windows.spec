@@ -12,10 +12,10 @@ for package in ('xbox', 'psnawp_api', 'pycountry', 'certifi', 'webview'):
 
 a = Analysis([str(root / 'run.py')], pathex=[str(root)],
     binaries=extra_binaries,
-    datas=[(str(root / 'atlas' / 'web'), 'atlas/web')] + extra_data,
+    datas=[(str(root / 'atlas' / 'web'), 'atlas/web'), (str(root / 'spec' / 'COMMUNITY_ART_SOURCES.json'), 'spec')] + extra_data,
     hiddenimports=hidden, hookspath=[], hooksconfig={}, runtime_hooks=[],
     excludes=['pytest'], noarchive=False)
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='AchievementAtlas',
-    debug=False, bootloader_ignore_signals=False, strip=False, upx=False, console=False)
+    debug=False, bootloader_ignore_signals=False, strip=False, upx=False, console=False, icon=str(root / 'assets' / 'achievement-atlas.ico'))
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='AchievementAtlas')

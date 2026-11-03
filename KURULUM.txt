@@ -1,4 +1,4 @@
-ACHIEVEMENT ATLAS 0.8.0 — WINDOWS KURULUMU
+ACHIEVEMENT ATLAS 0.9.0 — WINDOWS KURULUMU
 
 Hazır Setup.exe paketi Windows 10/11 64 bit içindir. Python veya yönetici
 izni gerekmez. Kurulum dosyasını aç, adımları tamamla, masaüstündeki
@@ -66,3 +66,12 @@ sorunlu oyunlardaki onceki kayitlari korunur. Kismi esitleme ekranda belirtilir.
 Hesap ekrani sadelestirildi. Teknik ayarlar istege bagli gelismis ekrandadir.
 JSON dosyalari uygulamanin yerel kayit bicimidir; elle duzenlemek gerekmez.
 Oyun Gorselleri yalnizca kapak/arka plan degistirir; kupa indirmez.
+
+0.9 GERCEK OYUN GORSELLERI
+Oyun Gorselleri ekraninda kutuphanenden oyun sec, bilgisayarindan PNG/JPEG/WebP
+gorselini sec. Kapak, genis arka plan, logo, banner ve ekran goruntusu ayri
+kaydedilir. Secilen dosya yeniden baslatma ve esitleme sonrasinda korunur.
+Odak surgu cubuklariyla yuzleri ve logolari koruyacak bir konum secilebilir.
+11 kaynak kesif karti eklenmistir; hepsi otomatik API entegrasyonu degildir.
+Xbox/PlayStation istatistikleri ayridir. PC veri saglayicisi planlaniyor.
+Orijinal ticari oyun gorselleri bu kurulum paketine dahil degildir.

@@ -2,3 +2,4 @@
 -r requirements-psn.txt
 pyinstaller>=6.16,<7
 pywebview>=6,<7
+Pillow>=11,<13

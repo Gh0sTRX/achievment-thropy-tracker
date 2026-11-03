@@ -1,4 +1,4 @@
-#define AppVersion "0.8.0"
+#define AppVersion "0.9.0"
 [Setup]
 AppId={{36A259D0-55AD-4B8F-83E4-D716F3955AAF}
 AppName=Achievement Atlas
@@ -11,13 +11,14 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist\installer
-OutputBaseFilename=AchievementAtlas-0.8.0-Windows-x64-Setup
+OutputBaseFilename=AchievementAtlas-0.9.0-Windows-x64-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 LicenseFile=..\LICENSE
 InfoBeforeFile=..\KURULUM.txt
 UninstallDisplayIcon={app}\AchievementAtlas.exe
+SetupIconFile=..\assets\achievement-atlas.ico
 [Languages]
 Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"

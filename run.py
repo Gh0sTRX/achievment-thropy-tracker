@@ -19,6 +19,12 @@ def self_test(report=None):
     with tempfile.TemporaryDirectory() as root:
         settings.save(root, {'OPENAI_API_KEY': 'self-test-placeholder'}, [])
         assert settings.read(root)['OPENAI_API_KEY'] == 'self-test-placeholder'
+        import io
+        from PIL import Image
+        from atlas import artwork
+        tiny=io.BytesIO();Image.new('RGB',(16,16),(12,30,50)).save(tiny,format='PNG')
+        assert artwork.store_bytes(root,'hero','selftest',tiny.getvalue())['width']==16
+        assert len(artwork.sources()['providers'])==11
         app = LocalApp(root)
         thread = threading.Thread(target=app.serve_forever, daemon=True)
         thread.start()
@@ -26,7 +32,7 @@ def self_test(report=None):
             with urlopen(app.url, timeout=10) as response:
                 html = response.read().decode()
             assert 'publicUsername' in html and '__TOKEN__' not in html
-            for path in ('app.js', 'style.css', 'api/data'):
+            for path in ('app.js', 'visuals.js', 'style.css', 'api/data', 'api/art/sources'):
                 with urlopen(app.url+path, timeout=10) as response:
                     assert response.status == 200 and response.read()
         finally:

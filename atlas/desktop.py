@@ -18,9 +18,18 @@ def open_window(url, smoke_report=None):
                 if ready:break
                 time.sleep(.2)
             else:raise RuntimeError('Desktop UI did not become ready')
+            window.evaluate_js("navigate('artwork'); true")
+            deadline=time.monotonic()+15
+            while time.monotonic()<deadline:
+                if window.evaluate_js("document.querySelectorAll('.source-card').length === 11"):break
+                time.sleep(.2)
+            else:raise RuntimeError('Artwork source panel did not load')
+            if not window.evaluate_js("switchPlatform('pc'); document.getElementById('platformNote').textContent.includes('planlanıyor')"):
+                raise RuntimeError('PC planned-state failed')
+            window.evaluate_js("switchPlatform('psn'); navigate('account'); true")
             from pathlib import Path
             import json
-            Path(smoke_report).write_text(json.dumps({'ok':True,'renderer':'edgechromium','checks':['native window','HTML loaded','JavaScript app ready','data status visible']}), encoding='utf-8')
+            Path(smoke_report).write_text(json.dumps({'ok':True,'renderer':'edgechromium','checks':['native window','HTML loaded','JavaScript app ready','data status visible','11 artwork sources','platform switch','PC planned state','simple account screen']}), encoding='utf-8')
         except Exception as exc:
             errors.append(str(exc))
         finally:

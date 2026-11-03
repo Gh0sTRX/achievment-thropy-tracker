@@ -46,3 +46,14 @@ class ServerTests(unittest.TestCase):
         with urlopen(self.app.url+'api/data') as r:data=json.load(r)
         self.assertEqual(data['library']['library']['gamertag'],'Test')
 if __name__=='__main__':unittest.main()
+class PlatformReportTests(unittest.TestCase):
+    def test_psn_trophies_do_not_become_xbox_gamerscore(self):
+        from atlas.server import Controller
+        with tempfile.TemporaryDirectory() as root:
+            c=Controller(root)
+            c.store.library['games']=[{'id':'xgame','name':'Xbox','platform':'xbox'},{'id':'pgame','name':'PSN','platform':'psn'}]
+            c.store.library['achievements']=[{'id':'xa','game_id':'xgame','name':'Actual','points':30,'unlocked':False}, {'id':'pa','game_id':'pgame','name':'Actual trophy','points':0,'unlocked':False}]
+            reports=c.status()['platform_reports']
+            self.assertEqual([a['achievement_id'] for a in reports['xbox']['recommendations']],['xa'])
+            self.assertEqual([a['achievement_id'] for a in reports['psn']['recommendations']],['pa'])
+            self.assertEqual(reports['pc']['recommendations'],[])
