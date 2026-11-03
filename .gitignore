@@ -14,3 +14,5 @@ library.json
 artwork/
 local-data/
 *.csv
+work/
+profiles/

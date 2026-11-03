@@ -15,7 +15,7 @@ from .core import data_dir
 
 TRUSTED_DOMAINS=(
     'steamgriddb.com','xboxlive.com','xbox.com','microsoft.com','s-microsoft.com',
-    'trueachievements.com',
+    'trueachievements.com', 'playstation.net', 'playstation.com',
 )
 MAX_BYTES=8_000_000
 AGENT='AchievementAtlas/0.5 (personal artwork cache; github-ready OSS)'

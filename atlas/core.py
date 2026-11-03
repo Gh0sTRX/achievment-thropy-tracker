@@ -174,6 +174,53 @@ class Library:
             self.state['pins']=sorted(pins);self.save()
         return {'message':'Target updated'}
 
+    def apply_public_profile(self, snapshot):
+        """Commit a fully fetched profile atomically; never mix two players' unlocks."""
+        platform = snapshot['platform']
+        with self.lock:
+            profiles = self.state.setdefault('public_profiles', {})
+            previous = profiles.get(platform, {})
+            same = previous.get('id') == snapshot['id']
+            if previous.get('id'):
+                previous_games = [g for g in self.library['games'] if g.get('platform') == platform]
+                previous_ids = {g['id'] for g in previous_games}
+                atomic_write(self.root/'profiles'/(game_id(platform, previous['id'])+'.json'),
+                    {**previous, 'platform': platform, 'games': previous_games,
+                     'achievements': [a for a in self.library['achievements'] if a['game_id'] in previous_ids]})
+            # Archive each successful remote snapshot so changing the target is reversible.
+            key = game_id(platform, snapshot['id'])
+            archive = self.root/'profiles'/(key+'.json')
+            cached = self._read(archive, {})
+            old_items = {a['id']: a for a in (self.library['achievements'] if same else cached.get('achievements', []))}
+            new_items = deepcopy(snapshot['achievements'])
+            for a in new_items:
+                prior = old_items.get(a['id'], {})
+                if prior.get('unlocked'):
+                    a['unlocked'] = True
+                    a['unlock_time'] = prior.get('unlock_time', '')
+                if prior.get('guide') and prior.get('description') == a.get('description'):
+                    a['guide'] = prior['guide']
+            new_games = deepcopy(snapshot['games'])
+            prior_games = {g['id']: g for g in (self.library['games'] if same else cached.get('games', []))}
+            for g in new_games:
+                prior = prior_games.get(g['id'], {})
+                for field in ('hero_url', 'plan', 'notes'):
+                    if prior.get(field): g[field] = prior[field]
+                if prior.get('cover_url') == 'local': g['cover_url'] = 'local'
+            atomic_write(archive, {**snapshot, 'games': new_games, 'achievements': new_items})
+            retained_games = [g for g in self.library['games'] if g.get('platform') not in (platform, 'demo')]
+            retained_ids = {g['id'] for g in retained_games}
+            retained_items = [a for a in self.library['achievements'] if a['game_id'] in retained_ids]
+            self.library = {'schema': 2, 'platform': 'mixed', 'gamertag': snapshot['username'],
+                'created_at': self.library.get('created_at', ''), 'complete_export': False,
+                'games': retained_games+new_games, 'achievements': retained_items+new_items}
+            profiles[platform] = {k: snapshot[k] for k in ('id', 'username', 'synced_at')}
+            valid = {a['id'] for a in self.library['achievements']}
+            self.state['pins'] = [p for p in self.state['pins'] if p in valid]
+            self.state['sync_at'] = snapshot['synced_at']
+            self.save()
+        return {'games': len(new_games), 'achievements': len(new_items)}
+
     def apply_live_game(self,game_id,api_items):
         """Exact title identity first, unambiguous name + points second. Never cross game boundary."""
         with self.lock:

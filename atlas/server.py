@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit
 from .core import Library,normalize
 from . import recommendations,artwork
-from . import xbox
+from . import xbox, public_profiles, guides
 
 BASE=Path(__file__).resolve().parent
 
@@ -25,14 +25,83 @@ class Controller:
         self.store=Library(root)
         self.active_matches=[]
         self.start_guard=threading.Lock()
+        self.public_guard=threading.Lock()
+        self.guide_guard=threading.Lock()
 
     def status(self):
         s=self.store
         return {'library':s.payload(),
                 'recommendations':recommendations.rank(s.library,s.state['pins']),
-                'insights':recommendations.insights(s.library)}
+                'insights':recommendations.insights(s.library),
+                'providers':public_profiles.readiness(), 'guides_ready':guides.configured()}
+
+    def public_sync(self, data):
+        platform = str(data.get('platform', ''))
+        username = public_profiles.validate(platform, data.get('username', ''))
+        if not public_profiles.readiness()[platform]:
+            raise ValueError('Bu platformun veri servisi kurulmamış. Kurulum için docs/PUBLIC_PROFILES_TR.md dosyasına bak. Oyuncunun hesabını bağlaması gerekmez.')
+        if not self.public_guard.acquire(blocking=False):
+            raise ValueError('Profil eşitlemesi zaten çalışıyor.')
+        if (self.store.status.get('job') or {}).get('running'):
+            self.public_guard.release()
+            raise ValueError('Xbox eşitlemesinin bitmesini bekle.')
+        self.store.status['public_job'] = {'running': True, 'done': 0, 'total': 0,
+                                           'message': 'Profil sorgulanıyor…', 'error': ''}
+        def progress(done, total, name):
+            with self.store.lock:
+                self.store.status['public_job'].update(done=done, total=total, message=name)
+        def worker():
+            try:
+                snapshot = public_profiles.fetch(platform, username, progress)
+                report = self.store.apply_public_profile(snapshot)
+                with self.store.lock:
+                    self.store.status['public_job']['message'] = f"{snapshot['username']}: {report['games']} oyun, {report['achievements']} kupa kaydedildi."
+                if guides.configured():
+                    try:self.generate_guides({'platform': platform})
+                    except ValueError as exc:self.store.status['public_job']['message'] += ' '+str(exc)
+            except Exception as exc:
+                # Only application-authored messages are safe for the browser.
+                message = str(exc) if type(exc) is ValueError else type(exc).__name__
+                self.store.status['public_job']['error'] = message[:350]
+            finally:
+                self.store.status['public_job']['running'] = False
+                self.public_guard.release()
+        threading.Thread(target=worker, daemon=True).start()
+        return {'message': 'Herkese açık profil eşitlemesi başladı.'}
+
+    def generate_guides(self, data):
+        if not guides.configured():
+            raise ValueError('Rehber veri servisi kurulmamış. docs/PUBLIC_PROFILES_TR.md dosyasına bak.')
+        if not self.guide_guard.acquire(blocking=False):
+            raise ValueError('Rehber araştırması zaten çalışıyor.')
+        with self.store.lock:
+            items = [dict(a) for a in self.store.library['achievements']
+                if (not data.get('game_id') or a['game_id'] == data['game_id'])
+                and (not data.get('platform') or a.get('platform') == data['platform'])
+                and (a.get('guide') or {}).get('fingerprint') != guides.fingerprint(a)]
+        self.store.status['guide_job'] = {'running': True, 'done': 0, 'total': len(items), 'error': ''}
+        def worker():
+            try:
+                for i, a in enumerate(items):
+                    guide = guides.create(a)
+                    with self.store.lock:
+                        current = next((x for x in self.store.library['achievements'] if x['id'] == a['id']), None)
+                        if current and guides.fingerprint(current) == guides.fingerprint(a):
+                            current['guide'] = guide
+                            self.store.save()
+                        self.store.status['guide_job']['done'] = i+1
+            except Exception as exc:
+                self.store.status['guide_job']['error'] = (str(exc) if type(exc) is ValueError else type(exc).__name__)[:250]
+            finally:
+                self.store.status['guide_job']['running'] = False
+                self.guide_guard.release()
+        threading.Thread(target=worker, daemon=True).start()
+        return {'message': f'{len(items)} kupa için Türkçe kaynak araştırması başladı.'}
 
     def import_csv(self,data):
+        if self.public_guard.locked():raise ValueError('Profil eşitlemesinin bitmesini bekle.')
+        if self.store.state.get('public_profiles'):
+            raise ValueError('Kullanıcı adıyla oluşturulan arşiv CSV ile birleştirilmez. CSV için ayrı bir veri klasörü kullan.')
         return self.store.import_csv(str(data.get('earned','')),str(data.get('locked','')),str(data.get('gamertag','')))
 
     def set_pin(self,data):return self.store.set_pin(str(data.get('id','')),bool(data.get('pinned')))
@@ -180,6 +249,11 @@ class Controller:
         return {'message':'Mapped '+game['name']+' to Xbox Title ID '+tid}
 
     def xbox_sync(self,data):
+        if self.public_guard.locked():raise ValueError('Profil eşitlemesinin bitmesini bekle.')
+        target=(self.store.state.get('public_profiles') or {}).get('xbox')
+        linked=self.store.state.get('linked_profile') or {}
+        if target and target['id']!=str(linked.get('xuid','')):
+            raise ValueError('Bu arşiv herkese açık hedef profile ait. Kullanıcı adıyla yenileme düğmesini kullan.')
         gid=str(data.get('game_id',''))
         games=[g for g in self.store.library['games'] if g.get('title_id') and (not gid or g['id']==gid)]
         if not games:raise ValueError('Map a title ID first')
@@ -278,6 +352,8 @@ class Handler(BaseHTTPRequestHandler):
             path=urlsplit(self.path).path
             methods={
                '/api/import':self.server.controller.import_csv,
+               '/api/profiles/sync':self.server.controller.public_sync,
+               '/api/guides/generate':self.server.controller.generate_guides,
                '/api/pin':self.server.controller.set_pin,
                '/api/art/key':self.server.controller.set_sgdb_key,
                '/api/art/search':self.server.controller.search_art,

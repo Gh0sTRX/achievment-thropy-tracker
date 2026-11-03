@@ -21,6 +21,19 @@ class ServerTests(unittest.TestCase):
             html=r.read().decode()
         self.assertIn('Achievement Atlas',html)
         self.assertNotIn('__TOKEN__',html)
+    def test_profile_action_requires_configuration_and_token(self):
+        from unittest.mock import patch
+        with patch.dict('os.environ', {'ATLAS_PSN_NPSSO':'','ATLAS_XBOX_TOKEN_FILE':'','BRAVE_SEARCH_API_KEY':'','OPENAI_API_KEY':''}):
+            body=json.dumps({'platform':'psn','username':'Player1'}).encode()
+            req=Request(self.app.url+'api/profiles/sync',data=body,headers={'Content-Type':'application/json','X-Atlas-Token':self.app.token},method='POST')
+            with self.assertRaises(HTTPError) as ctx:urlopen(req)
+            self.assertEqual(ctx.exception.code,400)
+            error=json.loads(ctx.exception.read())['error']
+            self.assertIn('kurulmamış',error)
+            with urlopen(self.app.url+'api/data') as r:data=json.load(r)
+            self.assertEqual(data['providers'],{'psn':False,'xbox':False})
+            self.assertFalse(data['guides_ready'])
+
     def test_post_requires_token(self):
         req=Request(self.app.url+'api/pin',data=b'{"id":"demo:0:0","pinned":true}',headers={'Content-Type':'application/json'},method='POST')
         with self.assertRaises(HTTPError) as ctx:urlopen(req)

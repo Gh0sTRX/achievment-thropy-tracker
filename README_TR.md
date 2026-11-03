@@ -1,3 +1,5 @@
+> **Yeni:** Kullanıcı adıyla Xbox / PlayStation profil eşitleme, özgün kupa ikonları ve kaynak bağlantılı Türkçe rehber akışı eklendi. Servis kurulumu ve canlı doğrulama sınırları: [Kurulum](docs/PUBLIC_PROFILES_TR.md). Aşağıdaki OAuth/CSV açıklamaları mevcut alternatif akışları anlatır.
+
 # Achievement Atlas — Türkçe Başlangıç
 
 Achievement Atlas, **herkesin kendi hesabıyla** kullanabileceği açık kaynak, yerel çalışan başarım takip ve öneri uygulamasıdır. Xbox ilk platformdur; ileride PlayStation bağlantısı için ayrı bir sağlayıcı tasarlanmıştır.
