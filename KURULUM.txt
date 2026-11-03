@@ -1,4 +1,4 @@
-ACHIEVEMENT ATLAS 0.12.0 — WINDOWS KURULUMU
+ACHIEVEMENT ATLAS 0.13.0 — WINDOWS KURULUMU
 
 Hazır Setup.exe paketi Windows 10/11 64 bit içindir. Python veya yönetici
 izni gerekmez. Kurulum dosyasını aç, adımları tamamla, masaüstündeki

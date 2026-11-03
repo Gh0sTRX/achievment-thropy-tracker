@@ -19,15 +19,15 @@
       <button class="nav-link active" data-page="home"><span class="nav-mark">◈</span> Atlas Hub <span class="nav-index">01</span></button>
       <button class="nav-link" data-page="games"><span class="nav-mark">▦</span> Oyun Kütüphanesi <span class="nav-index">02</span></button>
       <button class="nav-link" data-page="achievements"><span class="nav-mark">✦</span> Başarım Kasası <span class="nav-index">03</span></button>
-      <button class="nav-link" data-page="artwork"><span class="nav-mark">▧</span> Oyun Görselleri <span class="nav-index">04</span></button>
-      <button class="nav-link" data-page="account"><span class="nav-mark">⌘</span> Hesap & Veri <span class="nav-index">05</span></button>
-      <button class="nav-link" data-page="updates"><span class="nav-mark">↻</span> Güncellemeler <span class="nav-index">06</span></button>
-      <button class="nav-link" data-page="quests"><span class="nav-mark">⌖</span> Hedef Panosu <span class="nav-index">07</span></button>
-      <button class="nav-link" data-page="hall"><span class="nav-mark">♛</span> Koleksiyon Müzesi <span class="nav-index">08</span></button>
-      <button class="nav-link" data-page="profile"><span class="nav-mark">◉</span> Oyuncu Profili <span class="nav-index">09</span></button>
+      <button class="nav-link" data-page="quests"><span class="nav-mark">⌖</span> Hedef Panosu <span class="nav-index">04</span></button>
+      <button class="nav-link" data-page="hall"><span class="nav-mark">♛</span> Koleksiyon Müzesi <span class="nav-index">05</span></button>
+      <button class="nav-link" data-page="profile"><span class="nav-mark">◉</span> Oyuncu Profili <span class="nav-index">06</span></button>
+      <button class="nav-link" data-page="artwork"><span class="nav-mark">▧</span> Oyun Görselleri <span class="nav-index">07</span></button>
+      <button class="nav-link" data-page="account"><span class="nav-mark">⌘</span> Hesap & Veri <span class="nav-index">08</span></button>
+      <button class="nav-link" data-page="updates"><span class="nav-mark">↻</span> Güncellemeler <span class="nav-index">09</span></button>
     </nav>
     <div class="rail-bottom"><div class="pulse-dot"></div><div><b>LOCAL FIRST</b><small>Verilerin bu bilgisayarda.</small></div></div>
-    <div class="rail-foot">v0.12 ÖN SÜRÜM · OPEN SOURCE</div>
+    <div class="rail-foot">v0.13 ÖN SÜRÜM · OPEN SOURCE</div>
   </aside>
   <main class="content">
     <header class="topbar"><button id="mobileMenu" class="secondary mobile-menu" aria-label="Menüyü aç" aria-expanded="false">☰</button><div class="breadcrumbs"><span class="bread-quiet">ATLAS</span><span class="sep">/</span><strong id="breadcrumb">ATLAS HUB</strong></div><div class="top-right"><form id="globalSearchForm" role="search"><input id="globalSearch" type="search" placeholder="Oyun veya başarım ara…" aria-label="Küresel arama"><button class="ghost-link" type="submit" aria-label="Ara">⌕</button></form><span class="live-indicator" id="apiIndicator"><i></i> YEREL MOD</span><div class="profile-chip"><span class="profile-avatar" id="profileAvatar">P</span><span id="profileName">Oyuncu</span></div></div></header>
@@ -96,9 +96,10 @@
       <div class="hidden"><span id="xboxStatus"></span><button id="reconnectXbox"></button><button id="discoverXbox"></button><button id="syncXbox"></button><div id="xboxTitles"></div></div><button class="ghost-link" data-page="account">← Profilime dön</button>
     </section>
     <section class="page hidden" id="updates"><div class="section-head"><span class="eyebrow">GITHUB / GÜNCELLEMELER</span><h1>Uygulamanı <em>güncel tut.</em></h1><p>Geliştirme kanalı etkin. GitHub yayınları uygulama açılışında kontrol edilir. Yeni sürümü buradan indirip yeniden başlatabilirsin.</p></div><div class="panel"><h3 id="updateVersion">Kurulu sürüm</h3><p id="updateMessage" role="status" aria-live="polite"></p><progress id="updateProgress" class="hidden" max="100" value="0" aria-label="Güncelleme indirme ilerlemesi"></progress><div class="detail-buttons"><button id="checkUpdate" class="secondary">GÜNCELLEMELERİ KONTROL ET</button><button id="downloadUpdate" class="cta hidden">GÜNCELLEMEYİ İNDİR</button><button id="installUpdate" class="cta hidden">KUR VE YENİDEN BAŞLAT</button></div><pre id="updateNotes" class="update-notes"></pre><a id="updateRelease" class="ghost-link hidden" target="_blank" rel="noopener noreferrer">GITHUB YAYININI İNCELE ↗</a><p class="helper">Kütüphane ve ayarların korunur. Geliştirme güncellemelerinde SHA256 ve GitHub’ın kriptografik derleme kökeni kanıtı doğrulanır. Windows yayıncı sertifikası gerekmez. Yalnızca belirlenmiş depomuz ve workflow dalımız kabul edilir. Bu özellik Chrome/Windows güvenlik korumasını atlatmaz.</p></div></section>
-    <footer class="footer">ACHIEVEMENT ATLAS <b>0.12 ÖN SÜRÜM</b> — Open-source community project · Unofficial, not endorsed by Microsoft or Sony · Art remains with its respective owners.</footer>
+    <footer class="footer">ACHIEVEMENT ATLAS <b>0.13 ULTIMATE</b> — Open-source community project · Unofficial, not endorsed by Microsoft or Sony · Art remains with its respective owners.</footer>
   </main>
 </div>
+<script src="/model.js"></script>
 <script src="/visuals.js"></script>
 <dialog id="achievementDrawer" aria-labelledby="drawerTitle"><button id="drawerClose" class="secondary" aria-label="Başarım detayını kapat">✕</button><div id="drawerContent"></div></dialog>
 <script src="/app.js"></script><script src="/ultimate.js"></script>

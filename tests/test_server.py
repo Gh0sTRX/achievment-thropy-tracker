@@ -38,6 +38,22 @@ class ServerTests(unittest.TestCase):
         req=Request(self.app.url+'api/pin',data=b'{"id":"demo:0:0","pinned":true}',headers={'Content-Type':'application/json'},method='POST')
         with self.assertRaises(HTTPError) as ctx:urlopen(req)
         self.assertEqual(ctx.exception.code,403)
+    def test_preferences_guard_and_roundtrip(self):
+        body=json.dumps({'theme_mode':'psn','library_layout':'collection'}).encode()
+        req=Request(self.app.url+'api/preferences',data=body,headers={'Content-Type':'application/json'},method='POST')
+        with self.assertRaises(HTTPError) as ctx:urlopen(req)
+        self.assertEqual(ctx.exception.code,403)
+        req.add_header('X-Atlas-Token',self.app.token)
+        with urlopen(req) as response:self.assertEqual(response.status,200)
+        with urlopen(self.app.url+'api/data') as response:payload=json.load(response)
+        self.assertEqual(payload['library']['state']['ui']['theme_mode'],'psn')
+        req.add_header('Origin','https://evil.example')
+        with self.assertRaises(HTTPError) as ctx:urlopen(req)
+        self.assertEqual(ctx.exception.code,403)
+        for path in ('model.js','ultimate.js','ultimate.css'):
+            with urlopen(self.app.url+path) as response:self.assertEqual(response.status,200)
+        with self.assertRaises(HTTPError):urlopen(self.app.url+'../core.py')
+
     def test_import_end_to_end(self):
         body=json.dumps({'earned':'GameName,AchievementName,AchievementPageURL,Gamerscore,TAScore,TARatio,DLCName,UnlockDate\nDemo,First,https://www.trueachievements.com/a456/first-achievement,50,70,1.4,,2026-01-01\n','locked':'GameName,AchievementName,AchievementPageURL,Gamerscore,TAScore,TARatio,DLCName,Unachieveable\nDemo,Second,https://www.trueachievements.com/a457/second-achievement,40,60,1.5,,\n','gamertag':'Test'}).encode()
         req=Request(self.app.url+'api/import',data=body,headers={'Content-Type':'application/json','X-Atlas-Token':self.app.token},method='POST')

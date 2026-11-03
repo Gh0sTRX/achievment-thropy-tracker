@@ -82,11 +82,11 @@ def candidates(sgdb_id,key):
     ident=int(sgdb_id)
     if ident<=0:raise ValueError('Invalid game ID')
     result=[]
-    for category,kind in (('cover','grids'),('hero','heroes')):
+    for category,kind in (('cover','grids'),('hero','heroes'),('logo','logos')):
         records=sgdb_json(f'{kind}/game/{ident}',key)
         for x in records[:9]:
             url=str(x.get('url') or '')
-            if safe_url(url):result.append({'kind':category,'url':url,'thumb':x.get('thumb') or url,
+            if safe_url(url):result.append({'kind':category,'url':url,'thumb':x.get('thumb') if safe_url(x.get('thumb')) else url,
                  'width':x.get('width'),'height':x.get('height'),'source':'SteamGridDB',
                  'provider_id':str(x.get('id','')), 'source_url':'https://www.steamgriddb.com/',
                  'rights_note':'Topluluk görseli; haklar ilgili hak sahiplerine aittir.'})

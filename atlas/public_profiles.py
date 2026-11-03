@@ -41,7 +41,8 @@ def achievement(g, remote):
             'name': remote['name'], 'points': remote.get('gamerscore', 0),
             'ratio': 0, 'dlc': remote.get('group', ''), 'source_url': '',
             'unlocked': bool(remote['unlocked']), 'unlock_time': remote.get('timeUnlocked', ''),
-            'flag': False, 'description': remote.get('description', ''),
+            'flag': False, 'is_secret':remote.get('is_secret') is True,
+            'rarity_percent':remote.get('rarity_percent'), 'rarity_source':remote.get('rarity_source',''), 'description': remote.get('description', ''),
             'icon_url': remote.get('icon', '') if artwork.safe_url(remote.get('icon', '')) else '',
             'source': g['platform'], 'trophy_type': remote.get('trophy_type', ''),
             'progress_current': remote.get('progress_current'),
@@ -178,6 +179,9 @@ def _psn(username, progress):
                 'unlocked': t.earned, 'description': t.trophy_detail or '', 'icon': t.trophy_icon_url or '',
                 'timeUnlocked': moment.isoformat() if moment else '', 'group': t.trophy_group_id or '',
                 'trophy_type': t.trophy_type.value if t.trophy_type else '',
+                'is_secret':getattr(t,'trophy_hidden',None) is True,
+                'rarity_percent':getattr(t,'trophy_earn_rate',None),
+                'rarity_source':'PSN API' if getattr(t,'trophy_earn_rate',None) is not None else '',
                 'progress_current': t.progress, 'progress_target': t.trophy_progress_target_value}))
         games.append(g); progress(len(games), len(titles), g['name'])
     return {'id': str(user.account_id), 'username': user.online_id}, games, items

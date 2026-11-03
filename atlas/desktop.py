@@ -33,9 +33,14 @@ def open_window(url, smoke_report=None, shutdown_event=None):
             window.evaluate_js("navigate('account'); true")
             if not window.evaluate_js("document.body.click(); page === 'account'"):
                 raise RuntimeError('Platform event scope changed the active page')
+            for screen in ('quests','hall','profile'):
+                if not window.evaluate_js("navigate('"+screen+"'); !document.getElementById('"+screen+"').classList.contains('hidden')"):
+                    raise RuntimeError('Ultimate screen failed: '+screen)
+            if not window.evaluate_js("typeof AtlasModel === 'object' && AtlasModel.progress([]).ratio === 0"):
+                raise RuntimeError('Ultimate data projection failed')
             from pathlib import Path
             import json
-            Path(smoke_report).write_text(json.dumps({'ok':True,'renderer':'edgechromium','checks':['native window','HTML loaded','JavaScript app ready','data status visible','11 artwork sources','platform switch','PC planned state','simple account screen','update screen blocks unverified install']}), encoding='utf-8')
+            Path(smoke_report).write_text(json.dumps({'ok':True,'renderer':'edgechromium','checks':['Ultimate screens','honest empty metrics','native window','HTML loaded','JavaScript app ready','data status visible','11 artwork sources','platform switch','PC planned state','simple account screen','update screen blocks unverified install']}), encoding='utf-8')
         except Exception as exc:
             errors.append(str(exc))
         finally:

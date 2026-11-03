@@ -44,6 +44,7 @@ class Controller:
             ids={g['id'] for g in games}
             scoped={**library,'games':games,'achievements':[a for a in library['achievements'] if a['game_id'] in ids]}
             reports[platform]={'recommendations':recommendations.rank(scoped,pins),'insights':recommendations.insights(scoped)}
+        reports['all']={'recommendations':recommendations.rank(library,pins),'insights':recommendations.insights(library)}
         return {'library':payload, 'recommendations':recommendations.rank(library,pins),
                 'insights':recommendations.insights(library),'platform_reports':reports,
                 'providers':public_profiles.readiness(), 'guides_ready':guides.configured(),
@@ -231,16 +232,27 @@ class Controller:
         theme=str(data.get('theme','auto'))
         if theme not in ('auto','ember','ice','forest','dusk','sunrise'):raise ValueError('Tema geçersiz.')
         x=float(data.get('x',50));y=float(data.get('y',38))
+        overlay=float(data.get('overlay',.68));blur=float(data.get('blur',0))
+        if not math.isfinite(overlay) or not .5<=overlay<=.85 or not math.isfinite(blur) or not 0<=blur<=12:raise ValueError('Görsel görünüm değeri geçersiz.')
         if not all(math.isfinite(v) and 0<=v<=100 for v in (x,y)):raise ValueError('Odak konumu geçersiz.')
         with self.store.lock:
             game=self.art_game(data)
-            game['art_theme']={'preset':theme,'x':x,'y':y}
+            game['art_theme']={'preset':theme,'x':x,'y':y,'overlay':overlay,'blur':blur}
             self.store.save()
         return {'message':'Görsel odağı ve atmosfer bu oyun için kaydedildi.'}
 
+    def save_notes(self,data):
+        notes=data.get('notes','')
+        if not isinstance(notes,str) or len(notes)>8000:raise ValueError('Not en fazla 8000 karakter olabilir.')
+        with self.store.lock:
+            game=self.art_game(data)
+            game['notes']=notes
+            self.store.save()
+        return {'message':'Oyun notların bu cihazda kaydedildi.'}
+
     def select_art(self,data):
         game=self.art_game(data);gid=game['id'];kind=str(data.get('kind',''))
-        if kind not in ('cover','hero'):raise ValueError('Image type unknown')
+        if kind not in ('cover','hero','logo'):raise ValueError('Image type unknown')
         url=str(data.get('url',''))
         candidate=next((c for c in self.store.live_artwork.get(gid,[]) if c['kind']==kind and c['url']==url),None)
         if not candidate:raise ValueError('Önce oyun ve sürüm eşleşmesini onaylayıp bir arama sonucu seç.')
@@ -449,7 +461,7 @@ class Handler(BaseHTTPRequestHandler):
         if path in ('/','/index.html'):
             body=(BASE/'web'/'index.html').read_text(encoding='utf-8').replace('__TOKEN__',self.server.token).encode('utf-8')
             return self.blob(body,'text/html; charset=utf-8')
-        if path in ('/app.js','/visuals.js','/ultimate.js','/style.css','/ultimate.css'):
+        if path in ('/app.js','/visuals.js','/ultimate.js','/model.js','/style.css','/ultimate.css'):
             return self.blob((BASE/'web'/path[1:]).read_bytes(), 'text/javascript' if path.endswith('.js') else 'text/css')
         if path=='/api/data':return self.reply(self.server.controller.status())
         if path=='/api/art/sources':return self.reply(artwork.sources())
@@ -479,6 +491,7 @@ class Handler(BaseHTTPRequestHandler):
                '/api/guides/generate':self.server.controller.generate_guides,
                '/api/guides/stop':lambda d:self.server.controller.stop_guides(),
                '/api/pin':self.server.controller.set_pin,
+               '/api/game/notes':self.server.controller.save_notes,
                '/api/preferences':lambda d:self.server.controller.store.set_preferences(d),
                '/api/art/key':self.server.controller.set_sgdb_key,
                '/api/art/search':self.server.controller.search_art,

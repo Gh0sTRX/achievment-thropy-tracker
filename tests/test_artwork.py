@@ -77,3 +77,20 @@ class LocalArtTests(unittest.TestCase):
             c.store.library['games']=[{'id':'game123','name':'Edition','platform':'xbox'}]
             with self.assertRaisesRegex(ValueError,'eşleşmesini onayla'):
                 c.get_art_choices({'game_id':'game123','sgdb_id':123})
+
+class ProviderChoicesTests(unittest.TestCase):
+    def test_logo_candidates_keep_safe_thumbnails_and_rate_limits(self):
+        from unittest.mock import patch
+        from urllib.error import HTTPError
+        from atlas import artwork
+        calls=[]
+        def records(path,key):
+            calls.append(path)
+            return [{'id':1,'url':'https://cdn2.steamgriddb.com/ok.png','thumb':'http://localhost/private'}]
+        with patch.object(artwork,'sgdb_json',side_effect=records):
+            result=artwork.candidates(42,'not-real')
+        self.assertEqual([r['kind'] for r in result],['cover','hero','logo'])
+        self.assertIn('logos/game/42',calls);self.assertTrue(all(r['thumb']==r['url'] for r in result))
+        for code in (403,429):
+            with patch.object(artwork,'sgdb_json',side_effect=HTTPError('https://www.steamgriddb.com',code,'blocked',{},None)):
+                with self.assertRaises(HTTPError):artwork.candidates(42,'not-real')

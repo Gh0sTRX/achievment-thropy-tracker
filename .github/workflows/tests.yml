@@ -30,3 +30,6 @@ jobs:
         run: |
           node --check atlas/web/app.js
           node --check atlas/web/visuals.js
+          node --check atlas/web/ultimate.js
+          node --check atlas/web/model.js
+          node tests/test_ui_model.cjs

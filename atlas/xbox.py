@@ -144,7 +144,7 @@ def normalize_achievements(raw: dict, xbox360=False):
                         measured_current=current;measured_target=target
                 except (ValueError,TypeError):pass
         result.append({'name':name,'id':str(ident), 'name_missing':name_missing,'unlocked':earned,
-                       'timeUnlocked':str(moment or ''),'icon':image,
+                       'timeUnlocked':str(moment or ''),'icon':image,'is_secret':a.get('isSecret') is True,
                        'description':str(a.get('description') or a.get('lockedDescription') or ''),
                        'gamerscore':score,'progress_current':measured_current,'progress_target':measured_target})
     return result

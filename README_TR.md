@@ -1,4 +1,4 @@
-# Achievement Atlas 0.12 — Türkçe Kurulum
+# Achievement Atlas 0.13 Ultimate — Türkçe Kurulum
 
 Windows 10/11 64 bit için hazır **Setup.exe** ve **Portable.zip** paketleri hazırlanır.
 Hazır paketlerde Python kurman gerekmez. Arayüz Microsoft Edge WebView2 ile kendi masaüstü penceresinde açılır. Setup masaüstü/Başlat menüsü kısayolu ve
