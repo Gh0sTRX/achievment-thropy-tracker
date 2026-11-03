@@ -61,6 +61,18 @@ The next milestones are API sign-in verification against a **consenting tester a
 
 We welcome issue reports and PRs. **Never submit passwords, session tokens, private achievement exports, or proprietary media files.**
 
+## Downloads and Code signing policy
+
+Windows builds will be published on [GitHub Releases](https://github.com/Gh0sTRX/achievment-thropy-tracker/releases). The project has **applied** to SignPath Foundation; **signing has not been approved or activated**. An EXE uploaded manually to a release is **unsigned** unless a valid signature is independently verified. A verifiable GitHub Actions release-build pipeline is still required before SignPath signing can begin.
+
+- [**Code signing policy**](CODE_SIGNING_POLICY.md) — release provenance, approved artifacts, reviewer/approver roles and signing rules.
+- [**Privacy Policy**](PRIVACY.md) — local storage, optional Xbox/Microsoft login, SteamGridDB and other external services.
+- [Security policy](SECURITY.md) — local server and credential handling.
+
+**Planned signed-release attribution (once approved):** Free code signing provided by SignPath.io, certificate by [SignPath Foundation](https://signpath.org/).
+
+Release notes must also link to the Code signing policy and Privacy Policy and clearly state whether that specific EXE is signed or unsigned.
+
 ## Privacy and licensing
 
 Data is saved to your user profile's local `AchievementAtlas` application-data folder. Microsoft login tokens, if you choose to use Xbox sign-in, are handled by the separate OpenXbox dependency and kept outside this repository. See [SECURITY.md](SECURITY.md).

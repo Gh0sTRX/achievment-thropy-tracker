@@ -28,6 +28,20 @@ tamamla** eksik kupaları ve kayıtlı notları gösterir. Zorluk kanıtı olmad
 
 [Servis kurulumu, yerel veri ve sınırlar](docs/PUBLIC_PROFILES_TR.md)
 
+## İndirme, gizlilik ve kod imzalama
+
+Windows EXE sürümleri [GitHub Releases](https://github.com/Gh0sTRX/achievment-thropy-tracker/releases) üzerinden yayımlanacaktır. SignPath Foundation başvurusu **gönderildi fakat henüz onaylanmadı**. Elle yüklenen EXE, geçerli bir dijital imza doğrulanmadıkça **imzasız** kabul edilmelidir. SignPath imzası için doğrulanabilir GitHub Actions sürüm derlemesi ayrıca hazırlanmalıdır.
+
+- [**Code signing policy / Kod imzalama politikası**](CODE_SIGNING_POLICY.md)
+- [**Privacy Policy / Gizlilik politikası**](PRIVACY.md)
+- [Security / Güvenlik bilgileri](SECURITY.md)
+
+**Onay sonrasında kullanılacak atıf:** Free code signing provided by SignPath.io, certificate by [SignPath Foundation](https://signpath.org/).
+
+Her sürümün GitHub Release açıklamasında politika bağlantıları ve o EXE'nin gerçekten imzalı mı imzasız mı olduğu açıkça belirtilmelidir.
+
+## Test
+
 Gh0sTRX55 hesabının gerçek verileriyle canlı eşitleme doğrulanmadı. Bu proje
 Microsoft, Sony veya TrueAchievements ile ilişkili değildir.
 
