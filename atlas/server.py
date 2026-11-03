@@ -99,6 +99,17 @@ class Controller:
         with self.store.lock:self.store.save()
         return self.updates.install()
 
+    def export_archive(self):
+        return self.store.export_archive()
+
+    def restore_archive(self, data):
+        blockers = self.update_blockers()
+        if blockers:
+            raise ValueError('Geri yükleme bekliyor: ' + ', '.join(blockers))
+        if self.updates.snapshot().get('state') == 'installing':
+            raise ValueError('Güncelleme sırasında arşiv geri yüklenemez.')
+        return self.store.restore_archive(data.get('archive'))
+
     def sync_linked_profile(self):
         profile = self.store.state.get('linked_profile') or {}
         if not profile.get('gamertag'): raise ValueError('Önce Xbox oturumunu aç.')
@@ -544,12 +555,16 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply({'error':'JSON required'},415)
         try:
             n=int(self.headers.get('Content-Length','0'))
-            if n<2 or n>12_000_000:return self.reply({'error':'Request too large'},413)
+            path=urlsplit(self.path).path
+            limit=50_000_000 if path=='/api/archive/restore' else 12_000_000
+            if n<2 or n>limit:return self.reply({'error':'Request too large'},413)
             data=json.loads(self.rfile.read(n))
             if not isinstance(data,dict):raise ValueError('Expected JSON object')
             path=urlsplit(self.path).path
             methods={
                '/api/import':self.server.controller.import_csv,
+               '/api/archive/export':lambda d:self.server.controller.export_archive(),
+               '/api/archive/restore':self.server.controller.restore_archive,
                '/api/settings':self.server.controller.save_settings,
                '/api/downloads/stop':self.server.controller.stop_downloads,
                '/api/profiles/sync':self.server.controller.public_sync,
