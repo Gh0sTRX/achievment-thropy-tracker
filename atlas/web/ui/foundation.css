@@ -27,3 +27,12 @@ body[data-skin=xmb] .atlas-welcome{background:#142d66c4;border-color:#6eb8ff}
 @media(max-width:960px){.atlas-welcome-options{grid-template-columns:1fr}}
 @media(max-width:650px){.atlas-welcome{padding:16px}.atlas-welcome-option{padding:13px}}
 @media(prefers-reduced-motion:reduce){.atlas-welcome-option{transition:none}}
+
+/* Empty libraries show the honest first-run path instead of a wall of zero metrics. */
+body.atlas-empty-library #home > .featured,
+body.atlas-empty-library #home > .heading-row,
+body.atlas-empty-library #home > #homeRail,
+body.atlas-empty-library #home > .stat-grid,
+body.atlas-empty-library #home > #recommendations,
+body.atlas-empty-library #home > .split-panels,
+body.atlas-empty-library #home > .riskstrip{display:none}

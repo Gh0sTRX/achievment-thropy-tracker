@@ -32,6 +32,8 @@ assert.match(html, /\/ui\/foundation\.js/);
 assert.match(html, /\/ui\/foundation\.css/);
 assert.doesNotMatch(html, /src="\/ui\/ultimate\.js"/);
 assert.match(foundation, /drawWelcome/);
+assert.match(foundation, /atlas-empty-library/);
+assert.match(style, /body\.atlas-empty-library #home/);
 assert.match(foundation, /drawUpdateBlockers/);
 assert.match(foundation, /UPDATE_BLOCKERS/);
 assert.match(foundation, /textContent/);

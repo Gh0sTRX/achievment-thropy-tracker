@@ -13,6 +13,7 @@
     const summary = byId('atlasSourceSummary');
     if (!welcome || !summary) return;
     welcome.classList.toggle('hidden', gamesList.length > 0);
+    document.body.classList.toggle('atlas-empty-library', gamesList.length === 0);
     summary.classList.toggle('hidden', gamesList.length === 0);
     if (gamesList.length) {
       const info = typeof SOURCE_STATUS !== 'undefined' ? SOURCE_STATUS : {};
