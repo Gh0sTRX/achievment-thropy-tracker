@@ -12,10 +12,10 @@ from atlas import archive
 from atlas.core import Library
 from atlas.server import Controller, LocalApp
 
-EARNED = ("GameName,AchievementName,AchievementPageURL,Gamerscore,TAScore,TARatio,DLCName,UnlockDate\\n"
-          "Game A,First,https://www.trueachievements.com/a456/first-achievement,20,25,1.25,,2026-01-01\\n")
-LOCKED = ("GameName,AchievementName,AchievementPageURL,Gamerscore,TAScore,TARatio,DLCName,Unachieveable\\n"
-          "Game A,Second,https://www.trueachievements.com/a457/second-achievement,30,40,1.35,,\\n")
+EARNED = ("GameName,AchievementName,AchievementPageURL,Gamerscore,TAScore,TARatio,DLCName,UnlockDate\n"
+          "Game A,First,https://www.trueachievements.com/a456/first-achievement,20,25,1.25,,2026-01-01\n")
+LOCKED = ("GameName,AchievementName,AchievementPageURL,Gamerscore,TAScore,TARatio,DLCName,Unachieveable\n"
+          "Game A,Second,https://www.trueachievements.com/a457/second-achievement,30,40,1.35,,\n")
 
 
 class LocalArchiveTests(unittest.TestCase):
