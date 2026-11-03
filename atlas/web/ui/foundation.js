@@ -78,6 +78,54 @@
     }
   }
 
+  async function archiveAction(action) {
+    const exportButton = byId('atlasArchiveExport');
+    const restoreButton = byId('atlasArchiveRestore');
+    const status = byId('atlasArchiveStatus');
+    if (!exportButton || !restoreButton || !status || typeof api !== 'function') return;
+    exportButton.disabled = true;
+    restoreButton.disabled = true;
+    try {
+      if (action === 'export') {
+        status.textContent = 'Arşiv hazırlanıyor…';
+        const archive = await api('/api/archive/export', {});
+        const data = new Blob([JSON.stringify(archive)], {type:'application/json'});
+        const url = URL.createObjectURL(data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'AchievementAtlas-Backup-' + new Date().toISOString().slice(0, 10) + '.json';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        status.textContent = 'Arşiv indirildi. Dosyayı özel ve güvenli bir konumda sakla.';
+      } else {
+        const file = byId('atlasArchiveFile')?.files?.[0];
+        if (!file) throw new Error('Önce bir Atlas JSON arşivi seç.');
+        if (file.size > 49_000_000) throw new Error('Arşiv dosyası 49 MB sınırını aşıyor.');
+        let documentData;
+        try { documentData = JSON.parse(await file.text()); }
+        catch (_) { throw new Error('Seçilen dosya geçerli JSON değil.'); }
+        const count = Array.isArray(documentData?.data?.library?.achievements) ?
+          documentData.data.library.achievements.length : '?';
+        if (!confirm('Bu işlem mevcut yerel kütüphaneyi ' + count +
+          ' başarım kaydıyla değiştirecek. Önceki durum recovery klasöründe saklanacak. Devam?')) return;
+        status.textContent = 'Bütünlük ve oyun kimlikleri doğrulanıyor…';
+        const result = await api('/api/archive/restore', {archive:documentData});
+        await reload();
+        navigate('home');
+        status.textContent = result.message;
+        if (typeof toast === 'function') toast(result.message);
+      }
+    } catch (error) {
+      status.textContent = error.message || 'Arşiv işlemi başarısız.';
+      if (typeof toast === 'function') toast(status.textContent, true);
+    } finally {
+      exportButton.disabled = false;
+      restoreButton.disabled = false;
+    }
+  }
+
   function init() {
     if (typeof render === 'function') {
       const original = render;
@@ -107,6 +155,11 @@
       };
     }
     document.body.addEventListener('click', event => {
+      const archiveButton = event.target.closest('#atlasArchiveExport, #atlasArchiveRestore');
+      if (archiveButton) {
+        archiveAction(archiveButton.id === 'atlasArchiveExport' ? 'export' : 'restore');
+        return;
+      }
       const button = event.target.closest('[data-atlas-onboard]');
       if (!button) return;
       const kind = button.dataset.atlasOnboard;
