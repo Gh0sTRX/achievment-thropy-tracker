@@ -25,6 +25,8 @@ def self_test(report=None):
         tiny=io.BytesIO();Image.new('RGB',(16,16),(12,30,50)).save(tiny,format='PNG')
         assert artwork.store_bytes(root,'hero','selftest',tiny.getvalue())['width']==16
         assert len(artwork.sources()['providers'])==11
+        from atlas.provenance import verifier
+        verifier()
         app = LocalApp(root)
         thread = threading.Thread(target=app.serve_forever, daemon=True)
         thread.start()
@@ -52,8 +54,22 @@ def cli():
     parser.add_argument('--self-test', action='store_true')
     parser.add_argument('--report')
     parser.add_argument('--desktop-test', action='store_true')
+    parser.add_argument('--verify-dev-update', action='store_true')
+    parser.add_argument('--manifest')
+    parser.add_argument('--bundle')
+    parser.add_argument('--installer')
+    parser.add_argument('--verification-report')
     args = parser.parse_args()
-    if args.self_test:
+    if args.verify_dev_update:
+        from atlas import updater,provenance
+        try:
+            manifest=updater.validate_development_manifest(json.loads(Path(args.manifest).read_text(encoding='utf-8')))
+            result=provenance.verify_bundle(Path(args.bundle),manifest,Path(args.installer))
+            Path(args.verification_report).write_text(json.dumps(result),encoding='utf-8')
+        except Exception:
+            if args.verification_report:Path(args.verification_report).write_text(json.dumps({'verified':False}),encoding='utf-8')
+            raise SystemExit(2)
+    elif args.self_test:
         self_test(args.report)
     else:
         from atlas.server import main

@@ -3,11 +3,19 @@ $ErrorActionPreference='Stop'
 $plan=Get-Content -LiteralPath $PlanPath -Raw | ConvertFrom-Json
 function Verify-Installer {
     if ((Get-FileHash -LiteralPath $plan.installer -Algorithm SHA256).Hash.ToLower() -ne $plan.sha256) { throw 'Installer hash changed' }
-    $signature=Get-AuthenticodeSignature -LiteralPath $plan.installer
-    if ($signature.Status -ne 'Valid' -or !$signature.SignerCertificate) { throw 'Invalid installer signature' }
-    $sha=[Security.Cryptography.SHA256]::Create()
-    $digest=([BitConverter]::ToString($sha.ComputeHash($signature.SignerCertificate.RawData))).Replace('-','').ToLower()
-    if ($digest -ne $plan.signer_sha256) { throw 'Publisher changed' }
+    if ($plan.mode -eq 'development') {
+        $verifyArgs=@('--verify-dev-update','--manifest',('"'+$plan.manifest+'"'),'--bundle',('"'+$plan.bundle+'"'),'--installer',('"'+$plan.installer+'"'),'--verification-report',('"'+$plan.verify_report+'"'))
+        $verification=Start-Process -FilePath $plan.exe -ArgumentList $verifyArgs -Wait -PassThru
+        if ($verification.ExitCode -ne 0 -or !(Test-Path -LiteralPath $plan.verify_report)) { throw 'GitHub build provenance verification failed' }
+        $result=Get-Content -LiteralPath $plan.verify_report -Raw | ConvertFrom-Json
+        if (!$result.verified -or $result.sha256 -ne $plan.sha256) { throw 'Development artifact identity mismatch' }
+    } else {
+        $signature=Get-AuthenticodeSignature -LiteralPath $plan.installer
+        if ($signature.Status -ne 'Valid' -or !$signature.SignerCertificate) { throw 'Invalid installer signature' }
+        $sha=[Security.Cryptography.SHA256]::Create()
+        $digest=([BitConverter]::ToString($sha.ComputeHash($signature.SignerCertificate.RawData))).Replace('-','').ToLower()
+        if ($digest -ne $plan.signer_sha256) { throw 'Publisher changed' }
+    }
 }
 try {
     if (!(Test-Path (Join-Path $plan.install_dir 'unins000.exe'))) { throw 'Installed application not found' }

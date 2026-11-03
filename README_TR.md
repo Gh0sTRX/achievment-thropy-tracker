@@ -1,4 +1,4 @@
-# Achievement Atlas 0.11 — Türkçe Kurulum
+# Achievement Atlas 0.12 — Türkçe Kurulum
 
 Windows 10/11 64 bit için hazır **Setup.exe** ve **Portable.zip** paketleri hazırlanır.
 Hazır paketlerde Python kurman gerekmez. Arayüz Microsoft Edge WebView2 ile kendi masaüstü penceresinde açılır. Setup masaüstü/Başlat menüsü kısayolu ve
@@ -48,8 +48,9 @@ değildir; PC sağlayıcısı planlanıyor olarak gösterilir.
 
 ## Uygulama içi güncelleme
 
-Güncellemeler ekranı GitHub Releases kararlı yayınlarını kontrol eder. Windows
-Setup sürümü, aynı güvenilir yayıncının imzasını ve SHA256 doğrulamasını geçen
-yeni sürümü uygulama içinden kurup yeniden başlatabilir. İlk imzalı sürümün
-elle kurulması gerekir. İmzasız geliştirme çıktıları otomatik kurulmaz.
-Ayrıntılar: [Güncelleme kanalı](docs/UPDATES_TR.md).
+0.12'den itibaren geliştirme kanalı etkindir. Windows sertifikası yerine GitHub
+OIDC/Sigstore derleme kökeni kanıtı ve SHA256 doğrulanır. Yalnız belirlenmiş
+depo/workflow/dallar kabul edilir. İlk 0.12 kurulumu bir kez yapılmalıdır;
+sonraki güncellemeler uygulamadaki Güncellemeler ekranından yapılabilir.
+Bu, ilk indirmedeki Chrome/SmartScreen uyarısını kaldırmaz ve OS korumalarını
+atlatmaz. Ayrıntılar: [Güncelleme kanalı](docs/UPDATES_TR.md).

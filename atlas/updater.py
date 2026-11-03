@@ -13,10 +13,11 @@ import time
 import urllib.error
 from urllib.parse import urlsplit
 from urllib.request import Request, HTTPRedirectHandler, build_opener
-from . import __version__
+from . import __version__, provenance
 
 REPOSITORY='Gh0sTRX/achievment-thropy-tracker'
 LATEST=f'https://api.github.com/repos/{REPOSITORY}/releases/latest'
+DEVELOPMENT=f'https://api.github.com/repos/{REPOSITORY}/releases/tags/development'
 MAX_INSTALLER=300_000_000
 HOSTS={'api.github.com','github.com','release-assets.githubusercontent.com','objects.githubusercontent.com'}
 
@@ -85,6 +86,35 @@ def validate_manifest(raw, release):
     return {**raw,'sha256':raw['sha256'].lower(),'signer_sha256':raw['signer_sha256'].lower()}
 
 
+def validate_development_manifest(raw):
+    if raw.get('schema')!=2 or raw.get('channel')!='development' or raw.get('auth')!='github-attestation' or raw.get('repository')!=REPOSITORY:
+        raise ValueError('Geliştirme kanalı manifesti geçersiz.')
+    number=version(raw.get('version',''))
+    label='.'.join(map(str,number))
+    if raw['version']!=label or raw.get('installer')!=f'AchievementAtlas-{label}-Windows-x64-Setup.exe':
+        raise ValueError('Geliştirme sürümü/dosya adı eşleşmedi.')
+    if type(raw.get('run_id')) is not int or not 0<raw['run_id']<2**63:raise ValueError('Derleme kimliği geçersiz.')
+    if not re.fullmatch('[a-f0-9]{40}',str(raw.get('source_commit',''))):raise ValueError('Kaynak commit geçersiz.')
+    if type(raw.get('size')) is not int or not 0<raw['size']<=MAX_INSTALLER:raise ValueError('Kurulum boyutu geçersiz.')
+    if not re.fullmatch('[a-f0-9]{64}',str(raw.get('sha256',''))):raise ValueError('Dosya özeti geçersiz.')
+    return dict(raw)
+
+
+def development_info(raw,manifest,current=__version__,current_run=0):
+    manifest=validate_development_manifest(manifest)
+    if raw.get('tag_name')!='development' or raw.get('draft') or raw.get('prerelease') is not True:
+        raise ValueError('Yetkili geliştirme yayını bulunamadı.')
+    base=f'https://github.com/{REPOSITORY}/releases/download/development/'
+    assets={a.get('name'):a for a in raw.get('assets',[]) if isinstance(a,dict)}
+    for name in (manifest['installer'],'development-manifest.json','update-bundle.json'):
+        if name not in assets or assets[name].get('browser_download_url')!=base+name:raise ValueError('Geliştirme yayınının doğrulama dosyaları eksik.')
+    if version(manifest['version'])<version(current) or (version(manifest['version'])==version(current) and manifest['run_id']<=current_run):return None
+    return {'version':manifest['version'],'tag':'development','name':manifest['installer'],
+            'url':base+manifest['installer'],'proof_url':base+'update-bundle.json',
+            'notes':str(raw.get('body',''))[:6000],
+            'release_url':f'https://github.com/{REPOSITORY}/releases/tag/development'}
+
+
 def verify_signature(path):
     if sys.platform!='win32':raise ValueError('Otomatik kurulum yalnız Windows kurulum sürümünde desteklenir.')
     # A fixed script reads an argument via environment. Paths are never interpolated into code.
@@ -114,9 +144,12 @@ def stream_installer(url,path,manifest,progress=lambda *a:None):
 
 
 class Updater:
-    def __init__(self,root):
+    def __init__(self,root,channel="development"):
+        if channel not in ('development','stable'):raise ValueError('Güncelleme kanalı geçersiz.')
+        self.channel=channel;self.current_run=provenance.build_info()['run_id']
+        self.proof_path=None
         self.root=Path(root);self.guard=threading.Lock();self.lock=threading.RLock()
-        self.state={'state':'idle','current':__version__,'message':'GitHub güncellemeleri henüz kontrol edilmedi.'}
+        self.state={'state':'idle','channel':channel,'current':__version__,'current_run':self.current_run,'message':'GitHub güncellemeleri henüz kontrol edilmedi.'}
         self.release=None;self.manifest=None;self.ready_path=None;self.exit_requested=threading.Event()
 
     def snapshot(self):
@@ -127,17 +160,23 @@ class Updater:
 
     def check(self):
         if not self.guard.acquire(blocking=False):raise ValueError('Güncelleme işlemi zaten çalışıyor.')
-        self.set(state='checking',message='GitHub üzerindeki kararlı yayın kontrol ediliyor.')
+        self.set(state='checking',message='GitHub geliştirme yayını kontrol ediliyor.' if self.channel=='development' else 'GitHub kararlı yayını kontrol ediliyor.')
         def worker():
             try:
-                release=release_info(read_json(LATEST))
+                if self.channel=='development':
+                    raw=read_json(DEVELOPMENT)
+                    manifest_url=f'https://github.com/{REPOSITORY}/releases/download/development/development-manifest.json'
+                    manifest=validate_development_manifest(read_json(manifest_url))
+                    release=development_info(raw,manifest,current_run=self.current_run)
+                else:
+                    release=release_info(read_json(LATEST))
+                    manifest=validate_manifest(read_json(release['manifest_url']),release) if release else None
                 if not release:
                     self.release=None;self.set(state='current',message='Kurulu sürüm güncel.');return
-                manifest=validate_manifest(read_json(release['manifest_url']),release)
                 self.release=release;self.manifest=manifest
-                self.set(state='available',latest=release['version'],notes=release['notes'],release_url=release['release_url'],message='Yeni sürüm hazır. İndirildikten sonra yayıncı imzası doğrulanacak.')
+                self.set(state='available',latest=release['version']+' • '+str(manifest.get('run_id','kararlı')),notes=release['notes'],release_url=release['release_url'],message='Yeni geliştirme sürümü hazır. GitHub derleme imzası doğrulanarak indirilecek.' if self.channel=='development' else 'Yeni sürüm hazır. Yayıncı imzası doğrulanacak.')
             except urllib.error.HTTPError as exc:
-                self.set(state='no_release' if exc.code==404 else 'error',message='Henüz güncelleme kanalı için yayınlanmış kararlı sürüm yok.' if exc.code==404 else 'GitHub güncelleme servisine erişilemedi. Mevcut sürüm kullanılabilir.')
+                self.set(state='no_release' if exc.code==404 else 'error',message='Henüz bu kanalda yayınlanmış sürüm yok.' if exc.code==404 else 'GitHub güncelleme servisine erişilemedi. Mevcut sürüm kullanılabilir.')
             except Exception as exc:
                 self.set(state='error',message=str(exc) if type(exc) is ValueError else 'Güncelleme kontrolü tamamlanamadı. Mevcut sürüm kullanılabilir.')
             finally:self.guard.release()
@@ -162,14 +201,24 @@ class Updater:
             path=None
             try:
                 self.supported_install()
-                anchor=verify_signature(sys.executable)
-                if anchor!=manifest['signer_sha256']:raise ValueError('Yeni sürüm farklı yayıncıya ait. Otomatik kurulum engellendi.')
+                anchor=None
+                if self.channel=='stable':
+                    anchor=verify_signature(sys.executable)
+                    if anchor!=manifest['signer_sha256']:raise ValueError('Yeni sürüm farklı yayıncıya ait. Otomatik kurulum engellendi.')
                 import tempfile
                 directory=Path(tempfile.mkdtemp(prefix='release-',dir=self.update_dir()))
                 path=directory/release['name']
                 if shutil.disk_usage(directory).free<manifest['size']*4:raise ValueError('Güncelleme için yeterli boş alan yok.')
+                if self.channel=='development':
+                    proof=directory/'update-bundle.json'
+                    proof.write_text(json.dumps(read_json(release['proof_url'])),encoding='utf-8')
+                    provenance.verify_bundle(proof,manifest)
+                    (directory/'development-manifest.json').write_text(json.dumps(manifest),encoding='utf-8')
                 stream_installer(release['url'],path,manifest,lambda done,total:self.set(downloaded=done,total=total))
-                if verify_signature(path)!=anchor:raise ValueError('İndirilen kurulumun yayıncı imzası eşleşmedi.')
+                if self.channel=='development':
+                    provenance.verify_bundle(proof,manifest,path)
+                    self.proof_path=proof
+                elif verify_signature(path)!=anchor:raise ValueError('İndirilen kurulumun yayıncı imzası eşleşmedi.')
                 self.ready_path=path
                 self.set(state='ready',message='Güncelleme doğrulandı. Yeniden başlat düğmesiyle kurulabilir.')
             except Exception as exc:
@@ -192,13 +241,18 @@ class Updater:
             with path.open('rb') as source:digest=hashlib.file_digest(source,'sha256').hexdigest()
             if path.stat().st_size!=self.manifest['size'] or digest!=self.manifest['sha256']:
                 raise ValueError('Hazırlanan kurulum dosyası değişmiş. Yeniden indir.')
-            if verify_signature(sys.executable)!=self.manifest['signer_sha256'] or verify_signature(path)!=self.manifest['signer_sha256']:
+            if self.channel=='development':
+                if not self.proof_path:raise ValueError('Köken kanıtı eksik.')
+                provenance.verify_bundle(self.proof_path,self.manifest,path)
+            elif verify_signature(sys.executable)!=self.manifest['signer_sha256'] or verify_signature(path)!=self.manifest['signer_sha256']:
                 raise ValueError('Yayıncı imzası değişti; kurulum engellendi.')
             helper=Path(__file__).resolve().parent.parent/'scripts'/'apply_update.ps1'
             copied=path.parent/'apply-update.ps1';shutil.copyfile(helper,copied)
             plan={'parent_pid':os.getpid(),'installer':str(path),'install_dir':str(directory),
                   'exe':str(Path(sys.executable).resolve()),'sha256':self.manifest['sha256'],
-                  'signer_sha256':self.manifest['signer_sha256'],'version':self.release['version'],
+                  'signer_sha256':self.manifest.get('signer_sha256'),'version':self.release['version'],
+                  'mode':self.channel,'manifest':str(path.parent/'development-manifest.json'),
+                  'bundle':str(self.proof_path) if self.proof_path else '', 'verify_report':str(path.parent/'verify-result.json'),
                   'backup':str(path.parent/'previous-version'),'log':str(path.parent/'update.log'),
                   'ready':str(path.parent/'helper-ready')}
             plan_path=path.parent/'plan.json';plan_path.write_text(json.dumps(plan),encoding='utf-8')

@@ -37,3 +37,8 @@ Derleme ortamında Windows Defender çalıştırılabiliyorsa kurulum dosyası a
 taranır. Sonuç `defender-report.json` içine yazılır. Tarayıcı kullanılamıyorsa
 bu durum temiz sonuç gibi gösterilmez. Bu yerel tarama Google Safe Browsing
 veya SmartScreen itibar kontrolünün yerine geçmez.
+
+0.12 geliştirme güncelleme kanalı Windows Authenticode yerine doğrulanmış
+GitHub OIDC/Sigstore köken kanıtı kullanabilir. Bu, ilk indirilen dosyanın
+Windows yayıncı itibarı değildir; Chrome/SmartScreen uyarısını kaldırdığı
+iddia edilmez. Ayrıntı: UPDATES_TR.md.

@@ -1,4 +1,4 @@
-ACHIEVEMENT ATLAS 0.11.0 — WINDOWS KURULUMU
+ACHIEVEMENT ATLAS 0.12.0 — WINDOWS KURULUMU
 
 Hazır Setup.exe paketi Windows 10/11 64 bit içindir. Python veya yönetici
 izni gerekmez. Kurulum dosyasını aç, adımları tamamla, masaüstündeki
@@ -102,3 +102,11 @@ gelistirme paketleri otomatik kurulmaz. Ilk imzali surum elle kurulmalidir.
 Bu ozellik Chrome/SmartScreen korumasini atlatmaz. Kod imzalama erisimi henuz
 kurulmadiysa ve imzali GitHub Release yoksa otomatik kurulum etkin olmaz.
 Kaynak ve tasinabilir surumler bu otomatik Setup akisina dahil degildir.
+
+0.12 ETKIN GELISTIRME KANALI
+Bu surum bir kez kurulduktan sonra Guncellemeler ekranindan yeni gelistirme
+surumlerini tarayici acmadan indirebilir, dogrulayabilir ve kurabilirsin.
+Gelistirme kanalinda Windows sertifikasi yerine GitHub'in kriptografik derleme
+kokeni kaniti ve SHA256 dogrulanir. Baska depo/dal/workflow kabul edilmez.
+Bu, ilk indirmedeki Chrome/SmartScreen uyarisini kaldirmaz ve Defender/Windows
+korumalarini atlatmaz. Kayitlar ve onceki uygulama dosyalari korunur.

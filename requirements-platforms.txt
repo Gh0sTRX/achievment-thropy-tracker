@@ -2,3 +2,5 @@
 -r requirements-psn.txt
 pywebview>=6,<7; sys_platform == 'win32'
 Pillow>=11,<13
+
+-r requirements-updates.txt

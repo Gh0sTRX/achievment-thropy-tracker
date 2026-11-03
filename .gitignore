@@ -20,3 +20,5 @@ profiles/
 settings.json
 frozen-test-report.json
 installed-test-report.json
+
+spec/build-info.json

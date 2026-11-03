@@ -1,49 +1,49 @@
-# GitHub güncelleme kanalı
+# 0.12 — etkin geliştirme güncelleme kanalı
 
-Uygulama açılışında GitHub Releases `/releases/latest` kararlı yayını kontrol
-edilir. Güncellemeler ekranından kontrol elle tekrarlanabilir. Kullanıcı yeni
-sürümü indirir; doğrulamadan sonra **Kur ve yeniden başlat** düğmesini kullanır.
-Actions çıktıları geçicidir ve bu kanal için kullanılmaz. Kararlı vX.Y.Z yayını,
-uyumlu Setup.exe ve update-manifest.json sağlamalıdır. Taslak/prerelease ve eski
-veya aynı sürümler kurulmaz.
+Varsayılan kanal `development` GitHub prerelease yayınıdır. Windows kod imzalama
+sertifikası olmadan uygulama içinden güncelleme yapılabilir. Kurulum SHA256 ile
+kontrol edilir; ardından gerçek GitHub OIDC/Sigstore derleme imzası, şeffaflık
+kaydı ve SLSA köken kanıtı doğrulanır. İmza kontrolü kaldırılmamıştır.
 
-Manifest repo/sürüm/dosya adı/boyut/SHA256/yayıncı sertifika özetini içerir.
-İndirme yalnız sabit GitHub deposundan HTTPS ile yapılır; yönlendirme alanları
-GitHub varlık sunucularıyla sınırlandırılır. Dosya akış halinde indirilir;
-boyut ve hash tutmazsa silinir. Manifestteki `signed=true` tek başına güven
-sağlamaz: mevcut uygulama ve indirilen kurulum Windows Authenticode ile
-`Valid` olmalı ve aynı sertifika SHA256 değerini taşımalıdır.
+Güven kökü Sigstore 4.5.1'in paketlediği üretim kökünden alınmış ve SHA256 ile
+uygulamaya sabitlenmiştir. Doğrulama bu kökü doğrudan okur; kullanıcı cache'inden
+veya güncelleme sunucusunun verdiği yeni kökten güven devralmaz. Yalnız:
+- Gh0sTRX/achievment-thropy-tracker (repo/owner sayısal kimlikleri de kontrol edilir),
+- .github/workflows/windows-package.yml,
+- main veya codex/public-profile-trophies dalı,
+- push olayı ve GitHub-hosted runner,
+- doğru dosya adı, SHA256, kaynak commit ve workflow run kimliği
+kabul edilir. Pull request, fork, farklı repo/dal/workflow ve bozuk kanıt reddedilir.
 
-Sertifika yenileme/yayıncı değişimi için otomatik güven verilmez; ilk yeni
-imzalı sürümün elle doğrulanarak kurulması gerekir. Bu sürümün ilk kez kurulması
-önceki uygulamaya güncelleyici eklemek için de gereklidir. İmzasız 0.x
-geliştirme paketleri kendi kendilerini güvenilir yayıncıya dönüştüremez.
-Mevcut sertifika erişimi olmadığından imzalı kanal şu an devreye alınmış değildir.
-Bu özellik Chrome/SmartScreen korumasını aşmanın bir yolu değildir.
+Workflow, Windows testleri başarılı olduktan sonra resmi actions/attest ile
+kurulum dosyasının köken kanıtını üretir. Linux yayın işi kanıtı aynı Python
+doğrulayıcıyla gerçekten doğrulamadan geliştirme kanalına yükleme yapmaz.
+Özel güncelleme anahtarı veya GitHub kişisel token'ı uygulamaya gömülmez.
 
-## Kurulum davranışı
+## Kullanım
 
-Yalnız Windows Setup ile kurulmuş frozen sürüm desteklenir. Kaynak kod ve
-portable sürümde kontrol yapılabilir; otomatik kurulum yapılmaz. Devam eden
-profil, rehber, medya veya oturum işlemi varsa güncelleme bekletilir. Kütüphane
-ve ayarlar diske kaydedilir, doğrulanmış yardımcı başlatılır, pencere kapatılır.
-Yardımcı eski işlemin çıkmasını bekler; zorla sonlandırmaz. Kurulumdan önce
-hash/imza yeniden kontrol edilir. Windows tek-örnek kilidi ve Inno AppMutex kontrolü başka açık uygulama örneği
-varken dosyaların değiştirilmesini önler. Mevcut uygulama dosyaları yedeklenir; kurulum
-hatasında önceki dosyalar geri kopyalanıp eski uygulama yeniden açılır. Yerel
-kütüphane kurulum klasörü dışında tutulur ve korunur. Günlük/yedekler uygulamanın
-veri klasöründeki updates altında kalır. Windows betik politikası yardımcıyı
-engellerse politika değiştirilmez ve uygulama kapanmadan işlem iptal edilir.
+Bu özelliği içeren 0.12 sürümü bir kez kurulmalıdır. Eski 0.11 güncelleyicisi
+Windows sertifikası istediğinden yeni kanalı kendiliğinden açamaz. Sonrasında
+Güncellemeler → Güncellemeyi indir → Kur ve yeniden başlat kullanılır. Uygulama
+açılışta kanalı kontrol eder. Aynı sürüm numarasındaki daha yeni GitHub build'leri
+run kimliğiyle ayırt edilir; daha eski sürüm/build uygulanmaz.
 
-## Yayınlama
+Yalnız Windows Setup kurulumu desteklenir; kaynak ve portable sürümler elle
+kurulur. Profil/rehber/medya işlemi bitmeden uygulama kapatılmaz. Dosya ve köken
+kanıtı indirmeden önce/sonra, kurulum öncesinde ve yardımcı süreçte tekrar
+kontrol edilir. Yardımcı mevcut uygulamanın doğrulama modunu çağırır. Veriler
+saklanır; önceki uygulama dosyaları yedeklenir ve kurulum hatasında geri kopyalanır.
+Windows uygulama kilidi, Inno AppMutex ve betik politikası korunur.
 
-Windows workflow, son imzalamadan sonra scripts/build_update_manifest.py ile
-manifest üretir. Sertifika yoksa manifest `signed=false` olur. Yalnız vX.Y.Z
-tag push'unda ve imzalı/matching manifest varsa publish işi kalıcı GitHub Release
-oluşturur. Sertifika yoksa bu yayınlama işi durur. Normal PR derlemeleri yine
-incelenebilir imzasız geliştirme artifact'ları üretir; otomatik kanala girmez.
+## Windows sertifikasından farkı
 
-Testler ağ/Windows doğrulayıcısı için sahte yanıtlarla yeni sürüm seçimi,
-bozuk manifest/hash, yanlış yayıncı, imzasız dosya ve çalışırken kurulum
-engellerini kapsar. Gerçek imzalı yükseltme ve başarısız kurulumdan geri dönüş,
-gerçek sertifika ve iki imzalı sürüm olmadan uçtan uca doğrulanmış sayılmaz.
+Bu, Windows'un güvendiği bir yayıncı sertifikası değildir; yalnızca bizim
+uygulamamızın kendi güncelleme güven modelidir. İlk dosyanın Chrome/SmartScreen
+uyarısını kaldırmaz. Defender veya Windows tespiti/politikası aşılmaz, devre dışı
+bırakılmaz; dosya karantinaya alınırsa doğrulama/kurulum başarısız olur.
+
+Gelecekteki `stable` kanal mevcut Authenticode/same-publisher doğrulamasını korur.
+Güven kökü veya yetkili workflow/dal değişikliği ayrı incelenmelidir. Ticari
+sertifika gelene kadar geliştirme sürümleri yalnız bu açıkça belirtilen kanalda
+sunulur. İmzalı köken kanıtı güvenlik açığı veya kötü amaçlı kod olmadığını tek
+başına garanti etmez; kod incelemesi ve testler ayrıca gereklidir.

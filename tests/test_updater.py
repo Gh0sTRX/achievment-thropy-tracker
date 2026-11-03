@@ -73,7 +73,7 @@ class UpdaterTests(unittest.TestCase):
     def test_available_release_and_signed_download(self):
         data=b'verified installer'
         with TemporaryDirectory() as root:
-            u=updater.Updater(root)
+            u=updater.Updater(root,channel="stable")
             with patch.object(updater,'read_json',side_effect=[release(),manifest(data)]):u.check();wait(u)
             self.assertEqual(u.snapshot()['state'],'available')
             with patch.object(u,'supported_install',return_value=Path(root)),patch.object(updater,'verify_signature',return_value='a'*64),patch.object(updater,'open_url',return_value=io.BytesIO(data)):
@@ -83,7 +83,7 @@ class UpdaterTests(unittest.TestCase):
 
     def test_different_publisher_blocks_before_download(self):
         with TemporaryDirectory() as root:
-            u=updater.Updater(root);u.release=updater.release_info(release());u.manifest=manifest()
+            u=updater.Updater(root,channel="stable");u.release=updater.release_info(release());u.manifest=manifest()
             with patch.object(u,'supported_install',return_value=Path(root)),patch.object(updater,'verify_signature',return_value='b'*64),patch.object(updater,'open_url') as network:
                 u.download();wait(u)
             self.assertEqual(u.snapshot()['state'],'blocked');network.assert_not_called()
@@ -91,14 +91,14 @@ class UpdaterTests(unittest.TestCase):
 
     def test_unsigned_current_app_cannot_bootstrap_publisher_trust(self):
         with TemporaryDirectory() as root:
-            u=updater.Updater(root);u.release=updater.release_info(release());u.manifest=manifest()
+            u=updater.Updater(root,channel="stable");u.release=updater.release_info(release());u.manifest=manifest()
             with patch.object(u,'supported_install',return_value=Path(root)),patch.object(updater,'verify_signature',side_effect=ValueError('Unsigned')),patch.object(updater,'open_url') as network:
                 u.download();wait(u)
             self.assertEqual(u.snapshot()['state'],'blocked');network.assert_not_called()
 
     def test_unsigned_manifest_never_becomes_available(self):
         with TemporaryDirectory() as root:
-            u=updater.Updater(root)
+            u=updater.Updater(root,channel="stable")
             with patch.object(updater,'read_json',side_effect=[release(),{**manifest(),'signed':False}]):u.check();wait(u)
             self.assertEqual(u.snapshot()['state'],'error')
             self.assertIsNone(u.release)
