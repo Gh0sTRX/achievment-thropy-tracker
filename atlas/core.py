@@ -11,6 +11,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
+from .dates import normalize_unlock_date
 
 MAX_CSV_BYTES = 5_000_000
 TA_ID = re.compile(r'/a(\d{2,12})/')
@@ -58,10 +59,12 @@ def parse_csv_text(data: str, earned: bool) -> list[dict]:
         except (TypeError,ValueError): gs=0
         try:ratio=float(r.get('TARatio') or 0)
         except (TypeError,ValueError):ratio=0
+        raw_date = (r.get('UnlockDate') or '').strip()[:100] if earned else ''
         parsed.append({'id':'ta:'+m.group(1),'provider_id':m.group(1),
             'game_id':game_id('xbox',game),'game_name':game,'name':name,'points':max(0,min(10000,gs)),
             'ratio':round(max(0,min(1000,ratio)),2),'dlc':(r.get('DLCName') or '').strip()[:140],
-            'source_url':url,'unlocked':earned,'unlock_time':(r.get('UnlockDate') or '') if earned else '',
+            'source_url':url,'unlocked':earned,'unlock_time':normalize_unlock_date(raw_date),
+            'unlock_time_raw':raw_date,
             'flag':str(r.get('Unachieveable') or '').strip().lower() in ('true','yes','1'),
             'description':'','icon_url':'','source':'trueachievements_csv'})
     return parsed
@@ -161,6 +164,7 @@ class Library:
                     if prior.get(key):a[key]=prior[key]
                 if prior.get('unlocked') and not a['unlocked']:
                     a['unlocked']=True;a['unlock_time']=prior.get('unlock_time','')
+                    a['unlock_time_raw']=prior.get('unlock_time_raw','')
             self.library=lib;self.save()
         return {'games':len(lib['games']),'achievements':len(lib['achievements']),
                 'earned':sum(a['unlocked'] for a in lib['achievements']),'message':'Library imported; saved achievements never revoked.'}
