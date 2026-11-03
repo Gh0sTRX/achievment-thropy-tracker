@@ -1,4 +1,5 @@
 'use strict';
+let ACTIVE_DEVICE='all';
 let ACTIVE_PLATFORM='xbox', VISUAL_SOURCES=null, PLATFORM_REPORTS={};
 const visualThemes={ember:'#e8a18b',ice:'#99cff1',forest:'#b8e5a2',dusk:'#c8b2eb',sunrise:'#f4c483'};
 function visualUrl(game,kind='hero'){
@@ -26,16 +27,19 @@ function applyAtmosphere(game){
  document.body.classList.toggle('has-atmosphere',!!hero);
  $('atmosphereCredit').textContent=hero?`${game.name} · ${(game.artwork_meta?.hero||game.artwork_meta?.banner||{}).provider==='user_file'?'Yerel görsel':(game.artwork_meta?.hero||{}).provider||'Oyun görseli'}`:'Görsel seçilmedi · Sade arka plan';
 }
-function renderPlatform(){
+function deviceList(g){if(g.devices?.length)return g.devices;const aliases={'360':'xbox360',one:'xboxone',PS3:'ps3',PS4:'ps4',PS5:'ps5',PSVITA:'psvita'};return [aliases[g.platform_edition]||'unknown']}
+function deviceLabel(g){return g.device_label||deviceList(g).map(d=>({xbox360:'Xbox 360',xboxone:'Xbox One',ps3:'PS3',ps4:'PS4',ps5:'PS5',psvita:'PS Vita',windows:'Windows / PC',ios:'iOS',android:'Android',unknown:'Cihaz belirtilmemiş'})[d]||d).join(' / ')}
+function renderDeviceOptions(){const sel=$('deviceFilter');const keys=[...new Set((DATA.library.games||[]).filter(g=>g.platform===ACTIVE_PLATFORM).flatMap(deviceList))].sort();sel.innerHTML='<option value="all">Tüm cihazlar</option>'+keys.map(d=>`<option value="${esc(d)}">${esc(deviceLabel({devices:[d]}))}</option>`).join('');sel.value=ACTIVE_DEVICE;}
+function renderPlatform(){renderDeviceOptions();
  if(PLATFORM_REPORTS[ACTIVE_PLATFORM]){RECS=PLATFORM_REPORTS[ACTIVE_PLATFORM].recommendations||[];INSIGHTS=PLATFORM_REPORTS[ACTIVE_PLATFORM].insights||{}}
  document.querySelectorAll('.platform-tabs [data-platform]').forEach(b=>{b.classList.toggle('active',b.dataset.platform===ACTIVE_PLATFORM);b.setAttribute('aria-pressed',String(b.dataset.platform===ACTIVE_PLATFORM))});
  const g=gameById(selectedGame)||games().find(g=>visualUrl(g,'hero'))||games()[0];
  applyAtmosphere(g);
- $('platformNote').textContent=ACTIVE_PLATFORM==='pc'?'PC sağlayıcısı planlanıyor. Bağlantı veya başarım verisi varmış gibi gösterilmez.':`${ACTIVE_PLATFORM==='xbox'?'Xbox':'PlayStation'} kütüphanesi · İstatistikler yalnız bu platforma ait`;
+ $('platformNote').textContent=ACTIVE_PLATFORM==='pc'?'Steam sağlayıcısı planlanıyor. Xbox ağına bağlı Windows ve mobil oyunları Xbox sekmesinde cihaz etiketiyle görünür.':`${ACTIVE_PLATFORM==='xbox'?'Xbox':'PlayStation'} kütüphanesi · İstatistikler yalnız bu platforma ait`;
  $('scoreLabel').textContent=ACTIVE_PLATFORM==='psn'?'KAZANILAN KUPALAR':ACTIVE_PLATFORM==='pc'?'STEAM BAŞARIMLARI':'GAMERSCORE';
 }
 function switchPlatform(platform){
- ACTIVE_PLATFORM=platform;selectedGame=null;achPage=0;
+ ACTIVE_PLATFORM=platform;ACTIVE_DEVICE='all';selectedGame=null;achPage=0;
  $('gameDetail').classList.add('hidden');$('achGame').value='all';$('achSearch').value='';$('gameSearch').value='';
  $('publicPlatform').value=platform==='psn'?'psn':'xbox';
  render();
@@ -66,6 +70,7 @@ function renderVisuals(){
  loadVisualSources();
 }
 function initVisuals(){
+ $('deviceFilter').onchange=()=>{ACTIVE_DEVICE=$('deviceFilter').value;selectedGame=null;achPage=0;render()};
  document.body.classList.toggle('low-memory',Number(navigator.deviceMemory||8)<=4);
  document.querySelectorAll('.platform-tabs [data-platform]').forEach(b=>b.onclick=()=>switchPlatform(b.dataset.platform));
  $('artGame').addEventListener('change',()=>{$('artConfirm').checked=false;$('artChoices').innerHTML='';renderVisuals()});

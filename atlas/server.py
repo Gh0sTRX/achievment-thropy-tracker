@@ -18,7 +18,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit
 from .core import Library,normalize
 from . import recommendations,artwork
-from . import xbox, public_profiles, guides, settings
+from . import xbox, public_profiles, guides, settings, media_sync
 
 BASE=Path(__file__).resolve().parent
 
@@ -31,6 +31,7 @@ class Controller:
         self.public_guard=threading.Lock()
         self.guide_guard=threading.Lock()
         self.guide_stop=threading.Event()
+        self.media_guard=threading.Lock()
 
     def status(self):
         payload=self.store.payload();library=payload['library'];pins=payload['state']['pins']
@@ -89,7 +90,8 @@ class Controller:
                 report = self.store.apply_public_profile(snapshot)
                 with self.store.lock:
                     self.store.status['public_job']['message'] = f"{snapshot['username']}: {report['games']} oyun, {report['achievements']} kupa kaydedildi."
-                if guides.configured() and settings.get('ATLAS_AUTO_GUIDES') == '1':
+                self.download_media()
+                if guides.configured():
                     try:self.generate_guides({'platform': platform})
                     except ValueError as exc:self.store.status['public_job']['message'] += ' '+str(exc)
             except Exception as exc:
@@ -101,6 +103,19 @@ class Controller:
                 self.public_guard.release()
         threading.Thread(target=worker, daemon=True).start()
         return {'message': 'Herkese açık profil eşitlemesi başladı.'}
+
+    def download_media(self):
+        if not self.media_guard.acquire(blocking=False):return {'message':'Görsel indirmesi zaten çalışıyor.'}
+        self.store.status['media_job']={'running':True,'done':0,'total':0,'message':'Kapak, logo ve ikonlar kontrol ediliyor.'}
+        def progress(done,total,name):self.store.status['media_job'].update(done=done,total=total,message=name)
+        def worker():
+            try:
+                report=media_sync.download(self.store,progress)
+                self.store.status['media_job'].update(report=report,message=f"{report['downloaded']} görsel kaydedildi; {len(report['missing'])} görsel kaynakta bulunamadı. {'; '.join(report['errors'])}")
+            except Exception as exc:self.store.status['media_job']['message']='Görsel indirmesi: '+type(exc).__name__
+            finally:self.store.status['media_job']['running']=False;self.media_guard.release()
+        threading.Thread(target=worker,daemon=True).start()
+        return {'message':'Mevcut oyunların resmi kapak/logo ve başarım ikonları indiriliyor.'}
 
     def stop_guides(self):
         self.guide_stop.set()
@@ -124,13 +139,18 @@ class Controller:
                     if self.guide_stop.is_set():
                         self.store.status['guide_job']['error'] = 'Araştırma durduruldu; tamamlanan rehberler korundu.'
                         break
-                    guide = guides.create(a)
-                    with self.store.lock:
-                        current = next((x for x in self.store.library['achievements'] if x['id'] == a['id']), None)
-                        if current and guides.fingerprint(current) == guides.fingerprint(a):
-                            current['guide'] = guide
-                            self.store.save()
-                        self.store.status['guide_job']['done'] = i+1
+                    try:
+                        guide = guides.create(a)
+                        with self.store.lock:
+                            current = next((x for x in self.store.library['achievements'] if x['id'] == a['id']), None)
+                            if current and guides.fingerprint(current) == guides.fingerprint(a):
+                                current['guide'] = guide
+                                self.store.save()
+                    except Exception as exc:
+                        job=self.store.status['guide_job']
+                        job.setdefault('failures',[]).append({'id':a['id'],'reason':str(exc)[:180] if type(exc) is ValueError else type(exc).__name__})
+                        if type(exc) is not ValueError or 'servisine erişilemedi' in str(exc):raise
+                    finally:self.store.status['guide_job']['done'] = i+1
             except Exception as exc:
                 self.store.status['guide_job']['error'] = (str(exc) if type(exc) is ValueError else type(exc).__name__)[:250]
             finally:
@@ -456,6 +476,7 @@ class Handler(BaseHTTPRequestHandler):
                '/api/art/upload':self.server.controller.upload_art,
                '/api/art/reset':self.server.controller.reset_art,
                '/api/art/theme':self.server.controller.theme_art,
+               '/api/media/download':lambda d:self.server.controller.download_media(),
                '/api/xbox/login':lambda d:self.server.controller.xbox_login(),
                '/api/xbox/reconnect':lambda d:self.server.controller.xbox_reconnect(),
                '/api/xbox/discover':lambda d:self.server.controller.sync_linked_profile(),

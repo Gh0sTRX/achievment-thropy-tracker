@@ -6,7 +6,7 @@ import asyncio
 from . import settings
 import re
 from datetime import datetime, timezone
-from . import xbox, artwork
+from . import xbox, artwork, editions
 from .core import game_id
 
 
@@ -36,6 +36,8 @@ def achievement(g, remote):
     rid = str(remote['id'])
     return {'id': f"{g['platform']}:{g['title_id']}:{rid}", 'provider_id': rid,
             'game_id': g['id'], 'game_name': g['name'], 'platform': g['platform'],
+            'devices':g.get('devices',[]), 'device_label':g.get('device_label','Cihaz belirtilmemiş'),
+            'platform_edition':g.get('platform_edition','unknown'), 'title_id':g['title_id'],
             'name': remote['name'], 'points': remote.get('gamerscore', 0),
             'ratio': 0, 'dlc': remote.get('group', ''), 'source_url': '',
             'unlocked': bool(remote['unlocked']), 'unlock_time': remote.get('timeUnlocked', ''),
@@ -92,36 +94,60 @@ async def _xbox(username, progress):
         except Exception:
             # Optional cover metadata must not replace or fabricate progression.
             pass
-        games = []; items = []; seen = set(); warnings = []; failed = []
-        total = len({str(t.get('titleId')) for t, _ in histories})
-        for title, version in histories:
-            tid = str(title.get('titleId', ''))
-            if not tid.isdigit() or tid in seen:
-                continue
-            seen.add(tid)
-            g = game('xbox', tid, str(title.get('name') or tid), '360' if version == '1' else 'one', metadata.get(tid, {}).get('cover_url', ''))
-            endpoint = 'titleachievements' if version == '1' else 'achievements'
-            try:
-                records = await _pages(client, f'{base}/users/xuid({xuid})/{endpoint}',
-                                       {'x-xbl-contract-version': version}, 'achievements', {'titleId': tid})
-                normalized = xbox.normalize_achievements({'achievements': records}, version == '1')
-                missing = sum(not a['id'].strip() for a in normalized)
-                if len(normalized) != len(records) or missing:
-                    raise ValueError(f'{missing or len(records)-len(normalized)} kaydın gerçek kimliği okunamadı')
-                if len({a['id'] for a in normalized}) != len(normalized):
-                    raise ValueError('Aynı kimlikle birden fazla başarım bildirildi')
-                if not records:
-                    raise ValueError('Başarım listesi boş döndü')
-                games.append(g); items.extend(achievement(g, a) for a in normalized)
-            except Exception as exc:
-                code = getattr(getattr(exc, 'response', None), 'status_code', None)
-                if code in (401,403,429):raise
-                reason = str(exc) if type(exc) is ValueError else type(exc).__name__
-                warnings.append({'title_id':tid, 'game':g['name'], 'reason':reason[:180]})
-                failed.append(tid)
-            finally:
-                progress(len(seen), total, g['name'])
-        return {'id': xuid, 'username': profile['gamertag'], 'warnings': warnings, 'failed_title_ids':failed}, games, items
+        games=[];items=[];warnings=[];failed=[];groups={}
+        for title,version in histories:
+            tid=str(title.get('titleId',''))
+            if tid.isdigit():groups.setdefault(tid,[]).append((title,version))
+        for index,(tid,variants) in enumerate(groups.items()):
+            meta=metadata.get(tid,{})
+            known=editions.xbox_devices(variants[0][0],meta,variants[0][1])
+            if known and 'xbox360' not in known:
+                variants.sort(key=lambda pair:pair[1]!='2')
+            errors=[];loaded=False
+            for title,version in variants:
+                devices=editions.xbox_devices(title,meta,version)
+                g=editions.apply(game('xbox',tid,str(title.get('name') or tid),'360' if version=='1' else 'one',meta.get('cover_url','')),devices)
+                g['api_generation']=version
+                if devices and devices!=['xbox360']:g['platform_edition']='-'.join(devices)
+                g['art_candidates']=[]
+                for image in meta.get('images',[]):
+                    if not isinstance(image,dict):continue
+                    typ=str(image.get('imageType') or image.get('imagePurpose') or image.get('type') or '').lower()
+                    kind='logo' if 'logo' in typ else 'cover' if any(w in typ for w in ('box','poster','cover')) else ''
+                    url=str(image.get('uri') or image.get('url') or '')
+                    if kind and artwork.safe_url(url):g['art_candidates'].append({'kind':kind,'url':url,'provider':'Xbox TitleHub'})
+                try:
+                    endpoint='titleachievements' if version=='1' else 'achievements'
+                    records=await _pages(client,f'{base}/users/xuid({xuid})/{endpoint}',{'x-xbl-contract-version':version},'achievements',{'titleId':tid})
+                    if version=='1':
+                        # The legacy title catalogue does not contain the target player's unlocks.
+                        earned=await _pages(client,f'{base}/users/xuid({xuid})/achievements',{'x-xbl-contract-version':'1'},'achievements',{'titleId':tid})
+                        earned_by_id={str(a.get('id',a.get('achievementId',''))):a for a in earned}
+                        merged=[]
+                        for record in records:
+                            rid=str(record.get('id',record.get('achievementId','')))
+                            user_record=earned_by_id.get(rid)
+                            merged.append({**record,'unlocked':user_record.get('unlocked',True) if user_record else False,
+                                'timeUnlocked':user_record.get('timeUnlocked','') if user_record else ''})
+                        records=merged
+                    normalized=xbox.normalize_achievements({'achievements':records},version=='1')
+                    if len(normalized)!=len(records) or any(not a['id'].strip() for a in normalized):raise ValueError('Gerçek başarım kimliği okunamadı')
+                    if len({a['id'] for a in normalized})!=len(normalized):raise ValueError('Tekrarlanan başarım kimliği')
+                    if not records:raise ValueError('Başarım listesi boş döndü')
+                    for original,record in zip(records,normalized):
+                        if version=='1':record['icon_candidate']=artwork.legacy_icon_url(tid,original.get('imageId'))
+                    rows=[achievement(g,a) for a in normalized]
+                    for row,remote in zip(rows,normalized):
+                        if remote.get('icon_candidate'):row['icon_candidate']=remote['icon_candidate']
+                    games.append(g);items.extend(rows);loaded=True;break
+                except Exception as exc:
+                    code=getattr(getattr(exc,'response',None),'status_code',None)
+                    if code in (401,403,429):raise
+                    errors.append(str(exc) if type(exc) is ValueError else type(exc).__name__)
+            if not loaded:
+                failed.append(tid);warnings.append({'title_id':tid,'game':variants[0][0].get('name',tid),'reason':'; '.join(errors)[:180]})
+            progress(index+1,len(groups),variants[0][0].get('name',tid))
+        return {'id':xuid,'username':profile['gamertag'],'warnings':warnings,'failed_title_ids':failed},games,items
 
 
 def _psn(username, progress):
@@ -141,6 +167,7 @@ def _psn(username, progress):
         platform = sorted(title.title_platform, key=lambda p: p.value)[0]
         g = game('psn', title.np_communication_id, title.title_name or title.np_communication_id,
                  ','.join(sorted(p.value for p in title.title_platform)), title.title_icon_url or '')
+        g=editions.apply(g,[{'PSVITA':'psvita'}.get(p.value,p.value.lower()) for p in sorted(title.title_platform,key=lambda p:p.value)])
         trophies = user.trophies(title.np_communication_id, platform, include_progress=True,
                                  trophy_group_id='all', limit=None)
         for t in trophies:

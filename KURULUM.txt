@@ -1,4 +1,4 @@
-ACHIEVEMENT ATLAS 0.9.0 — WINDOWS KURULUMU
+ACHIEVEMENT ATLAS 0.10.0 — WINDOWS KURULUMU
 
 Hazır Setup.exe paketi Windows 10/11 64 bit içindir. Python veya yönetici
 izni gerekmez. Kurulum dosyasını aç, adımları tamamla, masaüstündeki
@@ -75,3 +75,18 @@ Odak surgu cubuklariyla yuzleri ve logolari koruyacak bir konum secilebilir.
 11 kaynak kesif karti eklenmistir; hepsi otomatik API entegrasyonu degildir.
 Xbox/PlayStation istatistikleri ayridir. PC veri saglayicisi planlaniyor.
 Orijinal ticari oyun gorselleri bu kurulum paketine dahil degildir.
+
+0.10 CIHAZ/SURUM VE ESKI XBOX OYUNLARI
+Oyunlarda ve basarimlarda cihaz etiketi vardir; oyunlar cihaz filtresiyle
+aranabilir. PS3/PS4/PS5/PS Vita listeleri kimlikleriyle korunur. Ayni kupa
+listesi birden fazla cihazi destekliyorsa ortak liste olarak belirtilir.
+Xbox agina bagli Windows, iOS ve Android oyunlari Xbox sekmesinde kendi
+cihaz etiketiyle gorunur. Steam baglantisi halen planlaniyor.
+Xbox 360 katalog ve kazanilmis basarim yanitlari birlestirilir. Eski ikon
+adresi ancak gercek gorsel yaniti dogrulanirsa kullanilir. Profil esitlemesi
+sonrasinda saglayicinin sundugu kapak/logo/ikonlar otomatik onbellege alinir.
+Kaynak logo veya gorsel sunmazsa baska surumun gorseliyle doldurulmaz.
+Rehber servisleri ayarliysa tum eksik rehberler esitlemeden sonra arastirilir.
+Kaynak bulunamayan basarim digerlerinin arastirilmasini engellemez.
+Bu paket guvenilir yayinci sertifikasi olmadigi icin imzasizdir. Chrome veya
+SmartScreen uyarilarinin kalktigi iddia edilmez; korumayi kapatman onerilmez.

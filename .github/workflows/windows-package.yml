@@ -7,6 +7,7 @@ on:
       - 'run.py'
       - 'requirements*.txt'
       - 'packaging/**'
+      - 'scripts/**'
       - 'spec/**'
       - 'assets/**'
       - 'preview/**'
@@ -20,6 +21,7 @@ on:
       - 'run.py'
       - 'requirements*.txt'
       - 'packaging/**'
+      - 'scripts/**'
       - 'spec/**'
       - 'assets/**'
       - 'preview/**'
@@ -44,6 +46,12 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Build standalone application
         run: python -m PyInstaller --noconfirm packaging/windows.spec
+      - name: Sign application when a trusted certificate is configured
+        shell: pwsh
+        env:
+          ATLAS_SIGNING_PFX: ${{ secrets.ATLAS_SIGNING_PFX }}
+          ATLAS_SIGNING_PASSWORD: ${{ secrets.ATLAS_SIGNING_PASSWORD }}
+        run: ./scripts/sign_windows.ps1 -TargetPath dist/AchievementAtlas/AchievementAtlas.exe -Report app-signing.json
       - name: Verify frozen application and Windows secret storage
         shell: pwsh
         run: |
@@ -63,6 +71,14 @@ jobs:
           if (!(Test-Path $compiler)) { throw 'Inno Setup compiler missing' }
           & $compiler packaging\windows.iss
           if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+      - name: Sign installer when a trusted certificate is configured
+        shell: pwsh
+        env:
+          ATLAS_SIGNING_PFX: ${{ secrets.ATLAS_SIGNING_PFX }}
+          ATLAS_SIGNING_PASSWORD: ${{ secrets.ATLAS_SIGNING_PASSWORD }}
+        run: |
+          $setup = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
+          ./scripts/sign_windows.ps1 -TargetPath $setup.FullName -Report dist/installer/installer-signing.json
       - name: Verify installed application
         shell: pwsh
         run: |
@@ -79,14 +95,15 @@ jobs:
         run: |
           Copy-Item KURULUM.txt dist\AchievementAtlas\
           Copy-Item LICENSE dist\AchievementAtlas\
-          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.9.0-Windows-x64-Portable.zip
-          Compress-Archive preview -DestinationPath dist\installer\AchievementAtlas-0.9.0-Preview.zip
+          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.10.0-Windows-x64-Portable.zip
+          Compress-Archive preview -DestinationPath dist\installer\AchievementAtlas-0.10.0-Preview.zip
+          Copy-Item app-signing.json dist/installer/
           Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json dist\installer\
           Get-ChildItem dist\installer\*.exe,dist\installer\*.zip | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist\installer\SHA256SUMS.txt
           python -m pip freeze | Set-Content dist\installer\dependencies.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: AchievementAtlas-0.9.0-Windows-x64
+          name: AchievementAtlas-0.10.0-Windows-x64
           path: dist/installer/*
           retention-days: 30
           if-no-files-found: error

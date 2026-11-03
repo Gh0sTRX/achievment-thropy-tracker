@@ -154,3 +154,13 @@ def sources():
     path = Path(__file__).resolve().parent.parent/'spec'/'COMMUNITY_ART_SOURCES.json'
     raw = json.loads(path.read_text(encoding='utf-8'))
     return {'providers':raw['providers'], 'rights_note':raw['rights_note']}
+
+
+def legacy_icon_url(title_id, image_id):
+    """A candidate only: callers must validate an actual image response before display."""
+    try:
+        if isinstance(image_id,bool):return ''
+        tid=int(title_id);iid=int(image_id)
+        if not 0<tid<=0xffffffff or not 0<=iid<=0xffffffff:return ''
+    except (ValueError,TypeError):return ''
+    return f'https://image-ssl.xboxlive.com/global/t.{tid:08x}/ach/0/{iid:x}'

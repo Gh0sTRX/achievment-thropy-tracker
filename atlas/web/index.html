@@ -21,7 +21,7 @@
       <button class="nav-link" data-page="account"><span class="nav-mark">⌘</span> Hesap & Veri <span class="nav-index">05</span></button>
     </nav>
     <div class="rail-bottom"><div class="pulse-dot"></div><div><b>LOCAL FIRST</b><small>Verilerin bu bilgisayarda.</small></div></div>
-    <div class="rail-foot">v0.9 ÖN SÜRÜM · OPEN SOURCE</div>
+    <div class="rail-foot">v0.10 ÖN SÜRÜM · OPEN SOURCE</div>
   </aside>
   <main class="content">
     <header class="topbar"><div class="breadcrumbs"><span class="bread-quiet">ATLAS</span><span class="sep">/</span><strong id="breadcrumb">KOMUTA MERKEZİ</strong></div><div class="top-right"><span class="live-indicator" id="apiIndicator"><i></i> YEREL MOD</span><div class="profile-chip"><span class="profile-avatar" id="profileAvatar">P</span><span id="profileName">Oyuncu</span></div></div></header>
@@ -39,7 +39,7 @@
     </section>
     <section class="page hidden" id="games">
       <div class="section-head"><span class="eyebrow">LIBRARY / BROWSE</span><h1>Oyun <em>kütüphanesi</em></h1><p>Her oyunun ilerlemesi, görseli ve sıradaki hamleleri bir arada.</p></div>
-      <div class="filters"><input id="gameSearch" placeholder="⌕  Oyun adında ara..." aria-label="Oyun ara"><select id="gameSort"><option value="progress">İlerlemeye göre</option><option value="near">Bitirmeye en yakın</option><option value="score">Kalan Gamerscore</option><option value="alpha">Alfabetik</option></select></div>
+      <div class="filters"><input id="gameSearch" placeholder="⌕  Oyun adında ara..." aria-label="Oyun ara"><select id="deviceFilter" aria-label="Oyun cihazı"><option value="all">Tüm cihazlar</option></select><select id="gameSort"><option value="progress">İlerlemeye göre</option><option value="near">Bitirmeye en yakın</option><option value="score">Kalan Gamerscore</option><option value="alpha">Alfabetik</option></select></div>
       <div id="gameGrid" class="game-grid"></div>
       <div class="panel detail hidden" id="gameDetail"><div id="detailHero" class="detail-art"></div><button id="detailClose" class="detail-close">✕</button><div class="detail-body"><span class="eyebrow">GAME ANALYSIS</span><h2 id="detailName"></h2><div id="detailStats" class="detail-stats"></div><p id="detailHint" class="muted"></p><div class="detail-buttons"><button id="detailAchievements" class="cta">BAŞARIMLARI GÖR ↗</button><button id="detailArt" class="button-glass">GÖRSELLERİ BUL</button><button id="detailSync" class="button-glass">VERİLERİ YENİLE</button><button id="detailGuides" class="button-glass">TÜRKÇE REHBERLERİ HAZIRLA</button><button id="detailPlan" class="cta">BU OYUNU TAMAMLA ↗</button></div><div id="completionPlan" aria-live="polite"></div></div></div>
     </section>
@@ -62,7 +62,7 @@
     <section class="page hidden" id="account">
       <div class="section-head"><span class="eyebrow">ACCOUNT / CONNECT</span><h1>Senin hesabın. <em>Senin verin.</em></h1><p>Xbox Gamertag veya PlayStation Online ID gir; herkese açık kupalarını hesabını bağlamadan takip et.</p></div>
 
-      <div class="panel form-panel"><h3>Profilin</h3><p class="muted">Yalnızca herkese açık veriler okunur. Aynı platformda başka oyuncu seçildiğinde önceki profil yerel arşivde korunur.</p><div class="formline"><label>PLATFORM<select id="publicPlatform"><option value="xbox">Xbox</option><option value="psn">PlayStation</option></select></label><label>GAMERTAG / ONLINE ID<input id="publicUsername" placeholder="Kullanıcı adın" maxlength="32" autocomplete="off"></label><button id="publicSync" class="cta">PROFİLİMİ YENİLE ↗</button></div><p id="publicReadiness" class="helper"></p><p id="publicStatus" role="status" aria-live="polite"></p><p id="guideStatus" role="status" aria-live="polite"></p><button id="stopGuides" class="secondary hidden">REHBER ARAŞTIRMASINI DURDUR</button></div>
+      <div class="panel form-panel"><h3>Profilin</h3><p class="muted">Yalnızca herkese açık veriler okunur. Aynı platformda başka oyuncu seçildiğinde önceki profil yerel arşivde korunur.</p><div class="formline"><label>PLATFORM<select id="publicPlatform"><option value="xbox">Xbox</option><option value="psn">PlayStation</option></select></label><label>GAMERTAG / ONLINE ID<input id="publicUsername" placeholder="Kullanıcı adın" maxlength="32" autocomplete="off"></label><button id="publicSync" class="cta">PROFİLİMİ YENİLE ↗</button></div><p id="publicReadiness" class="helper"></p><p id="publicStatus" role="status" aria-live="polite"></p><p id="guideStatus" role="status" aria-live="polite"></p><p id="mediaStatus" role="status" aria-live="polite"></p><div class="detail-buttons"><button id="allGuides" class="secondary">TÜM BAŞARIMLARIN REHBERLERİNİ HAZIRLA</button><button id="allMedia" class="secondary">KAPAK, LOGO VE İKONLARI İNDİR</button></div><button id="stopGuides" class="secondary hidden">REHBER ARAŞTIRMASINI DURDUR</button></div>
       <div id="xboxAccess"><button class="secondary" id="loginXbox">XBOX ERİŞİMİNİ ETKİNLEŞTİR</button><p class="helper">Yalnızca veri erişimi yoksa gerekir. Microsoft oturumu açılır; kayıtlı erişim daha sonra otomatik kullanılır.</p></div>
       <details class="panel" style="margin-top:20px"><summary>Alternatif: TrueAchievements dosyalarını aktar</summary><p class="helper">Canlı sorgulama yerine daha önce indirdiğin kazanılmış ve kilitli CSV dosyalarını kullanabilirsin.</p><label class="form-label">Oyuncu adı<input id="importGamertag" placeholder="Oyuncu adı"></label><label class="form-label">Kazanılmış başarımlar<input type="file" id="earnedCSV" accept=".csv,text/csv"></label><label class="form-label">Kilitli başarımlar<input type="file" id="lockedCSV" accept=".csv,text/csv"></label><button id="importBtn" class="secondary">DOSYALARI AKTAR</button></details>
       <p class="helper">Veriler bu bilgisayarda otomatik saklanır. Dosya yolu veya başarım kimliği girmen gerekmez.</p><button class="ghost-link" data-page="advanced">İsteğe bağlı gelişmiş ayarlar ↗</button>
@@ -76,14 +76,14 @@
         <p class="helper">Xbox veya PSN alanından yalnızca kullanacağın platformu ayarla. Bunlar hedef oyuncunun şifresi değildir. Hazır bir servis erişimin yoksa canlı eşitleme çalışmaz; TrueAchievements CSV dosyalarını içe aktarabilirsin. Daha önce Xbox oturumu açtıysan dosya yolu girmen gerekmez.</p>
         <div class="formline"><label>Türkçe rehber · Brave Search API<input id="settingBrave" type="password" autocomplete="new-password" placeholder="İsteğe bağlı arama servisi anahtarı"></label><label>Türkçe rehber · OpenAI API<input id="settingOpenai" type="password" autocomplete="new-password" placeholder="İsteğe bağlı model servisi anahtarı"></label></div>
         <label class="form-label">Rehber modeli<input id="settingModel" value="gpt-4.1-mini" maxlength="100"></label>
-        <label><input id="settingAutoGuides" type="checkbox"> Profil eşitlemesinden sonra bütün yeni kupalar için otomatik Türkçe rehber hazırla</label>
-        <p class="helper">Arama ve model servisleri ücretlidir. Otomatik rehber varsayılan kapalıdır. Açarsan her yeni kupa için ücretli istekler yapılabilir; oyun detayından yalnızca seçtiğin oyunu da araştırabilirsin.</p>
+        <input id="settingAutoGuides" type="checkbox" class="hidden"><p class="helper">Rehber servisleri ayarlıysa profil eşitlemesinden sonra eksik rehberler otomatik hazırlanır. İstersen çalışan araştırmayı profil ekranından durdurabilirsin.</p>
+        <p class="helper">Arama ve model servisleri ücretlidir. Rehber servisleri ayarlıysa eşitlemeden sonra otomatik araştırma yapılır. Açarsan her yeni kupa için ücretli istekler yapılabilir; oyun detayından yalnızca seçtiğin oyunu da araştırabilirsin.</p>
         <button id="saveSettings" class="cta">AYARLARI KAYDET</button><button id="clearSettings" class="secondary">KAYITLI SERVİS BİLGİLERİNİ SİL</button>
         <p class="helper">Boş bıraktığın alanlar korunur. Anahtarlar geri gösterilmez. Windows'ta kullanıcı hesabınla şifrelenir. Ortam değişkenleriyle verilen ayarlar önceliklidir.</p>
       </details>
       <div class="hidden"><span id="xboxStatus"></span><button id="reconnectXbox"></button><button id="discoverXbox"></button><button id="syncXbox"></button><div id="xboxTitles"></div></div><button class="ghost-link" data-page="account">← Profilime dön</button>
     </section>
-    <footer class="footer">ACHIEVEMENT ATLAS <b>0.9 ÖN SÜRÜM</b> — Open-source community project · Unofficial, not endorsed by Microsoft or Sony · Art remains with its respective owners.</footer>
+    <footer class="footer">ACHIEVEMENT ATLAS <b>0.10 ÖN SÜRÜM</b> — Open-source community project · Unofficial, not endorsed by Microsoft or Sony · Art remains with its respective owners.</footer>
   </main>
 </div>
 <script src="/visuals.js"></script>

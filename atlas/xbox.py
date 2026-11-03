@@ -89,7 +89,7 @@ def parse_titles(titlehub: dict, recent360: dict|None=None, recent_one: dict|Non
         devices = obj.get('devices') or []
         platforms = [str(d) for d in devices]
         plat = '360' if any('360' in d for d in platforms) else 'one' if platforms else 'unknown'
-        found[(tid,plat)] = {'titleId':tid,'name':name,'platform':plat,'devices':platforms,'scid':obj.get('serviceConfigId') or '', 'source':'TitleHub','cover_url':str(obj.get('displayImage') or ''),'images':obj.get('images') or []}
+        found[(tid,plat)] = {'titleId':tid,'name':name,'platform':plat,'devices':platforms,'scid':obj.get('serviceConfigId') or '', 'source':'TitleHub','cover_url':str(obj.get('displayImage') or ''),'images':obj.get('images') or [], 'devices':platforms}
     for raw,plat in ((recent360,'360'),(recent_one,'one')):
         if not isinstance(raw,dict):continue
         for obj in _list(raw,'titles'):
