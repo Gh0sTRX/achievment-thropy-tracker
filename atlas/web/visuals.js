@@ -70,6 +70,7 @@ function initVisuals(){
  document.querySelectorAll('.platform-tabs [data-platform]').forEach(b=>b.onclick=()=>switchPlatform(b.dataset.platform));
  $('artGame').addEventListener('change',()=>{$('artConfirm').checked=false;$('artChoices').innerHTML='';renderVisuals()});
  $('localArtKind').onchange=renderVisuals;
+ $('sgdbMatches').addEventListener('change',()=>{$('artConfirm').checked=false});
  $('localArtChoose').onclick=()=>$('localArtFile').click();
  $('localArtFile').onchange=async()=>{
   const file=$('localArtFile').files?.[0],g=gameById($('artGame').value),kind=$('localArtKind').value;if(!file||!g)return;

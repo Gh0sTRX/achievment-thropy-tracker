@@ -18,3 +18,4 @@ body{background:#080b10}
 body.low-memory #ambientBackdrop{background-image:none;filter:none}body.low-memory .topbar{backdrop-filter:none}
 
 .featured-logo{display:block;max-width:280px;max-height:75px;object-fit:contain;object-position:left;margin-top:18px}.featured-logo:not(.hidden)+h2{font-size:26px;margin-top:14px}
+#ambientBackdrop{z-index:0}.app{position:relative;z-index:1}

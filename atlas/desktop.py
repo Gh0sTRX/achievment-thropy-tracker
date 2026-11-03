@@ -27,6 +27,8 @@ def open_window(url, smoke_report=None):
             if not window.evaluate_js("switchPlatform('pc'); document.getElementById('platformNote').textContent.includes('planlanıyor')"):
                 raise RuntimeError('PC planned-state failed')
             window.evaluate_js("switchPlatform('psn'); navigate('account'); true")
+            if not window.evaluate_js("document.body.click(); page === 'account'"):
+                raise RuntimeError('Platform event scope changed the active page')
             from pathlib import Path
             import json
             Path(smoke_report).write_text(json.dumps({'ok':True,'renderer':'edgechromium','checks':['native window','HTML loaded','JavaScript app ready','data status visible','11 artwork sources','platform switch','PC planned state','simple account screen']}), encoding='utf-8')
