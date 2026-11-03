@@ -152,17 +152,26 @@ class ArchiveApiTests(unittest.TestCase):
     def test_restore_roundtrip_http(self):
         with self.post('api/archive/export', {}) as response:
             snapshot = json.load(response)
-        with self.post('api/archive/restore', {'archive': snapshot}) as response:
+        with self.post('api/archive/restore', {'archive': snapshot, 'confirm': True}) as response:
             report = json.load(response)
         self.assertEqual(report['games'], 0)
         self.assertEqual(report['achievements'], 0)
+
+    def test_restore_needs_explicit_confirmation_even_with_local_token(self):
+        with self.post('api/archive/export', {}) as response:
+            snapshot = json.load(response)
+        with self.assertRaises(HTTPError) as ctx:
+            self.post('api/archive/restore', {'archive': snapshot})
+        self.assertEqual(ctx.exception.code, 400)
+        self.assertIn('onay', ctx.exception.read().decode())
+        self.assertFalse((Path(self.tmp.name) / 'recovery').exists())
 
     def test_restore_is_refused_while_sync_active(self):
         with self.post('api/archive/export', {}) as response:
             snapshot = json.load(response)
         self.app.controller.store.status['public_job'] = {'running': True}
         with self.assertRaises(HTTPError) as ctx:
-            self.post('api/archive/restore', {'archive': snapshot})
+            self.post('api/archive/restore', {'archive': snapshot, 'confirm': True})
         self.assertEqual(ctx.exception.code, 400)
         self.assertIn('Profil eşitlemesi', ctx.exception.read().decode())
         self.assertFalse((Path(self.tmp.name) / 'recovery').exists())
