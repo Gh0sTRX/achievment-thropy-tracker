@@ -54,3 +54,15 @@ Review in browser with real CSV imports, no images, some cached images, and seve
 **Known limitations:** timeline only handles ISO-style dates; sources such as TrueAchievements may use non-ISO dates and should be normalized explicitly by an improved tested importer. The UI does not yet provide true PSN/PC provider integration, per-device gamepad hardware certification, rigorous performance measurements with large libraries, or a professional accessibility audit.
 
 This UI feature is independent of SignPath Foundation application and signing status.
+
+## v5.1 — Date accuracy and performance (November 3, 2026)
+
+- `atlas/dates.py` validates and normalizes imported unlock dates before saving. ISO-8601 dates with explicit timezone are preserved; month-name dates and unambiguous numeric dates are supported. Ambiguous strings (such as `03/04/2026`) are **not guessed**.
+- `atlas/core.py` now writes normalized `unlock_time` and retains the original string in `unlock_time_raw`. This does **not** remove or rewrite existing local user libraries. Re-importing an earned CSV normalizes the new records; the Ultimate UI can also interpret common unambiguous historical strings in older libraries.
+- Ultimate's game/achievement counts are indexed once per data reload rather than filtering all achievements for every game card. This prevents O(games × achievements) rendering work.
+- The Library search is debounced by 100 ms. Changing focus games crossfades the **existing real artwork**, with an explicit reduced-motion bypass; no art is fabricated or shipped.
+- The timeline uses local calendar-day buckets. Dates without a reliable day/month order are excluded, and no missing timestamps are estimated. The window excludes future unlocks.
+
+**Performance check:** in a separate local Chromium fixture with 1,200 synthetic games and 36,000 synthetic achievements, the Hub rendered in approximately 179 ms and the Library view in approximately 58 ms. These are illustrative measurements on one test environment, not guaranteed performance metrics for real-world devices.
+
+**Validation:** `tests/test_unlock_dates.py`, existing unit suite, JavaScript syntax checks, and local Playwright smoke tests. Real imported files and physical gamepad behavior still need manual validation. No SignPath signing changes were made.
