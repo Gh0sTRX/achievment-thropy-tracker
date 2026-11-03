@@ -12,3 +12,4 @@ body{background:radial-gradient(ellipse at 85% 0%,#1c294b55,transparent 60%),var
 
 body{--lime:var(--accent);--green:var(--accent);--muted:var(--text-muted);font-size:14px;zoom:var(--font-scale,1)}.game-foot .game-title{font-size:14px}.cover-art{background-image:linear-gradient(140deg,#263449,#0c121c)}.bar,.progress-track{background:#ffffff20}.rail-foot{line-height:1.6}.platform-tabs button{color:var(--text-muted)}
 html,body{min-width:0}.content,.top-right{min-width:0}body{overflow-wrap:anywhere}
+@media(max-width:768px){.rail{align-items:stretch}.rail .nav{flex:0 0 auto;overflow:visible;width:100%}.rail .identity,.rail .rail-label,.rail .rail-bottom,.rail .rail-foot{flex-shrink:0}}
