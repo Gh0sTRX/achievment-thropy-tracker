@@ -55,7 +55,12 @@ try {
                     foreach ($element in $elements) {
                         $current=$element.Current
                         if ($current.IsOffscreen -or !$current.IsEnabled -or $current.Name.IndexOf($Name,[StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
-                        $invoke=$null
+                        $invoke=$null;$expand=$null
+                        if ($Name -eq 'Diğer ekranlar' -and $element.TryGetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern,[ref]$expand)) {
+                            if ($expand.Current.ExpandCollapseState -ne [Windows.Automation.ExpandCollapseState]::Expanded) { $expand.Expand() }
+                            Write-Output ('Expanded native navigation: '+$current.Name)
+                            return
+                        }
                         if ($element.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern,[ref]$invoke)) {
                             Write-Output ('Invoking native button: '+$current.Name)
                             $invoke.Invoke()
@@ -98,6 +103,7 @@ try {
         $lastStatus=$null;try { $lastStatus=Invoke-RestMethod ($session.url+'/api/status') -TimeoutSec 3 } catch { }
         throw ('Native accessible button not available: '+$Name+'; state='+$lastStatus.update.state+'; '+$lastStatus.update.message)
     }
+    if ([Version]$baselineVersion -ge [Version]'0.15.0') { Invoke-NativeButton 'Diğer ekranlar' }
     Invoke-NativeButton 'Güncellemeler'
     Invoke-NativeButton 'GÜNCELLEMELERİ KONTROL ET'
     Invoke-NativeButton 'GÜNCELLEMEYİ İNDİR' 90 -AcceptedStates @('downloading','ready')
