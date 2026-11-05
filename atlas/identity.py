@@ -13,7 +13,7 @@ def display_key(value):
 
 def provider_key(platform, account_id):
     """Stable IDs may come from either provider; do not infer from a username."""
-    if platform not in ('xbox', 'psn'):
+    if platform not in ('xbox', 'psn', 'pc'):
         raise ValueError('Bilinmeyen hesap platformu.')
     ident = str(account_id).strip() if account_id is not None else ''
     if not ident or len(ident) > 128 or not re.fullmatch(r'[a-zA-Z0-9:_-]+', ident):

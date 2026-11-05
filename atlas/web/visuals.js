@@ -6,7 +6,7 @@ function visualUrl(game,kind='hero'){
  if(!game)return '';
  const value=game[kind+'_url'];
  if(value==='local')return localArt(kind,game.id)+'?v='+encodeURIComponent(game.artwork_meta?.[kind]?.saved_at||DATA.state.sync_at||'1');
- try{const url=new URL(value);const hosts=['steamgriddb.com','xboxlive.com','xbox.com','microsoft.com','s-microsoft.com','playstation.net','playstation.com'];if(url.protocol==='https:'&&!url.username&&!url.password&&hosts.some(h=>url.hostname===h||url.hostname.endsWith('.'+h)))return url.href}catch(e){}
+ try{const url=new URL(value);const hosts=['steamstatic.com','steamcdn-a.akamaihd.net','steamuserimages-a.akamaihd.net','steamgriddb.com','xboxlive.com','xbox.com','microsoft.com','s-microsoft.com','playstation.net','playstation.com'];if(url.protocol==='https:'&&!url.username&&!url.password&&hosts.some(h=>url.hostname===h||url.hostname.endsWith('.'+h)))return url.href}catch(e){}
  return '';
 }
 function cssUrl(url){return 'url('+encodeURI(url).replace(/[()'"<>\s\\]/g,c=>'%'+c.charCodeAt(0).toString(16))+')'}
@@ -34,7 +34,7 @@ function renderPlatform(){renderDeviceOptions();
  document.querySelectorAll('.platform-tabs [data-platform]').forEach(b=>{b.classList.toggle('active',b.dataset.platform===ACTIVE_PLATFORM);b.setAttribute('aria-pressed',String(b.dataset.platform===ACTIVE_PLATFORM))});
  const g=gameById(selectedGame)||games().find(g=>visualUrl(g,'hero'))||games()[0];
  applyAtmosphere(g);
- $('platformNote').textContent=ACTIVE_PLATFORM==='all'?'Tüm ekosistemler · Gamerscore yalnız Xbox kazanımlarını içerir':ACTIVE_PLATFORM==='pc'?'Steam sağlayıcısı planlanıyor. Xbox ağına bağlı Windows ve mobil oyunları Xbox sekmesinde cihaz etiketiyle görünür.':`${ACTIVE_PLATFORM==='xbox'?'Xbox':'PlayStation'} kütüphanesi · İstatistikler yalnız bu platforma ait`;
+ $('platformNote').textContent=ACTIVE_PLATFORM==='all'?'Tüm ekosistemler · Gamerscore yalnız Xbox kazanımlarını içerir':ACTIVE_PLATFORM==='pc'?'PC sağlayıcıları · Steam verisi için resmi API erişimi gerekir. Xbox ağına bağlı PC oyunları Xbox sekmesinde kalır.':`${ACTIVE_PLATFORM==='xbox'?'Xbox':'PlayStation'} kütüphanesi · İstatistikler yalnız bu platforma ait`;
  $('scoreLabel').textContent=ACTIVE_PLATFORM==='psn'?'KAZANILAN KUPALAR':ACTIVE_PLATFORM==='pc'?'STEAM BAŞARIMLARI':'XBOX GAMERSCORE';
 }
 function switchPlatform(platform){

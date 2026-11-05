@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 FIELDS = {'ATLAS_XBOX_TOKEN_FILE', 'ATLAS_PSN_NPSSO', 'BRAVE_SEARCH_API_KEY',
-          'OPENAI_API_KEY', 'ATLAS_GUIDE_MODEL', 'ATLAS_AUTO_GUIDES'}
+          'OPENAI_API_KEY', 'ATLAS_GUIDE_MODEL', 'ATLAS_AUTO_GUIDES', 'ATLAS_STEAM_API_KEY'}
 _values = {}
 
 
@@ -86,6 +86,9 @@ def save(root, updates, clear=()):
     token = values.get('ATLAS_XBOX_TOKEN_FILE', '')
     if token and not Path(token).is_file():
         raise ValueError('Xbox oturum dosyası bulunamadı. Dosyanın tam yolunu gir.')
+    steam=values.get('ATLAS_STEAM_API_KEY','')
+    if steam and (len(steam)!=32 or any(c not in '0123456789abcdefABCDEF' for c in steam)):
+        raise ValueError('Steam Web API anahtarı 32 onaltılık karakter olmalı.')
     npsso = values.get('ATLAS_PSN_NPSSO', '')
     if npsso and (len(npsso) != 64 or not npsso.isalnum()):
         raise ValueError('PSN servis oturumu 64 harf/rakam olmalı.')

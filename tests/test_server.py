@@ -31,7 +31,7 @@ class ServerTests(unittest.TestCase):
             error=json.loads(ctx.exception.read())['error']
             self.assertIn('kurulmamış',error)
             with urlopen(self.app.url+'api/data') as r:data=json.load(r)
-            self.assertEqual(data['providers'],{'psn':False,'xbox':False})
+            self.assertEqual(data['providers'],{'psn':False,'xbox':False,'pc':False})
             self.assertFalse(data['guides_ready'])
 
     def test_post_requires_token(self):

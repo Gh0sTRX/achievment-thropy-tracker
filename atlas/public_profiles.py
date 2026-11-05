@@ -12,6 +12,9 @@ from . import identity
 
 
 def validate(platform, username):
+    if platform=='pc':
+        from .pc import provider
+        return provider().validate(username)
     if platform not in ('xbox', 'psn'):
         raise ValueError('Xbox veya PlayStation seç.')
     username = str(username).strip()
@@ -23,7 +26,7 @@ def validate(platform, username):
 
 def readiness():
     return {'xbox': bool(settings.get('ATLAS_XBOX_TOKEN_FILE')) or xbox.has_tokens(),
-            'psn': bool(settings.get('ATLAS_PSN_NPSSO'))}
+            'psn': bool(settings.get('ATLAS_PSN_NPSSO')),'pc':bool(settings.get('ATLAS_STEAM_API_KEY'))}
 
 
 def game(platform, title_id, name, edition, cover=''):
@@ -184,44 +187,63 @@ def _psn(username, progress):
     identity.verify_requested_name('psn', username, user.online_id)
     identity.provider_key('psn', user.account_id)
     titles = list(user.trophy_titles(limit=None))
-    games = []; items = []
+    games = []; items = [];warnings=[];failed=[]
     for title in titles:
         sync_control.check()
         if not title.np_communication_id or not title.title_platform:
             raise ValueError('PSN oyun kimliği eksik; arşiv değiştirilmedi.')
-        platform = sorted(title.title_platform, key=lambda p: p.value)[0]
-        g = game('psn', title.np_communication_id, title.title_name or title.np_communication_id,
-                 ','.join(sorted(p.value for p in title.title_platform)), title.title_icon_url or '')
-        g=editions.apply(g,[{'PSVITA':'psvita'}.get(p.value,p.value.lower()) for p in sorted(title.title_platform,key=lambda p:p.value)])
-        def count_trophies(value):
-            counts=[getattr(value,k,None) for k in ('bronze','silver','gold','platinum')]
-            return sum(counts) if all(type(v) is int and v>=0 for v in counts) else None
-        stamp=getattr(title,'last_updated_datetime',None)
-        summary={'lastUnlock':stamp.isoformat() if stamp else '',
-                 'currentAchievements':count_trophies(getattr(title,'earned_trophies',None)),
-                 'totalAchievements':count_trophies(getattr(title,'defined_trophies',None))}
-        g['api_generation']='psn:'+str(getattr(title,'trophy_set_version',''))
-        cached=sync_control.reuse(g,summary,str(user.account_id))
-        if cached is not None:
-            games.append(g);items.extend(cached);progress(len(games),len(titles),g['name']);continue
-        trophies = user.trophies(title.np_communication_id, platform, include_progress=True,
-                                 trophy_group_id='all', limit=None)
-        for t in trophies:
-            sync_control.check()
-            if t.trophy_id is None or t.earned is None:
-                raise ValueError('PSN kazanılma verisi eksik; arşiv değiştirilmedi.')
-            moment = t.earned_date_time
-            items.append(achievement(g, {'id': t.trophy_id, 'name': t.trophy_name or 'Gizli kupa',
-                'unlocked': t.earned, 'description': t.trophy_detail or '', 'icon': t.trophy_icon_url or '',
-                'timeUnlocked': moment.isoformat() if moment else '', 'group': t.trophy_group_id or '',
-                'trophy_type': t.trophy_type.value if t.trophy_type else '',
-                'is_secret':getattr(t,'trophy_hidden',None) is True,
-                'rarity_percent':getattr(t,'trophy_earn_rate',None),
-                'rarity_source':'PSN API' if getattr(t,'trophy_earn_rate',None) is not None else '',
-                'progress_current': t.progress, 'progress_target': t.trophy_progress_target_value}))
-        sync_control.mark(g,summary)
-        games.append(g); progress(len(games), len(titles), g['name'])
-    return {'id': str(user.account_id), 'username': user.online_id}, games, items
+        try:
+            platform = sorted(title.title_platform, key=lambda p: p.value)[0]
+            g = game('psn', title.np_communication_id, title.title_name or title.np_communication_id,
+                     ','.join(sorted(p.value for p in title.title_platform)), title.title_icon_url or '')
+            g=editions.apply(g,[{'PSVITA':'psvita'}.get(p.value,p.value.lower()) for p in sorted(title.title_platform,key=lambda p:p.value)])
+            def count_trophies(value):
+                counts=[getattr(value,k,None) for k in ('bronze','silver','gold','platinum')]
+                return sum(counts) if all(type(v) is int and v>=0 for v in counts) else None
+            stamp=getattr(title,'last_updated_datetime',None)
+            summary={'lastUnlock':stamp.isoformat() if stamp else '',
+                     'currentAchievements':count_trophies(getattr(title,'earned_trophies',None)),
+                     'totalAchievements':count_trophies(getattr(title,'defined_trophies',None))}
+            g['api_generation']='psn:'+str(getattr(title,'trophy_set_version',''))
+            cached=sync_control.reuse(g,summary,str(user.account_id))
+            if cached is not None:
+                games.append(g);items.extend(cached);progress(len(games),len(titles),g['name']);continue
+            current=[]
+            if hasattr(user,'trophy_groups_summary'):
+                sync_control.check()
+                summary_groups=user.trophy_groups_summary(title.np_communication_id,platform,include_progress=False)
+                g['trophy_groups']=[{'id':str(group.trophy_group_id or ''),'name':str(group.trophy_group_name or ''),'description':str(group.trophy_group_detail or ''),'icon_url':str(group.trophy_group_icon_url or '')} for group in summary_groups.trophy_groups]
+            trophies = user.trophies(title.np_communication_id, platform, include_progress=True,
+                                     trophy_group_id='all', limit=None)
+            for t in trophies:
+                sync_control.check()
+                if t.trophy_id is None or t.earned is None:
+                    raise ValueError('PSN kazanılma verisi eksik; arşiv değiştirilmedi.')
+                moment = t.earned_date_time
+                current.append(achievement(g, {'id': t.trophy_id, 'name': t.trophy_name or 'Gizli kupa',
+                    'unlocked': t.earned, 'description': t.trophy_detail or '', 'icon': t.trophy_icon_url or '',
+                    'timeUnlocked': moment.isoformat() if moment else '', 'group': t.trophy_group_id or '',
+                    'trophy_type': t.trophy_type.value if t.trophy_type else '',
+                    'is_secret':getattr(t,'trophy_hidden',None) is True,
+                    'rarity_percent':getattr(t,'trophy_earn_rate',None),
+                    'rarity_source':'PSN API' if getattr(t,'trophy_earn_rate',None) is not None else '',
+                    'progress_current': t.progress, 'progress_target': t.trophy_progress_target_value}))
+            labels={group['id']:group['name'] for group in g.get('trophy_groups',[])}
+            for item in current:
+                item['group_id']=item['dlc']
+                if item['group_id']=='default':item['dlc']=''
+                elif labels.get(item['group_id']):item['dlc']=labels[item['group_id']]
+            sync_control.mark(g,summary)
+            items.extend(current)
+            games.append(g); progress(len(games), len(titles), g['name'])
+        except sync_control.Cancelled:raise
+        except Exception as exc:
+            failed.append(str(title.np_communication_id))
+            code=getattr(exc,'status_code',None) or getattr(getattr(exc,'response',None),'status_code',None)
+            if code in (401,403,429) or any(word in type(exc).__name__.lower() for word in ('authentication','forbidden','ratelimit','unauthorized')):raise ValueError('PSN erişimi veya hız sınırı; önceki arşiv korundu.') from None
+            warnings.append({'game':str(title.title_name or title.np_communication_id),'reason':'PSN kupa listesi tamamlanamadı; önceki oyun kaydı korunur.'})
+            progress(len(games)+len(failed),len(titles),str(title.title_name or title.np_communication_id))
+    return {'id': str(user.account_id), 'username': user.online_id,'warnings':warnings,'failed_title_ids':failed}, games, items
 
 
 def fetch(platform, username, progress=lambda *args: None, stop=lambda:False, cache=None, force=False):
@@ -229,7 +251,10 @@ def fetch(platform, username, progress=lambda *args: None, stop=lambda:False, ca
     token=sync_control.context.set({'stop':stop,'cache':cache,'force':force})
     try:
         sync_control.check()
-        identity, games, items = asyncio.run(_xbox(username, progress)) if platform == 'xbox' else _psn(username, progress)
+        if platform=='pc':
+            from .pc import fetch as fetch_pc
+            identity,games,items=fetch_pc(username,progress)
+        else:identity, games, items = asyncio.run(_xbox(username, progress)) if platform == 'xbox' else _psn(username, progress)
     except (ValueError, xbox.DirectError, sync_control.Cancelled):
         raise
     except Exception as exc:
@@ -237,7 +262,7 @@ def fetch(platform, username, progress=lambda *args: None, stop=lambda:False, ca
         raise ValueError('Profil alınamadı: '+type(exc).__name__+'. Gizlilik, servis oturumu, ağ erişimi ve hız limitini kontrol et.') from None
     finally:sync_control.context.reset(token)
     if stop():raise sync_control.Cancelled()
-    if not games or not items:
+    if (not games or not items) and platform!='pc':
         details = '; '.join(w['game']+': '+w['reason'] for w in identity.get('warnings', [])[:2])
         raise ValueError('Oyun veya başarım alınamadı. '+(details or 'Gizlilik ve servis erişimini kontrol et.')+' Önceki arşiv korundu.')
     if len({a['id'] for a in items}) != len(items):

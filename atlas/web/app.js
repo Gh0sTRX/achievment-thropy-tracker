@@ -57,7 +57,7 @@ function renderAccount(){
 
  const platform=$('publicPlatform').value;
  $('xboxAccess').classList.toggle('hidden',platform!=='xbox'||!!PROVIDERS.xbox);
- $('publicReadiness').textContent=PROVIDERS[platform]?'Kayıtlı erişim otomatik kullanılacak.':platform==='xbox'?'Xbox verilerine erişim henüz etkin değil. Aşağıdaki düğmeyle bir kez etkinleştirebilirsin.':'PlayStation veri erişimi bu cihazda tanımlı değil. Hazır bir servis erişimi olmadan sorgulama çalışmaz.';
+ $('publicReadiness').textContent=PROVIDERS[platform]?'Servis ayarı kayıtlı. Gerçek erişim profil sorgusunda doğrulanır.':platform==='xbox'?'Xbox verilerine erişim henüz etkin değil. Aşağıdaki düğmeyle bir kez etkinleştirebilirsin.':platform==='pc'?'Steam Web API anahtarı tanımlı değil. Gelişmiş ayarlardan ekle; profil ve oyun ayrıntıları herkese açık olmalı.':'PlayStation veri erişimi bu cihazda tanımlı değil. Hazır bir servis erişimi olmadan sorgulama çalışmaz.';
  if(!$('publicUsername').value){const saved=DATA.state.public_profiles?.[platform]?.username||(platform==='xbox'?DATA.state.linked_profile?.gamertag:'');if(saved)$('publicUsername').value=saved;}
 
  const job=DATA.status.public_job;$('publicSync').disabled=!!job?.running;
@@ -88,7 +88,7 @@ function init(){initVisuals();
  $('allGuides').onclick=async()=>{const r=await run(()=>api('/api/guides/generate',{}));if(r)toast(r.message)};
  $('allMedia').onclick=async()=>{const r=await run(()=>api('/api/media/download',{}));if(r)toast(r.message)};
  $('publicPlatform').onchange=()=>{$('publicUsername').value='';renderAccount()};
- const fields={settingXboxFile:'ATLAS_XBOX_TOKEN_FILE',settingPsn:'ATLAS_PSN_NPSSO',settingBrave:'BRAVE_SEARCH_API_KEY',settingOpenai:'OPENAI_API_KEY'};
+ const fields={settingXboxFile:'ATLAS_XBOX_TOKEN_FILE',settingPsn:'ATLAS_PSN_NPSSO',settingSteam:'ATLAS_STEAM_API_KEY',settingBrave:'BRAVE_SEARCH_API_KEY',settingOpenai:'OPENAI_API_KEY'};
  $('saveSettings').onclick=async()=>{const values={ATLAS_GUIDE_MODEL:$('settingModel').value,ATLAS_AUTO_GUIDES:$('settingAutoGuides').checked?'1':'0'};for(const [id,key] of Object.entries(fields))if($(id).value.trim())values[key]=$(id).value.trim();const r=await run(()=>api('/api/settings',{values}));if(r){for(const id of Object.keys(fields))$(id).value='';settingsLoaded=false;toast(r.message);await reload()}};
  $('clearSettings').onclick=async()=>{if(!confirm('Cihazına kaydedilmiş servis bilgileri silinecek. Kupa arşivin korunacak. Devam?'))return;const r=await run(()=>api('/api/settings',{values:{ATLAS_AUTO_GUIDES:'0'},clear:Object.values(fields)}));if(r){for(const id of Object.keys(fields))$(id).value='';settingsLoaded=false;toast(r.message);await reload()}};
  $('stopGuides').onclick=async()=>{const r=await run(()=>api('/api/guides/stop'));if(r)toast(r.message)};
