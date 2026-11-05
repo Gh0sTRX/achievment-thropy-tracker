@@ -3,7 +3,7 @@
 (() => {
   'use strict';
   const byId = id => document.getElementById(id);
-  const extraPages = new Set(['achievements','timeline','artwork','account','updates','advanced']);
+  const extraPages = new Set(['hall','timeline','artwork','account','updates','advanced']);
 
   function drawWelcome() {
     if (typeof DATA === 'undefined' || !DATA.library) return;
@@ -32,7 +32,7 @@
           'Erişim ayarı yok; gerekirse Gelişmiş ayarlardan yapılandır';
       };
       display('xbox', 'atlasWelcomeXboxStatus');
-      display('psn', 'atlasWelcomePsnStatus');
+      display('psn', 'atlasWelcomePsnStatus');display('pc','atlasWelcomeSteamStatus');
     }
   }
 
@@ -59,7 +59,7 @@
   function onboardingAction(kind) {
     if (typeof navigate !== 'function') return;
     navigate('account');
-    if (kind === 'xbox' || kind === 'psn') {
+    if (kind === 'xbox' || kind === 'psn' || kind === 'pc') {
       const select = byId('publicPlatform');
       if (select) {
         select.value = kind;
@@ -163,7 +163,7 @@
       const button = event.target.closest('[data-atlas-onboard]');
       if (!button) return;
       const kind = button.dataset.atlasOnboard;
-      if (kind === 'xbox' || kind === 'psn' || kind === 'csv') onboardingAction(kind);
+      if (kind === 'xbox' || kind === 'psn' || kind === 'pc' || kind === 'csv') onboardingAction(kind);
     });
     if (window.uiLoaded) drawWelcome();
     if (typeof UPDATE !== 'undefined') drawUpdateBlockers();

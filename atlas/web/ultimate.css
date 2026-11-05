@@ -26,3 +26,11 @@ html,body{min-width:0}.content,.top-right{min-width:0}body{overflow-wrap:anywher
 .universe-art img{width:100%;max-height:230px;object-fit:contain}
 #universe .universe-tabs{display:flex;flex-wrap:wrap;gap:8px}
 @media(max-width:500px){.universe-cover{width:80px}#universe .detail-body{padding:70px 16px 24px}}
+
+.atlas-search{width:min(700px,94vw);max-height:85vh;background:var(--panel,#14231f);color:var(--text,#fff);border:1px solid var(--line,#58635d);border-radius:16px;padding:24px}
+.atlas-search::backdrop{background:#000b;backdrop-filter:blur(5px)}
+#atlasSearchQuery{width:100%;margin:12px 0}#atlasSearchResults{max-height:52vh;overflow:auto;display:grid;gap:6px}
+#atlasSearchResults button{text-align:left;display:flex;align-items:center;gap:14px;min-height:70px;width:100%;white-space:normal}
+#atlasSearchResults img{width:38px;height:52px;object-fit:cover}#atlasSearchResults small{display:block;opacity:.75;margin-top:5px}
+#atlasSearchResults [aria-selected=true]{outline:2px solid var(--accent,#b8e5a2);outline-offset:-3px}
+.platform-tabs [data-platform=xbox]{border-bottom:2px solid #76c442}.platform-tabs [data-platform=psn]{border-bottom:2px solid #66aaff}.platform-tabs [data-platform=pc]{border-bottom:2px solid #98b3cd}

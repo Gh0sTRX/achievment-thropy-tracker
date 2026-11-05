@@ -60,6 +60,7 @@ function renderAccount(){
  $('publicReadiness').textContent=PROVIDERS[platform]?'Servis ayarı kayıtlı. Gerçek erişim profil sorgusunda doğrulanır.':platform==='xbox'?'Xbox verilerine erişim henüz etkin değil. Aşağıdaki düğmeyle bir kez etkinleştirebilirsin.':platform==='pc'?'Steam Web API anahtarı tanımlı değil. Gelişmiş ayarlardan ekle; profil ve oyun ayrıntıları herkese açık olmalı.':'PlayStation veri erişimi bu cihazda tanımlı değil. Hazır bir servis erişimi olmadan sorgulama çalışmaz.';
  if(!$('publicUsername').value){const saved=DATA.state.public_profiles?.[platform]?.username||(platform==='xbox'?DATA.state.linked_profile?.gamertag:'');if(saved)$('publicUsername').value=saved;}
 
+ const profile=DATA.state.public_profiles?.[platform];$('publicLastSync').textContent=profile?.synced_at?'Son başarılı eşitleme: '+new Date(profile.synced_at).toLocaleString('tr-TR')+' · '+(profile.provider||platform):'Bu platformda henüz doğrulanmış eşitleme yok.';
  const job=DATA.status.public_job;$('publicSync').disabled=!!job?.running;
  $('publicStatus').textContent=job?(job.error||`${job.running?'Eşitleniyor · ':''}${job.done}/${job.total||'?'} · ${job.message}`):Object.entries(DATA.state.public_profiles||{}).map(([k,p])=>`${k.toUpperCase()}: ${p.username}`).join(' · ');
  const mj=DATA.status.media_job;$('mediaStatus').textContent=mj?`${mj.running?'Görseller indiriliyor · ':''}${mj.done}/${mj.total||'?'} · ${mj.message}`:'';
