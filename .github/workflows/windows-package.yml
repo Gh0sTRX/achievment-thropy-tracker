@@ -320,5 +320,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Windows-native-self-update-report
+          overwrite: true
           path: self-update-test-report.json
           if-no-files-found: warn
