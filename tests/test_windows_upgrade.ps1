@@ -76,7 +76,8 @@ try {
     foreach ($baseline in @(
         @{version='0.13.0';sha='6e459970d45f04334f5d65300a8ce98261736d712e8996e01108b2dfef85e5d2'},
         @{version='0.14.1';sha='c0169c3f10bcf2b1dd2303f8f03aa081d3d04b3456d395a3e453b13ae727be7d'},
-        @{version='0.15.0';sha='e016ac7532a77c690a1a6a5e0f4afb0cc24a4c0b4064a54ccf4a31a0205ced09'}
+        @{version='0.15.0';sha='e016ac7532a77c690a1a6a5e0f4afb0cc24a4c0b4064a54ccf4a31a0205ced09'},
+        @{version='0.15.1';sha='dba8a8c385ee261ac59970b7ac9e6d3fb10da426af39a6d6641e2b0cecbec3e4'}
     )) {
         Write-Output ('Upgrade matrix baseline '+$baseline.version)
         $case=Join-Path $root $baseline.version
@@ -94,7 +95,7 @@ try {
         $before=Get-Records $session;$gid=$before.library.games[0].id
         Post $session '/api/game/notes' @{game_id=$gid;notes='Upgrade fixture note'} | Out-Null
         Assert-Records (Get-Records $session) $gid
-        if ($baseline.version -eq '0.15.0') {
+        if ($baseline.version -in @('0.15.0','0.15.1')) {
             # Verify the shipped Foundation navigation before promotion as well.
             Add-Type -AssemblyName UIAutomationClient
             Add-Type -AssemblyName UIAutomationTypes
