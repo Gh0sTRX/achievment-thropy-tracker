@@ -14,7 +14,7 @@ Başlangıç `codex/public-profile-trophies` commit'i `17ec8b2`. Önceki 0.15.1 
 | B — Universe / artwork | https://github.com/Gh0sTRX/achievment-thropy-tracker/pull/12 | feature/issue10-game-universe → A |
 | C — PSN / Steam | https://github.com/Gh0sTRX/achievment-thropy-tracker/pull/13 | feature/issue10-pc-providers → B |
 | D — kimlik / UX / arama | https://github.com/Gh0sTRX/achievment-thropy-tracker/pull/14 | feature/issue10-navigation-search → C |
-| E — kontrolcü / performans / QA | PR bağlantısı PROJECT_HANDOFF.md ve GitHub'da | feature/issue10-controller-performance → D |
+| E — kontrolcü / performans / QA | https://github.com/Gh0sTRX/achievment-thropy-tracker/pull/15 | feature/issue10-controller-performance → D |
 
 Bunlar birbirinin üzerine kurulu inceleme PR'larıdır. Feature dalı değişiklikleri main'e veya çalışma dalına otomatik birleştirilmedi. Ayrıntı belgeleri `docs/issue10/` altındadır.
 
@@ -52,7 +52,7 @@ Mevcut PSNAWP üzerinde PS3/Vita/PS4/PS5, bütün gruplar, gerçek earned/date/t
 
 ## 7. PC / Steam
 
-`pc.py` sağlayıcı kaydı ve `steam.py` resmi Web API adaptörü eklendi. SteamID64/resmi vanity, GetOwnedGames, GetSchemaForGame v2 ve GetPlayerAchievements kullanılır. AppID+API-name kimliği, gerçek locked/earned/time/schema/icon; puan 0 ve kupa türü boş. Eksik kimlik veya earned bilgisi uydurulmaz. Gizli liste boş başarıya dönüştürülmez. Geçici oyun hataları eski kaydı korur; 401/403/429 bütün işi durdurur. Başka PC sağlayıcısının oyun kayıtları silinmez.
+`pc.py` sağlayıcı kaydı ve `steam.py` resmi Web API adaptörü eklendi. SteamID64/resmi vanity, GetOwnedGames, GetSchemaForGame v2 ve GetPlayerAchievements kullanılır. AppID+API-name kimliği, gerçek locked/earned/time/schema/icon; puan 0 ve kupa türü boş. Eksik kimlik veya earned bilgisi uydurulmaz. Gizli liste boş başarıya dönüştürülmez. Geçici oyun hataları eski kaydı korur; 401/403/429 bütün işi durdurur. Başka PC sağlayıcısının oyun kayıtları silinmez. Kısmi başarısızlıktaki eski kayıt seçimi de platform/provider kapsamındadır; aynı sayısal Xbox/Steam title ID birbirinin kaydını çoğaltmaz.
 
 Anahtar yerel `ATLAS_STEAM_API_KEY` ayarı; Windows DPAPI, browser/export secret dışlama ve hata URL'lerini gizleme testlidir. Resmi API dokümanları incelendi. Gerçek Steam hesabı/anahtarıyla uçtan uca test yapılmadı. Diğer PC sağlayıcıları uygulanmış sayılmaz.
 

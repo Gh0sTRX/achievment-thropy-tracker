@@ -6,7 +6,7 @@
 
 Kullanıcının son master order talimatı: **main'i değiştirme, yeni Development Release yayımlama**. Önceki 0.15.1 yayın yetkisi bu yeni göreve otomatik taşınmaz.
 
-A #11, B #12, C #13, D #14 ayrı ve üst üste kurulu PR'lar. Son çalışma dalı `feature/issue10-controller-performance`; E PR oluşturulacak. Hiçbiri main/codex'e otomatik merge edilmedi. A Unit/Windows 42066272591/42066272796, B 42066432637/42066432834 başarılı. C/D eski PC planned-state desktop smoke beklentisi düzeltildi; son Actions durumunu yeniden sorgula.
+A #11, B #12, C #13, D #14 ayrı ve üst üste kurulu PR'lar. Son çalışma dalı `feature/issue10-controller-performance`; E PR #15. Hiçbiri main/codex'e otomatik merge edilmedi. A Unit/Windows 42066272591/42066272796, B 42066432637/42066432834 başarılı. C/D eski PC planned-state desktop smoke beklentisi düzeltildi; son Actions durumunu yeniden sorgula.
 
 Uygulandı: native `#/game/{id}` Universe, 7 sekme/back/focus/inline, beş gerçek artwork türü/health/kalıcı edition-onayı, PSN title-atomik partial koruma/gruplar, resmi Steam Web API PC registry, DPAPI key, sade nav/4 seçenekli onboarding/Ctrl+K, ortak UI olayları, Gamepad A/B/X/Y/LB/RB, revision/scope/progress cache ve native Playwright testleri. **Gerçek hesap/NPSSO/Steam key yok; canlı test iddiası yok.** Fiziksel gamepad/güç kesintisi/logon testi yok. Üretici logo izni yok; Atlas markası + metin etiketleri.
 
