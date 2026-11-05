@@ -27,7 +27,7 @@ def open_window(url, smoke_report=None, shutdown_event=None):
                 raise RuntimeError('Desktop document did not load')
             deadline = time.monotonic()+20
             while time.monotonic()<deadline:
-                ready = window.evaluate_js("Boolean(document.getElementById('publicUsername') && document.getElementById('sourceStatus') && document.getElementById('sourceStatus').textContent.length)")
+                ready = window.evaluate_js("Boolean(window.uiLoaded && document.getElementById('publicUsername') && document.getElementById('providerWizard') && document.getElementById('providerSetupState'))")
                 if ready:break
                 time.sleep(.2)
             else:raise RuntimeError('Desktop UI did not become ready')

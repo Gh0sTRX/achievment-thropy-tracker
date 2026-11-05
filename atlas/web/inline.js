@@ -24,8 +24,8 @@ window.addEventListener('atlas:render',()=>{const old=inlineBeforeRender;inlineB
 
 
 function renderTransfers(){
- const jobs=DATA.status||{},active=[['public_job','Profil'],['media_job','Görseller'],['guide_job','Rehberler'],['job','Xbox'],['art_job','İkonlar']].filter(([key])=>jobs[key]?.running);
- $('transferDock').classList.toggle('hidden',!active.length);$('transferText').textContent=active.map(([key,name])=>`${name}: ${jobs[key].stopping?'durduruluyor…':`${jobs[key].done||0}/${jobs[key].total||'?'}`}`).join(' · ');
+ const jobs=DATA.status||{},active=[['public_job','Profil'],['media_job','Görseller'],['guide_job','Rehberler'],['job','Xbox'],['art_job','İkonlar']].filter(([key])=>jobs[key]?.running&&(!jobs[key].platform||jobs[key].platform===$('publicPlatform').value));
+ $('transferDock').classList.toggle('hidden',!active.length||page!=='account');$('transferText').textContent=active.map(([key,name])=>`${name}: ${jobs[key].stopping?'durduruluyor…':`${jobs[key].done||0}/${jobs[key].total||'?'}`}`).join(' · ');
  $('stopProfile').classList.toggle('hidden',!jobs.public_job?.running&&!jobs.job?.running);$('stopMedia').classList.toggle('hidden',!jobs.media_job?.running&&!jobs.art_job?.running);
 }
 document.addEventListener('click',async e=>{const button=e.target.closest('[data-stop]');if(!button)return;button.disabled=true;try{const r=await api('/api/downloads/stop',{kind:button.dataset.stop});toast(r.message)}catch(e){toast(e.message,true)}finally{button.disabled=false}});

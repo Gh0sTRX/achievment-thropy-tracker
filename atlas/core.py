@@ -304,7 +304,7 @@ class Library:
                 previous_ids = {g['id'] for g in previous_games}
                 atomic_write(self.root/'profiles'/(game_id(platform, previous['id'])+'.json'),
                     {**previous, 'platform': platform, 'games': previous_games,
-                     'achievements': [a for a in self.library['achievements'] if a['game_id'] in previous_ids]})
+                     'achievements': [a for a in self.library['achievements'] if a['game_id'] in previous_ids], 'pins':[p for p in self.state['pins'] if p in {a['id'] for a in self.library['achievements'] if a['game_id'] in previous_ids}]})
             # Archive each successful remote snapshot so changing the target is reversible.
             key = game_id(platform, snapshot['id'])
             archive = self.root/'profiles'/(key+'.json')
@@ -322,6 +322,17 @@ class Library:
                 if prior.get('guide') and prior.get('description') == a.get('description') and prior.get('device_label','') == a.get('device_label','') and prior.get('platform_edition','') == a.get('platform_edition',''):
                     a['guide'] = prior['guide']
             new_games = deepcopy(snapshot['games'])
+            # CSV identities cannot be silently replaced by unrelated Xbox API IDs.
+            csv_source=self.library['achievements'] if same or not previous.get('id') else cached.get('achievements',[])
+            source_csv_ids={a['game_id'] for a in csv_source if a.get('source')=='trueachievements_csv'}
+            csv_games=[deepcopy(g) for g in self.library['games'] if g.get('platform')==platform and g['id'] in source_csv_ids]
+            if platform=='xbox' and csv_games and not previous.get('id') and self.library.get('gamertag') and normalize(self.library['gamertag'])!=normalize(snapshot['username']):
+                raise ValueError('CSV arşivi farklı Xbox oyuncusuna ait. Önce yerel arşivi yedekle ve ayrı profil/veri klasörü kullan; kayıtlar değiştirilmedi.')
+            incoming_ids={g['id'] for g in new_games}
+            keep_csv=[g for g in (list(prior_games.values()) if previous.get('id') else csv_games) if g['id'] in source_csv_ids and g['id'] not in incoming_ids]
+            csv_ids={g['id'] for g in keep_csv}
+            new_games.extend(deepcopy(keep_csv));new_items.extend(deepcopy(a) for a in csv_source if a['game_id'] in csv_ids)
+
             failed = {str(t) for t in snapshot.get('failed_title_ids', [])}
             incoming_ids={g['id'] for g in new_games}
             retained_failed = [deepcopy(g) for g in prior_games.values() if str(g.get('title_id')) in failed and g['id'] not in incoming_ids]
@@ -347,9 +358,10 @@ class Library:
             profiles[platform] = {k: snapshot[k] for k in ('id', 'username', 'synced_at')}
             if provider:profiles[platform]['provider']=provider
             valid = {a['id'] for a in self.library['achievements']}
-            self.state['pins'] = [p for p in self.state['pins'] if p in valid]
+            self.state['pins'] = sorted({p for p in self.state['pins']+cached.get('pins',[]) if p in valid})
             self.state['sync_at'] = snapshot['synced_at']
             self.state['sync_warnings'] = deepcopy(snapshot.get('warnings', []))
+            self.state.setdefault('sync_warnings_by_platform',{})[platform]=deepcopy(snapshot.get('warnings',[]))
             self.save()
         return {'games': len(new_games), 'achievements': len(new_items)}
 

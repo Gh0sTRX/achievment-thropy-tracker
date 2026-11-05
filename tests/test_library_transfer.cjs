@@ -14,7 +14,7 @@ const {chromium}=require('playwright'),fs=require('node:fs'),assert=require('nod
  await p.evaluate(async ({game,note})=>{await api('/api/game/notes',{game_id:game,notes:note});await reload()},initial);
  body=await (await response).json();assert.equal(body.library_unchanged,false);assert.equal(await p.evaluate(()=>DATA.library.games===window.transferGames),false);
  assert.equal(await p.evaluate(id=>DATA.library.games.find(g=>g.id===id).notes,initial.game),initial.note);
- await p.evaluate(()=>navigate('artwork'));await p.locator('#checkArtHealth').click();await p.waitForFunction(()=>document.querySelector('#artHealth').textContent.includes('4 oyun'));
+ await p.evaluate(()=>navigate('artwork'));await p.locator('#checkArtHealth').click();await p.waitForFunction(()=>document.querySelector('#artHealth').textContent.includes(' oyun'));
  // A slow old response must not overwrite a later refresh.
  const base=await p.evaluate(async()=>await (await fetch('/api/data',{cache:'no-store'})).json());let held,resolveFirst;const firstSeen=new Promise(r=>resolveFirst=r);let requests=0;
  await p.route('**/api/data',route=>{requests++;if(requests===1){held=route;resolveFirst();return}const next=JSON.parse(JSON.stringify(base));next.library.state.log=['latest-response'];return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(next)})});

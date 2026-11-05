@@ -29,7 +29,7 @@
         const node = byId(id);
         if (node) node.textContent = readiness[key] ?
           'Erişim ayarı var; canlı sorgu henüz doğrulanmadı' :
-          'Erişim ayarı yok; gerekirse Gelişmiş ayarlardan yapılandır';
+          'Erişim ayarı yok; Hesap & Veri içinde kurulum yap';
       };
       display('xbox', 'atlasWelcomeXboxStatus');
       display('psn', 'atlasWelcomePsnStatus');display('pc','atlasWelcomeSteamStatus');

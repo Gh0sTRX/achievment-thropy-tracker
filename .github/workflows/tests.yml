@@ -28,6 +28,8 @@ jobs:
           node-version: '22'
       - name: JavaScript syntax
         run: |
+          node --check atlas/web/provider_setup.js
+          node --check atlas/web/achievement_row.js
           node --check atlas/web/app.js
           node --check atlas/web/visuals.js
           node --check atlas/web/ultimate.js
@@ -94,6 +96,7 @@ jobs:
           node tests/test_game_universe.cjs
           node tests/test_native_search.cjs
           node tests/test_native_themes.cjs
+          node tests/test_issue22_setup.cjs
           node tests/test_issue22_metadata.cjs
           node tests/test_library_transfer.cjs
           node tests/browser_audit.cjs

@@ -5,6 +5,7 @@ import base64
 import math
 import json
 import gzip
+import re
 import mimetypes
 import os
 import queue
@@ -18,13 +19,17 @@ from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer,HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit, unquote
 from .core import Library,normalize
-from . import recommendations,artwork
+from . import recommendations,artwork,accounts
 from . import xbox, public_profiles, guides, settings, media_sync, updater, sync_control
 
 BASE=Path(__file__).resolve().parent
 
 def safe_error(exc,limit=250):
-    return (str(exc) if type(exc) in (ValueError,xbox.DirectError) else type(exc).__name__)[:limit]
+    message=str(exc) if type(exc) in (ValueError,xbox.DirectError) else type(exc).__name__
+    for field in settings.FIELDS:
+        value=settings.get(field)
+        if field not in ('ATLAS_GUIDE_MODEL','ATLAS_AUTO_GUIDES') and value:message=message.replace(value,'[gizlendi]')
+    return re.sub(r'https?://\S+','[URL gizlendi]',message)[:limit]
 
 class Controller:
     def __init__(self,root=None):
@@ -67,7 +72,7 @@ class Controller:
                 self._report_cache=(cache_key,reports)
         return {'revision':revision,'library_token':token,'library_unchanged':unchanged,'library':payload, 'recommendations':reports['all']['recommendations'],
                 'insights':reports['all']['insights'],'platform_reports':reports,
-                'providers':public_profiles.readiness(), 'guides_ready':guides.configured(),
+                'provider_access':accounts.snapshot(self.store),'providers':public_profiles.readiness(), 'guides_ready':guides.configured(),
                 'settings':settings.status(), 'data_status':self.data_status(), 'update':self.updates.snapshot(),
                 'update_blockers':self.update_blockers()}
 
@@ -78,7 +83,7 @@ class Controller:
         if job.get('error'): return {'state':'error', 'message':job['error']}
         warnings = self.store.state.get('sync_warnings') or []
         if warnings:
-            names = ', '.join(w['game'] for w in warnings[:3])
+            names = ', '.join(w['game'] for w in warnings[:3])+ (f' · +{len(warnings)-3} diğer' if len(warnings)>3 else '')
             return {'state':'partial', 'message':f'{count} kayıt mevcut. {len(warnings)} oyunun verisi yenilenemedi: {names}. Bu oyunların önceki kayıtları korundu.'}
         if count: return {'state':'stored', 'message':f"{count} kaynak kaydı · Son eşitleme: {self.store.state.get('sync_at') or 'CSV içe aktarımı'}"}
         if self.store.status.get('connected'): return {'state':'empty', 'message':'Xbox oturumu açık; henüz başarım indirilmedi. Gerçek verileri yenile.'}
@@ -131,13 +136,51 @@ class Controller:
     def save_settings(self, data):
         if self.public_guard.locked() or self.guide_guard.locked() or (self.store.status.get('job') or {}).get('running') or self.store.status.get('login_running'):
             raise ValueError('Ayarları değiştirmeden önce çalışan işlemin bitmesini bekle.')
-        return settings.save(self.store.root, data.get('values', {}), data.get('clear', []))
+        result=settings.save(self.store.root, data.get('values', {}), data.get('clear', []))
+        for platform,key in accounts.FIELDS.items():
+            if key in data.get('values',{}) or key in data.get('clear',[]):
+                accounts.remember(self.store,platform,'configured' if public_profiles.readiness().get(platform) else 'not_configured')
+        return result
+
+    def provider_setup(self,data):
+        if self.public_guard.locked() or (self.store.status.get('job') or {}).get('running') or self.store.status.get('login_running'):raise ValueError('Önce çalışan hesap işleminin bitmesini bekle.')
+        platform=str(data.get('platform',''))
+        if platform not in accounts.LABELS:raise ValueError('Platform seç.')
+        username=public_profiles.validate(platform,data.get('username',''))
+        secret=str(data.get('secret') or '').strip()
+        if secret:
+            if platform not in accounts.FIELDS:raise ValueError('Xbox için Microsoft erişim düğmesini kullan.')
+            if platform=='psn' and data.get('consent') is not True:raise ValueError('Yalnız kendi yetkili PSN oturumunu kullanmayı onayla.')
+            settings.save(self.store.root,{accounts.FIELDS[platform]:secret},[])
+        with self.store.lock:
+            self.store.state.setdefault('provider_inputs',{})[platform]=username
+            self.store.state.setdefault('provider_access',{})[platform]={'state':'configured' if public_profiles.readiness().get(platform) else 'not_configured'}
+            self.store.save()
+        return {'message':'Bu platformun ayarı kaydedildi. Canlı bağlantıyı ayrı düğmeyle doğrula.'}
+
+    def provider_test(self,data):
+        platform=str(data.get('platform',''))
+        username=public_profiles.validate(platform,data.get('username',''))
+        if not public_profiles.readiness().get(platform):return accounts.remember(self.store,platform,'not_configured',message='Uygulamada kurulum yap.')
+        try:
+            identity=accounts.probe(platform,username)
+            return accounts.remember(self.store,platform,'verified',message='Servis erişimi çevrimiçi doğrulandı. Başarım arşivi henüz eşitlenmedi.',**identity)
+        except Exception as exc:
+            state,message=accounts.failure(exc)
+            return accounts.remember(self.store,platform,state,message=message)
+
+    def record_activity(self,platform,kind,job):
+        from datetime import datetime,timezone
+        from copy import deepcopy
+        with self.store.lock:
+            event={'platform':platform,'kind':kind,'at':datetime.now(timezone.utc).isoformat(),'account_id':(self.store.state.get('public_profiles',{}).get(platform) or {}).get('id'),'username':job.get('username',''),'cancelled':bool(job.get('cancelled')),'error':job.get('error',''),'message':job.get('message',''),'report':deepcopy(job.get('report'))}
+            history=self.store.state.setdefault('activity_history',[]);history.append(event);del history[:-100];self.store.save()
 
     def public_sync(self, data):
         platform = str(data.get('platform', ''))
         username = public_profiles.validate(platform, data.get('username', ''))
         if not public_profiles.readiness()[platform]:
-            raise ValueError('Bu platformun veri servisi kurulmamış. Kurulum için docs/PUBLIC_PROFILES_TR.md dosyasına bak. Oyuncunun hesabını bağlaması gerekmez.')
+            raise ValueError('Bu platformun veri servisi kurulmamış. Hesap & Veri → Uygulamada kurulum yap adımlarını tamamla.')
         if not self.public_guard.acquire(blocking=False):
             raise ValueError('Profil eşitlemesi zaten çalışıyor.')
         if (self.store.status.get('job') or {}).get('running'):
@@ -145,7 +188,7 @@ class Controller:
             raise ValueError('Xbox eşitlemesinin bitmesini bekle.')
         self.public_stop.clear()
         self.store.status['public_job'] = {'running': True, 'done': 0, 'total': 0,
-                                           'message': 'Profil sorgulanıyor…', 'error': ''}
+                                           'message': 'Profil sorgulanıyor…', 'error': '', 'platform':platform,'provider':'steam' if platform=='pc' else platform,'username':username}
         def progress(done, total, name):
             with self.store.lock:
                 self.store.status['public_job'].update(done=done, total=total, message=name)
@@ -159,22 +202,27 @@ class Controller:
                 if self.public_stop.is_set():raise sync_control.Cancelled()
                 report = self.store.apply_public_profile(snapshot)
                 with self.store.lock:
-                    self.store.status['public_job']['message'] = f"{snapshot['username']}: {report['games']} oyun, {report['achievements']} kupa kaydedildi."
+                    self.store.status['public_job']['report']={**report,'failed_titles':snapshot.get('warnings',[])}
+                    self.store.state.setdefault('sync_warnings_by_platform',{})[platform]=snapshot.get('warnings',[])
+                    self.store.state.setdefault('provider_access',{})[platform]={'state':'verified','username':snapshot['username'],'id':snapshot['id'],'checked_at':snapshot['synced_at']}
+                    self.store.status['public_job']['message'] = f"{snapshot['username']}: {report['games']} oyun, {report['achievements']} {'kupa' if platform=='psn' else 'başarım'} kaydedildi."
                 if self.public_stop.is_set():
                     self.store.status['public_job']['message']='Profil kaydedildi; sonraki indirmeler durduruldu.'
                     return
                 self.download_media({'platform':platform})
                 if settings.get('ATLAS_AUTO_GUIDES','0') == '1' and guides.configured() and not self.public_stop.is_set():
                     try:self.generate_guides({'platform': platform})
-                    except ValueError as exc:self.store.status['public_job']['message'] += ' '+str(exc)
+                    except ValueError:self.store.status['guide_job']={'platform':platform,'running':False,'error':'İsteğe bağlı rehber servisi kullanılamadı. Hesap verileri kaydedildi.'}
             except sync_control.Cancelled:
                 self.store.status['public_job'].update(cancelled=True,message='Eşitleme durduruldu; önceki arşiv korundu.')
             except Exception as exc:
                 # Only application-authored messages are safe for the browser.
-                message = str(exc) if type(exc) is ValueError else type(exc).__name__
-                self.store.status['public_job']['error'] = message[:350]
+                state,message=accounts.failure(exc)
+                accounts.remember(self.store,platform,state,message=message)
+                self.store.status['public_job']['error'] = safe_error(exc,350)
             finally:
                 self.store.status['public_job']['running'] = False
+                self.record_activity(platform,'profile',self.store.status['public_job'])
                 self.public_guard.release()
         threading.Thread(target=worker, daemon=True).start()
         return {'message': 'Herkese açık profil eşitlemesi başladı.'}
@@ -193,7 +241,10 @@ class Controller:
                 report=media_sync.download(self.store,progress,stop=self.media_stop.is_set,platform=platform,game_id=gid)
                 self.store.status['media_job'].update(report=report,cancelled=self.media_stop.is_set(),message=('İndirme durduruldu; tamamlanan görseller korundu. ' if self.media_stop.is_set() else '')+f"{report['downloaded']} indirildi; {report['cached']} önbellekte; {report['missing_source']} kaynaksız; {report['failed']} başarısız; {report['blocked']} engellendi. {'; '.join(report['errors'])}")
             except Exception as exc:self.store.status['media_job']['message']='Görsel indirmesi: '+type(exc).__name__
-            finally:self.store.status['media_job']['running']=False;self.media_guard.release()
+            finally:
+                self.store.status['media_job']['running']=False
+                self.record_activity(platform,'media',self.store.status['media_job'])
+                self.media_guard.release()
         threading.Thread(target=worker,daemon=True).start()
         return {'message':'Mevcut oyunların resmi kapak/logo ve başarım ikonları indiriliyor.'}
 
@@ -213,7 +264,7 @@ class Controller:
 
     def generate_guides(self, data):
         if not guides.configured():
-            raise ValueError('Rehber veri servisi kurulmamış. docs/PUBLIC_PROFILES_TR.md dosyasına bak.')
+            raise ValueError('İsteğe bağlı Türkçe rehber için Gelişmiş Ayarlar bölümünde Brave/OpenAI servisini yapılandır. Hesap eşitlemesi bundan bağımsızdır.')
         if not self.guide_guard.acquire(blocking=False):
             raise ValueError('Rehber araştırması zaten çalışıyor.')
         with self.store.lock:
@@ -222,7 +273,7 @@ class Controller:
                 and (not data.get('platform') or a.get('platform') == data['platform'])
                 and (a.get('guide') or {}).get('fingerprint') != guides.fingerprint(a)]
         self.guide_stop.clear()
-        self.store.status['guide_job'] = {'running': True, 'done': 0, 'total': len(items), 'error': ''}
+        self.store.status['guide_job'] = {'running': True, 'done': 0, 'total': len(items), 'error': '', 'platform':data.get('platform')}
         def worker():
             try:
                 for i, a in enumerate(items):
@@ -248,6 +299,7 @@ class Controller:
                 self.store.status['guide_job']['error'] = (str(exc) if type(exc) is ValueError else type(exc).__name__)[:250]
             finally:
                 self.store.status['guide_job']['running'] = False
+                self.record_activity(data.get('platform'),'guides',self.store.status['guide_job'])
                 self.guide_guard.release()
         threading.Thread(target=worker, daemon=True).start()
         return {'message': f'{len(items)} kupa için Türkçe kaynak araştırması başladı.'}
@@ -446,14 +498,14 @@ class Controller:
         return {'profile':profile, 'message':'Xbox oturumu doğrulandı; gerçek oyunlar ve başarımlar indiriliyor.'}
 
     def xbox_discover(self):
-        if not self.store.status.get('connected'):raise ValueError('Sign in first')
+        if not public_profiles.readiness().get('xbox'):raise ValueError('Önce uygulama içinde Xbox erişimini kur.')
         found=asyncio.run(xbox.account_titles())
         with self.store.lock:self.active_matches=found
         games=self.store.library['games']
         suggestions=[]
         for item in found:
             exact=[g for g in games if normalize(g['name'])==normalize(item['name'])]
-            suggestions.append({**item,'matches':[{'id':g['id'],'name':g['name']} for g in exact]})
+            suggestions.append({**item,'matches':[{'id':g['id'],'name':g['name'],'edition':g.get('platform_edition')} for g in exact if g.get('platform')=='xbox']})
         return {'titles':suggestions,'message':f'{len(found)} titles found; choose game mappings explicitly.'}
 
     def preview_enrichment(self,data):
@@ -465,6 +517,10 @@ class Controller:
             if game.get('platform')!='xbox' or not game.get('title_id'):
                 raise ValueError('Önce Xbox erişimini kur ve keşfedilen oyun/edisyon kimliğini Hesap & Veri ekranında açıkça onayla.')
             items=deepcopy([a for a in self.store.library['achievements'] if a['game_id']==game['id']])
+        info=asyncio.run(xbox.account_info())
+        profile=self.store.state.get('public_profiles',{}).get('xbox',{})
+        if profile.get('id') and str(profile['id'])!=str(info['xuid']):raise ValueError('Bu Xbox arşivinin hesabı ile yetkili oturum farklı. Kazanılma tarihleri başka hesaptan alınmaz.')
+        if not profile.get('id') and self.store.library.get('gamertag') and normalize(info['gamertag'])!=normalize(self.store.library['gamertag']):raise ValueError('CSV oyuncusu ile Xbox oturumu eşleşmiyor.')
         records=asyncio.run(xbox.title_achievements(game['title_id'],game.get('platform_edition') or 'auto'))
         pairs=enrichment.proposals(game,items,records);token=secrets.token_hex(16)
         self.enrichment_batches={token:{'game':game,'pairs':pairs}}
@@ -481,14 +537,17 @@ class Controller:
     def xbox_map(self,data):
         gid=str(data.get('game_id','')); tid=str(data.get('title_id',''))
         game=next((g for g in self.store.library['games'] if g['id']==gid),None)
-        candidate=next((x for x in self.active_matches if x['titleId']==tid),None)
-        if not game or game.get('platform')!='xbox' or not candidate:raise ValueError('Choose a discovered Xbox title first')
+        candidate=next((x for x in self.active_matches if x['titleId']==tid and x.get('platform')==data.get('edition')),None)
+        if data.get('confirmed') is not True or not game or game.get('platform')!='xbox' or not candidate:raise ValueError('Choose a discovered Xbox title first')
         if normalize(game['name'])!=normalize(candidate['name']):
             raise ValueError('Different title name; automatic unsafe mapping prevented')
         with self.store.lock:
-            if any(g.get('title_id')==tid for g in self.store.library['games'] if g['id']!=gid):
+            if any(g.get('platform')=='xbox' and g.get('title_id')==tid and g.get('platform_edition')==candidate.get('platform') for g in self.store.library['games'] if g['id']!=gid):
                 raise ValueError('Title ID is mapped to another edition')
             game['title_id']=tid;game['platform_edition']=candidate.get('platform') or 'auto'
+            from . import editions
+            editions.apply(game,editions.xbox_devices(candidate,generation='1' if candidate.get('platform')=='360' else '2') or (['xbox360'] if candidate.get('platform')=='360' else game.get('devices',[])))
+            game['title_identity_confirmed']=True
             image=candidate.get('cover_url','')
             if artwork.safe_url(image):game['cover_url']=image;game['image_source']='Xbox TitleHub'
             self.store.save()
@@ -600,13 +659,13 @@ class Handler(BaseHTTPRequestHandler):
         if path in ('/','/index.html'):
             body=(BASE/'web'/'index.html').read_text(encoding='utf-8').replace('__TOKEN__',self.server.token).encode('utf-8')
             return self.blob(body,'text/html; charset=utf-8')
-        if path in ('/ui/search.js','/ui/foundation.js','/ui/foundation.css','/ui/motion.js','/ui/motion.css','/ui/shell.js','/ui/shell.css','/ui/ultimate.js','/ui/ultimate.css','/app.js','/visuals.js','/ultimate.js','/model.js','/achievement_row.js','/inline.js','/art_transition.js','/style.css','/ultimate.css'):
+        if path in ('/ui/search.js','/ui/foundation.js','/ui/foundation.css','/ui/motion.js','/ui/motion.css','/ui/shell.js','/ui/shell.css','/ui/ultimate.js','/ui/ultimate.css','/app.js','/visuals.js','/ultimate.js','/model.js','/provider_setup.js','/achievement_row.js','/inline.js','/art_transition.js','/style.css','/ultimate.css'):
             return self.blob((BASE/'web'/path[1:]).read_bytes(), 'text/javascript' if path.endswith('.js') else 'text/css')
         if path=='/brand/atlas-mark.svg':return self.blob((BASE.parent/'assets'/'atlas-mark.svg').read_bytes(),'image/svg+xml')
         if path=='/api/status':
             c=self.server.controller
             with c.store.lock:
-                return self.reply({'revision':c.store.revision,'status':c.store.status,'data_status':c.data_status(),'update':c.updates.snapshot(),
+                return self.reply({'revision':c.store.revision,'status':c.store.status,'data_status':c.data_status(),'provider_access':accounts.snapshot(c.store),'update':c.updates.snapshot(),
                                    'update_blockers':c.update_blockers()})
         if path=='/api/data':return self.reply(self.server.controller.status(self.headers.get('X-Atlas-Library-Token')),compress=True)
         if path=='/api/art/health':return self.reply(media_sync.health(self.server.controller.store))
@@ -638,13 +697,15 @@ class Handler(BaseHTTPRequestHandler):
                '/api/archive/restore':self.server.controller.restore_archive,
                '/api/settings':self.server.controller.save_settings,
                '/api/downloads/stop':self.server.controller.stop_downloads,
+               '/api/providers/setup':self.server.controller.provider_setup,
+               '/api/providers/test':self.server.controller.provider_test,
                '/api/profiles/sync':self.server.controller.public_sync,
                '/api/guides/generate':self.server.controller.generate_guides,
                '/api/guides/stop':lambda d:self.server.controller.stop_guides(),
                '/api/pin':self.server.controller.set_pin,
                '/api/game/notes':self.server.controller.save_notes,
                '/api/preferences':lambda d:self.server.controller.store.set_preferences(d),
-               '/api/art/health':lambda d:media_sync.health(self.server.controller.store),
+               '/api/art/health':lambda d:media_sync.health(self.server.controller.store,d.get('platform')),
                '/api/enrichment/preview':self.server.controller.preview_enrichment,
                '/api/enrichment/confirm':self.server.controller.confirm_enrichment,
                '/api/art/key':self.server.controller.set_sgdb_key,

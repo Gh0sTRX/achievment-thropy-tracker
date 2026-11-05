@@ -4,9 +4,11 @@ No fake user-progress measurements: true 'nearest achievement' requires an API p
 fraction, otherwise a candidate is labelled a heuristic suggestion.
 """
 from collections import defaultdict
+from .catalog import only_games
 
 
 def rank(library, pins=(), limit=12):
+    library=only_games(library)
     games={g['id']:g for g in library.get('games',[])}
     by_game=defaultdict(list)
     for a in library.get('achievements',[]):by_game[a['game_id']].append(a)
@@ -59,6 +61,7 @@ def rank(library, pins=(), limit=12):
 
 
 def insights(library):
+    library=only_games(library)
     games={g['id']:g for g in library.get('games',[])}
     groups=defaultdict(list)
     for a in library.get('achievements',[]):groups[a['game_id']].append(a)

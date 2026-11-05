@@ -35,12 +35,13 @@ function renderPlatform(){renderDeviceOptions();
  const g=gameById(selectedGame)||games().find(g=>visualUrl(g,'hero'))||games()[0];
  applyAtmosphere(g);
  $('platformNote').textContent=ACTIVE_PLATFORM==='all'?'Tüm ekosistemler · Gamerscore yalnız Xbox kazanımlarını içerir':ACTIVE_PLATFORM==='pc'?'PC sağlayıcıları · Steam verisi için resmi API erişimi gerekir. Xbox ağına bağlı PC oyunları Xbox sekmesinde kalır.':`${ACTIVE_PLATFORM==='xbox'?'Xbox':'PlayStation'} kütüphanesi · İstatistikler yalnız bu platforma ait`;
+ document.querySelector('#platformSetupLink')?.remove();if(ACTIVE_PLATFORM!=='all'&&!PROVIDERS[ACTIVE_PLATFORM])$('platformNote').insertAdjacentHTML('beforeend',` <button id="platformSetupLink" class="ghost-link" data-provider-setup="${esc(ACTIVE_PLATFORM)}">Uygulamada kurulum yap</button>`);
  $('scoreLabel').textContent=ACTIVE_PLATFORM==='psn'?'KAZANILAN KUPALAR':ACTIVE_PLATFORM==='pc'?'STEAM BAŞARIMLARI':'XBOX GAMERSCORE';
 }
 function switchPlatform(platform){
  ACTIVE_PLATFORM=platform;ACTIVE_DEVICE='all';selectedGame=null;achPage=0;if(page==='universe')navigate('games');
  $('gameDetail').classList.add('hidden');$('achGame').value='all';$('achSearch').value='';$('gameSearch').value='';
- $('publicPlatform').value=platform==='psn'?'psn':platform==='pc'?'pc':'xbox';
+ selectAccountPlatform(platform==='psn'?'psn':platform==='pc'?'pc':'xbox');
  render();
  savePreferences({platform_filter:platform,focus_game_id:null});
 }

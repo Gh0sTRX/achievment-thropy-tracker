@@ -4,7 +4,7 @@ import threading
 import time
 from urllib.error import URLError
 from .sync_control import Cancelled
-from . import artwork
+from . import artwork,catalog
 
 
 def media_request(call,halted):
@@ -25,11 +25,11 @@ def media_request(call,halted):
 def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, game_id=None):
     from datetime import datetime,timezone
     with store.lock:
-        games=[dict(g) for g in store.library['games'] if (not platform or g.get('platform')==platform) and (not game_id or g['id']==game_id)]
+        games=[dict(g) for g in store.library['games'] if not catalog.is_app(g) and (not platform or g.get('platform')==platform) and (not game_id or g['id']==game_id)]
         gids={g['id'] for g in games}
-        icons=[dict(a) for a in store.library['achievements'] if a.get('game_id') in gids or (not platform and not game_id)]
+        icons=[dict(a) for a in store.library['achievements'] if a.get('game_id') in gids or (not platform and not game_id and a.get('game_id') not in {g['id'] for g in store.library['games']})]
     kinds=('cover','hero','banner','logo','screenshot')
-    report={'downloaded':0,'cached':0,'missing_source':0,'failed':0,'blocked':0,'skipped':0,'cancelled':0,'attempted':0,'processed':0,'planned':len(games)*5+len(icons),'records':len(games)+len(icons),'missing':[],'errors':[],'details':[],'checked_at':datetime.now(timezone.utc).isoformat()}
+    report={'downloaded':0,'cached':0,'missing_source':0,'failed':0,'blocked':0,'skipped':0,'cancelled':0,'attempted':0,'processed':0,'planned':len(games)*5+len(icons),'records':len(games)+len(icons),'missing':[],'errors':[],'details':[],'detail_count':0,'missing_count':0,'error_count':0,'checked_at':datetime.now(timezone.utc).isoformat()}
     blocked=threading.Event();dirty=0;last_save=time.monotonic();indexed=None;indexes={}
     def lookup(is_icon,ident):
         nonlocal indexed,indexes
@@ -82,9 +82,15 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
             report[state]+=1;report['attempted']+=int(attempted);report['processed']+=1
             detail={'id':ident,'game_id':obj.get('game_id',ident),'kind':kind,'state':state,'code':code,'platform':obj.get('platform')}
             # Never include provider exception text or credential-bearing request URLs.
-            if state in ('failed','blocked'):report['errors'].append(f'{kind}: HTTP {code}' if code else f'{kind}: invalid image or transport')
-            if state=='missing_source':report['missing'].append(detail)
-            if state not in ('cached','downloaded'):report['details'].append(detail)
+            if state in ('failed','blocked'):
+                report['error_count']+=1
+                if len(report['errors'])<200:report['errors'].append(f'{kind}: HTTP {code}' if code else f'{kind}: invalid image or transport')
+            if state=='missing_source':
+                report['missing_count']+=1
+                if len(report['missing'])<200:report['missing'].append(detail)
+            if state not in ('cached','downloaded'):
+                report['detail_count']+=1
+                if len(report['details'])<200:report['details'].append(detail)
         with store.lock:
             current=lookup(is_icon,ident)
             if current and (not is_icon or state!='missing_source'):
@@ -103,6 +109,7 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
     if dirty:
         with store.lock:store.save()
     report['stopped']=bool(stop() or blocked.is_set())
+    report['details_truncated']=report['detail_count']>len(report['details'])
     return report
 
 
@@ -114,8 +121,10 @@ def health(store,platform=None):
         gids={g['id'] for g in games};items=[dict(a) for a in store.library['achievements'] if a.get('game_id') in gids]
     present={g['id']:{kind:bool(artwork.cached(store.root,kind,g['id'])) for kind in kinds} for g in games}
     coverage={kind:sum(present[g['id']][kind] for g in games) for kind in kinds}
-    sources={kind:sum(bool(artwork.safe_url(g.get(kind+'_url')) or any(c.get('kind')==kind and artwork.safe_url(c.get('url')) for c in g.get('art_candidates',[]))) for g in games) for kind in kinds}
+    sources={kind:sum(bool(artwork.safe_url(g.get(kind+'_url')) or artwork.safe_url((g.get('artwork_meta') or {}).get(kind,{}).get('source_url')) or any(c.get('kind')==kind and artwork.safe_url(c.get('url')) for c in g.get('art_candidates',[]))) for g in games) for kind in kinds}
     issues=[{'game_id':g['id'],'name':g.get('name',''),'platform':g.get('platform'),'devices':g.get('devices',[]),'missing':[kind for kind in kinds if not present[g['id']][kind]],'states':g.get('artwork_download',{})} for g in games if not all(present[g['id']].values())]
     icons=sum(bool(artwork.cached(store.root,'icon',a['id'])) for a in items)
+    states=[v for g in games for v in g.get('artwork_download',{}).values()]+[a['icon_download'] for a in items if a.get('icon_download')]
+    state_counts={key:sum(s.get('state')==key for s in states) for key in ('downloaded','cached','missing_source','failed','blocked','skipped','cancelled')}
     return {'games':len(games),'achievements':len(items),'cached':coverage,'cached_icons':icons,'valid_source_urls':sources,'icon_source_urls':sum(artwork.safe_url(a.get('icon_url') or a.get('icon_candidate')) for a in items),
-            'missing':{kind:len(games)-coverage[kind] for kind in kinds},'issues':issues[:200],'issue_count':len(issues),'has_more':len(issues)>200,'missing_icons':len(items)-icons,'scope':'validated_local_cache'}
+            'missing':{kind:len(games)-coverage[kind] for kind in kinds},'issues':issues[:200],'issue_count':len(issues),'has_more':len(issues)>200,'missing_icons':len(items)-icons,'scope':'validated_local_cache','last_checked_states':state_counts,'checked_at':max((s.get('updated_at','') for s in states),default='')}
