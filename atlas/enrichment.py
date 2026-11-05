@@ -14,6 +14,7 @@ def proposals(game,items,remote):
 
 def apply(store,batch,selected):
     with store.lock:
+        if batch.get('library_token') and batch['library_token']!=store.content_token():raise ValueError('Arşiv/profil değişti; eşleşmeleri yeniden sorgula.')
         game=next((g for g in store.library['games'] if g['id']==batch['game']['id']),None)
         if not game or any(game.get(k)!=batch['game'].get(k) for k in ('platform','title_id','platform_edition','devices')):raise ValueError('Oyun/edisyon kimliği değişti; yeniden sorgula.')
         items={a['id']:a for a in store.library['achievements'] if a['game_id']==game['id']};count=0

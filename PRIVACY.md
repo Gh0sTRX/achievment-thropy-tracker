@@ -1,10 +1,8 @@
 # Privacy Policy — Achievement Atlas
 
-**Reviewed source:** v0.14.0 / Ultimate v5.1 audit, November 3, 2026.
+**Reviewed source:** v0.16.1 plus Issue #22 source changes, November 5, 2026.
 **Project:** [Gh0sTRX/achievment-thropy-tracker](https://github.com/Gh0sTRX/achievment-thropy-tracker).
-This describes the source in this audit branch. The already published 0.14 binary
-is not updated merely by editing this document; in particular, its automatic-guide
-consent defect is corrected here and requires a later reviewed application update.
+Issue #22 changes are review branches, not a new published binary.
 
 ## Local-first storage and network behavior
 
@@ -32,7 +30,7 @@ The default application folder is `%LOCALAPPDATA%\AchievementAtlas` on Windows
   original CSV date text when retained, measured progress, source URLs, notes and
   generated Turkish guide notes with cited snippets/URLs/model/timestamp.
 - `state.json`: pinned targets, appearance settings, mapped title IDs, linked
-  profile identity, target-profile identities and sync timestamps/warnings.
+  profile identity, target-profile identities, separate provider inputs/access-test results, sync timestamps/warnings and up to 100 local activity events. Media-event detail lists retain at most 200 examples plus exact aggregate counters. Profile events preserve the failed-title list. None of these fields contains the configured session/key value.
 - `profiles/*.json`: local snapshots of previously queried public profiles and
   their games/achievements. Changing profile does not erase these histories.
 - `artwork/`: validated cached game art and achievement icons, including user files;
@@ -104,7 +102,7 @@ want that behavior should not configure those guide keys for that binary.
 ## Settings and credential protection
 
 Windows stored settings use DPAPI scoped to the current Windows user: Xbox token
-**file path**, NPSSO, Brave/OpenAI keys and guide preferences/model. On non-Windows
+**file path**, NPSSO, Steam Web API key, Brave/OpenAI keys and guide preferences/model. On non-Windows
 systems settings are a plaintext JSON file created with restrictive user permissions.
 Environment variables are another supported source and are not written back by the
 app. UI status returns presence flags rather than secret values. This is not a
@@ -158,3 +156,26 @@ Uninstall before deleting pending-update recovery files, or preserve them until
 recovery finishes. Windows policy/timing can prevent this one-shot attempt; it is
 not a guarantee of physical power-loss recovery. See
 [recovery implementation and limits](docs/UPDATE_CRASH_RECOVERY_TR.md).
+
+## Issue #22 setup, preflight and metadata confirmation
+
+The in-app PSN wizard accepts only an explicitly authorized personal NPSSO session;
+PSNAWP is unofficial and is not Sony OAuth. Steam setup uses an official Web API key.
+Secret fields are cleared after submission and never returned by settings/status APIs.
+Windows uses the existing user-scoped DPAPI store; other OS storage remains restricted
+plaintext as described above. Environment values still take precedence. The wizard
+opens official provider pages only on the user's link click.
+
+A separate connection test contacts the selected provider: Steam resolves a vanity
+name if needed and queries owned-game visibility; PSNAWP resolves the requested
+Online ID and reads at most one trophy title for visibility. Xbox checks the authorized
+service profile. A successful test does not import an achievement library or launch
+Brave/OpenAI calls. Provider state records last validation, not a promise of ongoing
+access. Failed setup or sync leaves existing records intact.
+
+Optional Xbox metadata enrichment queries a confirmed title, proposes achievement
+identity pairs, and requires explicit per-pair confirmation. Provider descriptions/icons
+are added to existing records without replacing earned states, notes or targets.
+Dates from a different authenticated Xbox account are rejected. CSV and API identities
+are retained separately until confirmed; title-string similarity never proves edition
+identity. No restricted-site scraping or generated game artwork is introduced.

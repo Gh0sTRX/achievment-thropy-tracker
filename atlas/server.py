@@ -517,13 +517,14 @@ class Controller:
             if game.get('platform')!='xbox' or not game.get('title_id'):
                 raise ValueError('Önce Xbox erişimini kur ve keşfedilen oyun/edisyon kimliğini Hesap & Veri ekranında açıkça onayla.')
             items=deepcopy([a for a in self.store.library['achievements'] if a['game_id']==game['id']])
+            library_token=self.store.content_token()
         info=asyncio.run(xbox.account_info())
         profile=self.store.state.get('public_profiles',{}).get('xbox',{})
         if profile.get('id') and str(profile['id'])!=str(info['xuid']):raise ValueError('Bu Xbox arşivinin hesabı ile yetkili oturum farklı. Kazanılma tarihleri başka hesaptan alınmaz.')
         if not profile.get('id') and self.store.library.get('gamertag') and normalize(info['gamertag'])!=normalize(self.store.library['gamertag']):raise ValueError('CSV oyuncusu ile Xbox oturumu eşleşmiyor.')
         records=asyncio.run(xbox.title_achievements(game['title_id'],game.get('platform_edition') or 'auto'))
         pairs=enrichment.proposals(game,items,records);token=secrets.token_hex(16)
-        self.enrichment_batches={token:{'game':game,'pairs':pairs}}
+        self.enrichment_batches={token:{'game':game,'pairs':pairs,'library_token':library_token}}
         return {'token':token,'game':game['name'],'platform':game['platform'],'edition':game.get('platform_edition'),'pairs':[{'local_id':p['local_id'],'name':p['remote']['name'],'provider_id':str(p['remote']['id'])} for p in pairs]}
 
     def confirm_enrichment(self,data):
@@ -544,12 +545,14 @@ class Controller:
         with self.store.lock:
             if any(g.get('platform')=='xbox' and g.get('title_id')==tid and g.get('platform_edition')==candidate.get('platform') for g in self.store.library['games'] if g['id']!=gid):
                 raise ValueError('Title ID is mapped to another edition')
+            if game.get('title_id')!=tid or game.get('platform_edition')!=candidate.get('platform'):
+                game.pop('artwork_match',None);game['art_candidates']=[]
             game['title_id']=tid;game['platform_edition']=candidate.get('platform') or 'auto'
             from . import editions
             editions.apply(game,editions.xbox_devices(candidate,generation='1' if candidate.get('platform')=='360' else '2') or (['xbox360'] if candidate.get('platform')=='360' else game.get('devices',[])))
             game['title_identity_confirmed']=True
             image=candidate.get('cover_url','')
-            if artwork.safe_url(image):game['cover_url']=image;game['image_source']='Xbox TitleHub'
+            if artwork.safe_url(image) and game.get('cover_url')!='local':game['cover_url']=image;game['image_source']='Xbox TitleHub'
             self.store.save()
         return {'message':'Mapped '+game['name']+' to Xbox Title ID '+tid}
 
@@ -718,7 +721,7 @@ class Handler(BaseHTTPRequestHandler):
                '/api/media/download':self.server.controller.download_media,
                '/api/xbox/login':lambda d:self.server.controller.xbox_login(),
                '/api/xbox/reconnect':lambda d:self.server.controller.xbox_reconnect(),
-               '/api/xbox/discover':lambda d:self.server.controller.sync_linked_profile(),
+               '/api/xbox/discover':lambda d:self.server.controller.xbox_discover(),
                '/api/xbox/map':self.server.controller.xbox_map,
                '/api/xbox/sync':self.server.controller.xbox_sync,
                '/api/icons':self.server.controller.cache_icons,
@@ -732,7 +735,7 @@ class Handler(BaseHTTPRequestHandler):
                 result=methods[path](data)
             return self.reply(result)
         except (ValueError,KeyError,xbox.DirectError,urllib.error.HTTPError,urllib.error.URLError) as e:
-            return self.reply({'error':str(e)[:350]},400)
+            return self.reply({'error':safe_error(e,350)},400)
         except Exception:
             return self.reply({'error':'Unexpected application error; credentials omitted from logs.'},500)
 

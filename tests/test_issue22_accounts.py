@@ -63,3 +63,14 @@ class AccountsTests(unittest.TestCase):
   with patch('atlas.xbox.account_info',return_value={'xuid':'123','gamertag':'OtherPlayer'}),patch('atlas.xbox.title_achievements') as fetch:
    with self.assertRaises(ValueError):self.c.preview_enrichment({'game_id':'csv'})
   fetch.assert_not_called()
+ def test_http_discovery_returns_candidates_without_starting_profile_sync(self):
+  import threading
+  from urllib.request import Request,urlopen
+  from atlas.server import LocalApp
+  app=LocalApp(self.tmp.name);thread=threading.Thread(target=app.serve_forever,daemon=True);thread.start()
+  try:
+   with patch.object(app.controller,'xbox_discover',return_value={'titles':[]}),patch.object(app.controller,'sync_linked_profile') as sync:
+    request=Request(app.url+'api/xbox/discover',data=b'{}',headers={'Content-Type':'application/json','X-Atlas-Token':app.token})
+    with urlopen(request) as response:self.assertEqual(json.load(response),{'titles':[]})
+    sync.assert_not_called()
+  finally:app.shutdown();app.server_close();thread.join()

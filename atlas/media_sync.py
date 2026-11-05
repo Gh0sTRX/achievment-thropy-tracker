@@ -70,7 +70,7 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
                         if not current or any(current.get(k)!=obj.get(k) for k in ('platform','game_id','title_id','platform_edition')):state='skipped';break
                         if not is_icon and (current.get('artwork_meta') or {}).get(kind,{}).get('provider')=='user_file':state='skipped';break
                         if not is_icon:meta=artwork.store_bytes(store.root,kind,ident,data)
-                        provenance={**meta,'provider':candidate.get('provider') or obj.get('platform'),'provider_id':candidate.get('provider_id') or obj.get('provider_id') or obj.get('title_id',''),'source_url':url,'game_id':obj.get('game_id',ident),'platform':obj.get('platform'),'platform_edition':obj.get('platform_edition'),'saved_at':report['checked_at'],'rights_note':candidate.get('rights_note') or 'Sağlayıcı görseli; yeniden dağıtım izni verilmez.'}
+                        provenance={**meta,'provider':candidate.get('provider') or obj.get('platform'),'provider_id':candidate.get('provider_id') or (obj.get('provider_identity') or {}).get('achievement_id') or obj.get('provider_id') or obj.get('title_id',''),'source_url':url,'game_id':obj.get('game_id',ident),'platform':obj.get('platform'),'platform_edition':obj.get('platform_edition'),'saved_at':report['checked_at'],'rights_note':candidate.get('rights_note') or 'Sağlayıcı görseli; yeniden dağıtım izni verilmez.'}
                         if is_icon:current['icon_meta']=provenance;current['icon_url']=url
                         else:current[kind+'_url']='local';current.setdefault('artwork_meta',{})[kind]=provenance
                         dirty+=1;state='downloaded';break

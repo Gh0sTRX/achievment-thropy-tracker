@@ -30,6 +30,7 @@ def probe(platform,username):
     return {'service_account_id':str(info['xuid']),'username':username}
 
 def failure(exc):
+    if isinstance(exc,ImportError):return 'failed','Bu pakette sağlayıcı bileşeni eksik. Güncel Windows kurulum paketini kullan.'
     code=getattr(exc,'code',None) or getattr(getattr(exc,'response',None),'status_code',None)
     name=type(exc).__name__.lower()
     if code==429:return 'rate_limited','İstek sınırına ulaşıldı. Daha sonra yeniden dene.'
