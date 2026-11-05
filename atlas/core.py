@@ -280,7 +280,7 @@ class Library:
         platform, account_id = identity.validate_snapshot(snapshot)
         with self.lock:
             provider=snapshot.get('provider','')
-            def in_scope(g):return g.get('platform')==platform and (platform!='pc' or g.get('provider')==provider)
+            def in_scope(g):return g.get('platform')==platform and (platform!='pc' or g.get('provider','')==provider)
             profiles = self.state.setdefault('public_profiles', {})
             previous = profiles.get(platform, {})
             identity.reject_name_reuse(previous, snapshot)
@@ -295,7 +295,8 @@ class Library:
             key = game_id(platform, snapshot['id'])
             archive = self.root/'profiles'/(key+'.json')
             cached = self._read(archive, {})
-            old_items = {a['id']: a for a in (self.library['achievements'] if same else cached.get('achievements', []))}
+            prior_games = {g['id']: g for g in (self.library['games'] if same else cached.get('games', [])) if in_scope(g)}
+            old_items = {a['id']: a for a in (self.library['achievements'] if same else cached.get('achievements', [])) if a.get('game_id') in prior_games}
             new_items = deepcopy(snapshot['achievements'])
             for a in new_items:
                 prior = old_items.get(a['id'], {})
@@ -305,9 +306,9 @@ class Library:
                 if prior.get('guide') and prior.get('description') == a.get('description') and prior.get('device_label','') == a.get('device_label','') and prior.get('platform_edition','') == a.get('platform_edition',''):
                     a['guide'] = prior['guide']
             new_games = deepcopy(snapshot['games'])
-            prior_games = {g['id']: g for g in (self.library['games'] if same else cached.get('games', []))}
-            failed = set(snapshot.get('failed_title_ids', []))
-            retained_failed = [deepcopy(g) for g in prior_games.values() if g.get('title_id') in failed]
+            failed = {str(t) for t in snapshot.get('failed_title_ids', [])}
+            incoming_ids={g['id'] for g in new_games}
+            retained_failed = [deepcopy(g) for g in prior_games.values() if str(g.get('title_id')) in failed and g['id'] not in incoming_ids]
             retained_failed_ids = {g['id'] for g in retained_failed}
             new_games.extend(retained_failed)
             new_items.extend(deepcopy(a) for a in old_items.values() if a['game_id'] in retained_failed_ids)
