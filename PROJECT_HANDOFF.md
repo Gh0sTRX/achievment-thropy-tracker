@@ -143,3 +143,9 @@ PR #8 / `fix/update-rollback-snapshot` üzerinde gerçek 0.13.0/0.14.1 yayımlan
 ### Devam — native güncelleme düğmeleri ve data-dir
 
 PR #8'de native WebView2 düğmelerinden yayımlanmış 0.14.1→güncel geliştirme sürümü self-update testi eklendi. Tam ağ/köken kanıtı/helper/installer/yeniden açılış zinciri, ayrı GitHub Windows runner üzerinde başta bulunmadığı doğrulanan varsayılan veri klasöründe çalışır. LOCALAPPDATA değiştirilmez; WebView2 runtime keşfi korunur. Son CI sonucu görülmeden geçti deme. Ayrıca yeniden başlatmada özel `--data-dir` kaybı düzeltildi (install plan + helper'ın başarılı/geri alma başlatmaları). Eski dağıtılmış helper'ın davranışı geriye dönük değişmez. Kalıcı update power-loss journal hâlâ sonraki iştir.
+
+## Devam — kalıcı update kurtarma dalı
+
+PR #8'in son doğrulanan commit'i `7adcc8a3eada6581f4840d1209fd0a7accd6b3f9`: 144 Python testi, 9 helper senaryosu, gerçek 0.13.0/0.14.1→aday kurulum matrisi ve yayımlanmış 0.14.1→0.15.0 gerçek native düğme/köken/helper/yeniden açılış zinciri geçti. Windows koşusu: https://github.com/Gh0sTRX/achievment-thropy-tracker/actions/runs/42017115300 . PR #8 henüz merge/release edilmedi.
+
+Yeni `feature/update-crash-recovery` dalı PR #8 üzerine bağımlıdır. Kalıcı recovery-state.json + kullanıcı kapsamlı tek seferlik Windows RunOnce denemesi, yeni süreçte kurtarma ve uninstall sırasında kurtarma görevinin iptali eklenir. Ayrıntı/sınırlar: `docs/UPDATE_CRASH_RECOVERY_TR.md`. Son CI görülmeden Windows/güç kesintisi doğrulandı deme. Fiziksel güç kesintisi ve gerçek logon testi bu CI süreci öldürme testlerinden farklıdır. main ve mevcut Development Release korunur.

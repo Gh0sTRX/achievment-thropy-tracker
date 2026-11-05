@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$PlanPath)
+param([string]$PlanPath=(Join-Path $PSScriptRoot 'plan.json'),[switch]$Recover)
 $ErrorActionPreference='Stop'
 function Get-InstallInventory([string]$Directory) {
     $root=[IO.Path]::GetFullPath($Directory).TrimEnd([IO.Path]::DirectorySeparatorChar)
@@ -33,6 +33,15 @@ function Save-InstallSnapshot([string]$InstallDirectory,[string]$BackupDirectory
     foreach ($item in Get-ChildItem -LiteralPath $install -Force) {
         Copy-Item -LiteralPath $item.FullName -Destination $backup -Recurse -Force
     }
+    # Commit backup bytes before the pending marker can authorize replacement.
+    foreach ($file in Get-ChildItem -LiteralPath $backup -Recurse -Force -File) {
+        $attributes=$file.Attributes
+        try {
+            [IO.File]::SetAttributes($file.FullName,($attributes -band (-bnot [IO.FileAttributes]::ReadOnly)))
+            $stream=[IO.File]::Open($file.FullName,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read)
+            try { $stream.Flush($true) } finally { $stream.Dispose() }
+        } finally { [IO.File]::SetAttributes($file.FullName,$attributes) }
+    }
     Assert-SnapshotMatches $backup $inventory
     return ,$inventory
 }
@@ -55,7 +64,89 @@ function Restore-InstallSnapshot([string]$InstallDirectory,[string]$BackupDirect
     Assert-SnapshotMatches $InstallDirectory $Inventory
 }
 
-$plan=Get-Content -LiteralPath $PlanPath -Raw | ConvertFrom-Json
+function Write-RecoveryState($State) {
+    $temporary=$script:journalPath+'.'+[Guid]::NewGuid()+'.tmp'
+    $previous=$temporary+'.previous'
+    $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($State | ConvertTo-Json -Depth 8))
+    try {
+        $stream=[IO.File]::Open($temporary,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+        try { $stream.Write($bytes,0,$bytes.Length);$stream.Flush($true) } finally { $stream.Dispose() }
+        if ([IO.File]::Exists($script:journalPath)) { [IO.File]::Replace($temporary,$script:journalPath,$previous) }
+        else { [IO.File]::Move($temporary,$script:journalPath) }
+        $committed=[IO.File]::Open($script:journalPath,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read)
+        try { $committed.Flush($true) } finally { $committed.Dispose() }
+    } finally {
+        if ([IO.File]::Exists($temporary)) { [IO.File]::Delete($temporary) }
+        if ([IO.File]::Exists($previous)) { [IO.File]::Delete($previous) }
+    }
+}
+function Recovery-HookName {
+    $sha=[Security.Cryptography.SHA256]::Create()
+    try { $digest=([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes([IO.Path]::GetFullPath($PlanPath))))).Replace('-','').Substring(0,16) }
+    finally { $sha.Dispose() }
+    return '!AchievementAtlasRecovery-'+$digest
+}
+function Register-RecoveryHook([string]$HelperPath=$PSCommandPath) {
+    $helperFull=[IO.Path]::GetFullPath($HelperPath)
+    $install=[IO.Path]::GetFullPath($plan.install_dir).TrimEnd([IO.Path]::DirectorySeparatorChar)
+    if ($helperFull.StartsWith($install+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) { throw 'Recovery helper must be outside installation' }
+    foreach ($metadataPath in @($helperFull,[IO.Path]::GetFullPath($PlanPath))) {
+        $metadata=[IO.File]::Open($metadataPath,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read)
+        try { $metadata.Flush($true) } finally { $metadata.Dispose() }
+    }
+    $command='powershell.exe -NoProfile -NonInteractive -File "'+$HelperPath+'" -Recover'
+    if ([IO.Path]::GetFullPath($PlanPath) -ne (Join-Path (Split-Path -Parent $HelperPath) 'plan.json')) { $command+=' -PlanPath "'+$PlanPath+'"' }
+    if ($command.Length -gt 260) { throw 'Recovery command exceeds Windows RunOnce limit; installation cancelled' }
+    $key='HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
+    if (!(Test-Path -LiteralPath $key)) { New-Item -Path $key | Out-Null }
+    New-ItemProperty -Path $key -Name (Recovery-HookName) -Value $command -PropertyType String -Force | Out-Null
+    $actual=Get-ItemPropertyValue -Path $key -Name (Recovery-HookName)
+    if ($actual -ne $command) { throw 'Windows recovery hook could not be verified' }
+    $registryKey=Get-Item -LiteralPath $key
+    try { $registryKey.Flush() } finally { $registryKey.Dispose() }
+}
+function Remove-RecoveryHook {
+    $key='HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
+    Remove-ItemProperty -Path $key -Name (Recovery-HookName) -ErrorAction SilentlyContinue
+}
+function Validate-RecoveryState($State) {
+    if ($State.format -ne 'atlas-update-recovery-v1' -or $State.state -notin @('pending','completed','rolled_back')) { throw 'Invalid update recovery state' }
+    if ($State.install_dir -ne [IO.Path]::GetFullPath($plan.install_dir) -or $State.backup -ne [IO.Path]::GetFullPath($plan.backup)) { throw 'Recovery paths differ from original plan' }
+    $install=[IO.Path]::GetFullPath($plan.install_dir).TrimEnd([IO.Path]::DirectorySeparatorChar)
+    $directory=[IO.Path]::GetFullPath((Split-Path -Parent $PlanPath)).TrimEnd([IO.Path]::DirectorySeparatorChar)
+    if ([IO.Path]::GetFullPath($plan.exe) -ne (Join-Path $install 'AchievementAtlas.exe')) { throw 'Unexpected recovery executable' }
+    if ($directory -eq $install -or $directory.StartsWith($install+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) { throw 'Recovery files must be outside installation' }
+    if ([IO.Path]::GetFullPath($plan.backup) -ne (Join-Path $directory 'previous-version')) { throw 'Unexpected recovery backup location' }
+    if ($plan.data_dir) {
+        $data=[IO.Path]::GetFullPath($plan.data_dir).TrimEnd([IO.Path]::DirectorySeparatorChar)
+        if ($data -eq $install -or $data.StartsWith($install+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) { throw 'User data cannot be inside installation' }
+    }
+    if (@($State.inventory).Count -lt 2) { throw 'Recovery inventory is incomplete' }
+    foreach ($file in @('AchievementAtlas.exe','unins000.exe')) {
+        if (@($State.inventory | Where-Object {$_.path -eq $file -and !$_.directory -and $_.sha256 -match '^[A-Fa-f0-9]{64}$'}).Count -ne 1) { throw 'Required recovery executable missing from inventory' }
+    }
+}
+function Finish-RecoveryState([string]$Status) {
+    $script:recoveryState.state=$Status
+    Write-RecoveryState $script:recoveryState
+    try { Remove-RecoveryHook } catch { 'Recovery hook cleanup deferred' | Add-Content -LiteralPath $plan.log }
+}
+function Resume-InterruptedUpdate {
+    $script:recoveryState=Get-Content -LiteralPath $script:journalPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    Validate-RecoveryState $script:recoveryState
+    if ($script:recoveryState.state -ne 'pending') { Remove-RecoveryHook;return }
+    $running=@(Get-Process -Name AchievementAtlas -ErrorAction SilentlyContinue | Where-Object {$_.Path -eq $plan.exe})
+    if ($running.Count) { throw 'Application is running; recovery deferred without changing files' }
+    Restore-InstallSnapshot $plan.install_dir $plan.backup $script:recoveryState.inventory
+    Finish-RecoveryState 'rolled_back'
+    'Interrupted update recovered; old files verified' | Add-Content -LiteralPath $plan.log
+    Start-UpdatedApplication
+}
+
+$PlanPath=[IO.Path]::GetFullPath($PlanPath)
+$script:journalPath=Join-Path (Split-Path -Parent $PlanPath) 'recovery-state.json'
+$script:recoveryState=$null
+$plan=Get-Content -LiteralPath $PlanPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $installationStarted=$false
 $installationCompleted=$false
 $canRelaunch=$true
@@ -84,6 +175,8 @@ function Verify-Installer {
     }
 }
 try {
+    if ($Recover) { Resume-InterruptedUpdate;return }
+    if (Test-Path -LiteralPath $script:journalPath) { throw 'Recovery state already exists; recover the previous attempt before retrying' }
     if (!(Test-Path (Join-Path $plan.install_dir 'unins000.exe'))) { throw 'Installed application not found' }
     if ([IO.Path]::GetFullPath($plan.exe) -ne (Join-Path ([IO.Path]::GetFullPath($plan.install_dir)) 'AchievementAtlas.exe')) { throw 'Unexpected application path' }
     Set-Content -LiteralPath $plan.ready -Value 'ready'
@@ -91,26 +184,37 @@ try {
     if (Get-Process -Id $plan.parent_pid -ErrorAction SilentlyContinue) { throw 'Application did not close; update cancelled' }
     Verify-Installer
     $inventory=Save-InstallSnapshot $plan.install_dir $plan.backup
+    $script:recoveryState=@{format='atlas-update-recovery-v1';state='pending';install_dir=[IO.Path]::GetFullPath($plan.install_dir);backup=[IO.Path]::GetFullPath($plan.backup);inventory=$inventory}
+    Validate-RecoveryState $script:recoveryState
+    Write-RecoveryState $script:recoveryState
+    Register-RecoveryHook
     $args=@('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="'+$plan.install_dir+'"'),('/LOG="'+$plan.log+'"'))
     $installationStarted=$true
     $process=Start-Process -FilePath $plan.installer -ArgumentList $args -Wait -PassThru
     if ($process.ExitCode -ne 0) {
         throw ('Installer failed: '+$process.ExitCode)
     }
+    Finish-RecoveryState 'completed'
     $installationCompleted=$true
     Start-UpdatedApplication
     'Update installed: '+$plan.version | Add-Content -LiteralPath $plan.log
 } catch {
     $updateFailure=$_.Exception.Message
+    if ($Recover) {
+        ('RECOVERY FAILED; files retained. Backup: '+$plan.backup+'; '+$updateFailure) | Add-Content -LiteralPath $plan.log
+        throw
+    }
     if ($installationStarted -and !$installationCompleted) {
         try {
             Restore-InstallSnapshot $plan.install_dir $plan.backup $inventory
+            Finish-RecoveryState 'rolled_back'
             'Previous application files restored and verified' | Add-Content -LiteralPath $plan.log
         } catch {
             $canRelaunch=$false
             ('ROLLBACK FAILED; application not restarted. Backup: '+$plan.backup+'; '+$_.Exception.Message) | Add-Content -LiteralPath $plan.log
         }
     }
+    if (!$installationStarted -and $script:recoveryState) { try { Remove-RecoveryHook } catch { } }
     ('Update cancelled or failed: '+$updateFailure) | Add-Content -LiteralPath $plan.log
     if ($canRelaunch -and !(Get-Process -Id $plan.parent_pid -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath $plan.exe)) {
         Start-UpdatedApplication

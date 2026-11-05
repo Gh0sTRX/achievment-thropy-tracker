@@ -33,33 +33,68 @@ try {
     $oldPid=$active.Id
     Add-Type -AssemblyName UIAutomationClient
     Add-Type -AssemblyName UIAutomationTypes
-    function Invoke-NativeButton([string]$Name,[int]$Seconds=60) {
+    function Invoke-NativeButton([string]$Name,[int]$Seconds=60,[string[]]$AcceptedStates=@()) {
         $deadline=[DateTime]::UtcNow.AddSeconds($Seconds)
         while ([DateTime]::UtcNow -lt $deadline) {
             $script:active.Refresh()
-            if ($script:active.HasExited) { throw 'Native window closed before button invocation' }
-            if ($script:active.MainWindowHandle -ne [IntPtr]::Zero) {
-                $window=[Windows.Automation.AutomationElement]::FromHandle($script:active.MainWindowHandle)
-                $elements=$window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
-                foreach ($element in $elements) {
-                    $current=$element.Current
-                    if ($current.IsOffscreen -or !$current.IsEnabled -or $current.Name.IndexOf($Name,[StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
-                    $invoke=$null
-                    if ($element.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern,[ref]$invoke)) {
-                        Write-Output ('Invoking native button: '+$current.Name)
-                        $invoke.Invoke()
-                        return
+            if ($script:active.HasExited) {
+                if ('installing' -in $AcceptedStates) { return }
+                throw 'Native window closed before button invocation'
+            }
+            try {
+                if ($script:active.MainWindowHandle -ne [IntPtr]::Zero) {
+                    $window=[Windows.Automation.AutomationElement]::FromHandle($script:active.MainWindowHandle)
+                    $elements=$window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
+                    foreach ($element in $elements) {
+                        $current=$element.Current
+                        if ($current.IsOffscreen -or !$current.IsEnabled -or $current.Name.IndexOf($Name,[StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
+                        $invoke=$null
+                        if ($element.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern,[ref]$invoke)) {
+                            Write-Output ('Invoking native button: '+$current.Name)
+                            $invoke.Invoke()
+                            if (!$AcceptedStates.Count) { return }
+                            # A click can race the preceding check response in the
+                            # shipped UI. Require the actual operation to acknowledge
+                            # before advancing, otherwise reacquire and retry the UI.
+                            $ackDeadline=[DateTime]::UtcNow.AddSeconds(8)
+                            while ([DateTime]::UtcNow -lt $ackDeadline) {
+                                $script:active.Refresh()
+                                if ($script:active.HasExited -and 'installing' -in $AcceptedStates) { return }
+                                $observed=$null
+                                try { $observed=Invoke-RestMethod ($session.url+'/api/status') -TimeoutSec 3 } catch { }
+                                if ($observed) {
+                                    if ($observed.update.state -in $AcceptedStates) { return }
+                                    if ($observed.update.state -in @('blocked','error','no_release')) { throw ('Actual update failed: '+$observed.update.message) }
+                                }
+                                Start-Sleep -Milliseconds 200
+                            }
+                            break
+                        }
                     }
+                }
+            } catch {
+                $cause=$_.Exception
+                while ($cause.InnerException) { $cause=$cause.InnerException }
+                if ($cause -isnot [Windows.Automation.ElementNotAvailableException]) { throw }
+                # Reacquire the real accessibility tree after a DOM redraw. If the
+                # invocation already reached the app, observe its actual state instead
+                # of clicking a second time; never issue a replacement POST here.
+                if ($AcceptedStates.Count) {
+                    try {
+                        $observed=Invoke-RestMethod ($session.url+'/api/status') -TimeoutSec 3
+                        if ($observed.update.state -in $AcceptedStates) { return }
+                    } catch { }
                 }
             }
             Start-Sleep -Milliseconds 400
         }
-        throw ('Native accessible button not available: '+$Name)
+        $lastStatus=$null;try { $lastStatus=Invoke-RestMethod ($session.url+'/api/status') -TimeoutSec 3 } catch { }
+        throw ('Native accessible button not available: '+$Name+'; state='+$lastStatus.update.state+'; '+$lastStatus.update.message)
     }
     Invoke-NativeButton 'Güncellemeler'
     Invoke-NativeButton 'GÜNCELLEMELERİ KONTROL ET'
-    Invoke-NativeButton 'GÜNCELLEMEYİ İNDİR' 90
-    Invoke-NativeButton 'KUR VE YENİDEN BAŞLAT' 180
+    Invoke-NativeButton 'GÜNCELLEMEYİ İNDİR' 90 -AcceptedStates @('downloading','ready')
+    Invoke-NativeButton 'KUR VE YENİDEN BAŞLAT' 180 -AcceptedStates @('installing')
     @{ok=$true;driver='Windows UI Automation InvokePattern';checks=@('real native navigation','real check button','real download button','verified ready state','real install button')} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $root 'buttons.json') -Encoding UTF8
     if (!$active.WaitForExit(30000)) { throw 'Old application did not exit for update' }
     $active=$null

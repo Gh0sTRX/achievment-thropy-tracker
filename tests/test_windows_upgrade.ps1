@@ -6,6 +6,7 @@ $reportFull=[IO.Path]::GetFullPath($ReportPath)
 $root=Join-Path $env:RUNNER_TEMP ('Atlas upgrade matrix '+[Guid]::NewGuid())
 New-Item -ItemType Directory -Path $root | Out-Null
 $results=@();$active=$null;$install=$null
+$testHooks=@();$runOnce='HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
 # Use exactly the production snapshot functions. Do not execute the helper entry point.
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile((Resolve-Path "$PSScriptRoot/../scripts/apply_update.ps1"),[ref]$tokens,[ref]$errors)
@@ -121,8 +122,18 @@ try {
         $after=Get-Records $session;Assert-Records $after $gid
         if ('ta:456' -notin $after.state.pins) { throw 'New-version write did not survive restart' }
         Stop-Atlas
+        if (!(Test-Path -LiteralPath $runOnce)) { New-Item -Path $runOnce | Out-Null }
+        $recoveryHook='!AchievementAtlasRecovery-'+[Guid]::NewGuid()
+        $unrelatedHook='AtlasUninstallSentinel-'+[Guid]::NewGuid()
+        $testHooks+=@($recoveryHook,$unrelatedHook)
+        New-ItemProperty -Path $runOnce -Name $recoveryHook -Value 'cmd.exe /c exit 0' -PropertyType String | Out-Null
+        New-ItemProperty -Path $runOnce -Name $unrelatedHook -Value 'cmd.exe /c exit 0' -PropertyType String | Out-Null
         $p=Start-Process -FilePath (Join-Path $install 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
         if ($p.ExitCode -ne 0) { throw 'Upgrade uninstall failed' }
+        if ($null -ne (Get-ItemProperty -Path $runOnce).$recoveryHook) { throw 'Uninstall left automatic recovery scheduled' }
+        if ((Get-ItemPropertyValue -Path $runOnce -Name $unrelatedHook) -ne 'cmd.exe /c exit 0') { throw 'Uninstall removed unrelated RunOnce value' }
+        Remove-ItemProperty -Path $runOnce -Name $unrelatedHook
+
         if ((Get-FileHash -LiteralPath $sentinel).Hash -ne $sentinelHash) { throw 'External user data changed' }
         if (!(Test-Path -LiteralPath (Join-Path $data 'library.json'))) { throw 'Uninstall removed user library' }
         Write-Output ('Upgrade/rollback passed: '+$baseline.version)
@@ -138,5 +149,6 @@ try {
     if ($install -and (Test-Path -LiteralPath (Join-Path $install 'unins000.exe'))) {
         Start-Process -FilePath (Join-Path $install 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait | Out-Null
     }
+    foreach ($hook in $testHooks) { Remove-ItemProperty -Path $runOnce -Name $hook -ErrorAction SilentlyContinue }
     Remove-Item -LiteralPath $root -Recurse -Force
 }

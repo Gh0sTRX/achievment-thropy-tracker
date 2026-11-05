@@ -139,3 +139,29 @@ class UpdatePlanTests(unittest.TestCase):
                 u.install()
             self.assertEqual(u.snapshot()['state'],'installing')
             self.assertFalse(u.exit_requested.is_set())
+
+
+class PendingRecoveryTests(unittest.TestCase):
+    def test_pending_or_corrupt_recovery_blocks_new_install(self):
+        with TemporaryDirectory() as root:
+            u=updater.Updater(root)
+            directory=Path(root)/'updates'/'previous-attempt';directory.mkdir(parents=True)
+            journal=directory/'recovery-state.json'
+            for value in ('{broken',json.dumps({'format':'atlas-update-recovery-v1','state':'pending'})):
+                journal.write_text(value)
+                with patch.object(updater,'windows_recovery_pending',return_value=False),patch.object(u,'supported_install') as supported:
+                    with self.assertRaisesRegex(ValueError,'kurtarılmalı'):u.install()
+                    supported.assert_not_called()
+                self.assertFalse(u.exit_requested.is_set())
+            for state in ('completed','rolled_back'):
+                journal.write_text(json.dumps({'format':'atlas-update-recovery-v1','state':state}))
+                with patch.object(updater,'windows_recovery_pending',return_value=False):u.ensure_no_pending_recovery()
+
+    def test_other_library_recovery_hook_blocks_update_before_network(self):
+        with TemporaryDirectory() as root:
+            u=updater.Updater(root,channel='stable');u.release=updater.release_info(release());u.manifest=manifest()
+            with patch.object(updater,'windows_recovery_pending',return_value=True),patch.object(updater,'open_url') as network:
+                u.download();wait(u)
+            self.assertEqual(u.snapshot()['state'],'blocked')
+            self.assertIn('kurtarılmalı',u.snapshot()['message'])
+            network.assert_not_called()
