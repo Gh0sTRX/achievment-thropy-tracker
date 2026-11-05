@@ -2,9 +2,13 @@
 
 **Güncellendi:** 5 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
 
-## 0.16.1 hazırlığı — güncel görev
+## 0.16.1 YAYIMLANDI — en güncel sonuç
 
-Kullanıcı “devam et ve yayınla” dedi. `perf/library-transfer` dalı fc74ed9 geliştirme dalından oluşturuldu. Gzip, içerik token'ı ile kısmi yenileme, rapor/scope cache, geç yanıt koruması ve artwork health POST düzeltmesi; 184 Python testi. Yayın henüz doğrulanmadı. Ayrıntı docs/RELEASE_NOTES_0_16_1_TR.md. Main korunur. PR/CI/manifest sonuçlarını yayın sonrasında güncelle.
+Kullanıcı “devam et ve yayınla” talebi tamamlandı. PR #21 (18 dosya) geliştirme dalına merge edildi; main `98f870b908fa73ec2711c2f3fd359eca92a7ab77` korunur. Kaynak `1a3fab89be01f3283e62ea67f98ebfc6a35156bf`; Windows trusted push/yayın `42096532071`, 184-test matrix/browser/PowerShell `42096532065` başarılı. Gzip/kısmi yenileme, rapor/scope cache, geç yanıt koruması ve artwork health POST düzeltmesi. 40k sentetik ilk JSON 16.327.656→696.660 byte; değişmeyen yanıt 2.030 byte. Gerçek hesap hızı değildir.
+
+Installer `AchievementAtlas-0.16.1-Windows-x64-Setup.exe`, 33.313.129 byte; SHA256 `509637b9ebe5c8da04d1b4a60ae9a3c602a68e5858c4ff53f96184e46224b577`. Canlı manifest HTTP ve GitHub asset digest eşleşti; authenticode_signed false. Yayın SONRASI stok **0.16.0→0.16.1** native UIA indirme/doğrulama/kurulum/yeniden açılış/veri koruma başarılı: PR21 Windows `42095260152`, job `127491971929`, artifact `13449205024`. Log gerçek sürüm geçişini doğrular; artifact içeriği yerelde açılmadı. İlk sabit90ms gamepad test flake'i örnekleme beklemesiyle düzeltildi. Uzayan yinelenen PR Linux görevi de sonunda başarılı; koşu `42095260009` tamamlandı.
+
+Ayrıntı docs/RELEASE_NOTES_0_16_1_TR.md. Gerçek hesap/fiziksel cihaz/Windows imzası eksikleri sürer. Sonraki çalışma: hesap kabulü, artwork kapsamı, düşük donanım ve açık CI job süre sınırları. Yeni yayın için açık kullanıcı talebi gerekir; rutin belge commit'inde publish marker kullanma.
 
 ## 0.16.0 YAYIMLANDI — en güncel sonuç
 
