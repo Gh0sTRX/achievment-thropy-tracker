@@ -10,6 +10,7 @@ $child=$null;$hookNames=@();$passed=0
 function Assert($Condition,[string]$Message) { if (!$Condition) { throw $Message } }
 function Wait-Exit($Process) {
     if (!$Process.WaitForExit(30000)) { $Process.Kill();throw 'Child recovery timed out' }
+    $Process.WaitForExit()
 }
 try {
     if ($windows) {
@@ -68,6 +69,8 @@ function Start-Process {
         $args=@('-NoProfile','-NonInteractive','-File',('"'+$wrapper+'"'),'-Helper',('"'+$copied+'"'),'-Plan',('"'+$planPath+'"'))
         if ($scenario -eq 'completed') { Set-Content -LiteralPath (Join-Path $case 'complete') -Value 'complete' }
         $child=Start-Process -FilePath $shell -ArgumentList $args -PassThru -RedirectStandardOutput (Join-Path $case 'normal.out') -RedirectStandardError (Join-Path $case 'normal.err')
+        # Cache the native handle before exit; Windows PowerShell 5.1 otherwise loses ExitCode.
+        $null=$child.Handle
         if ($scenario -eq 'completed') {
             Wait-Exit $child
             Assert ($child.ExitCode -eq 0) ('Completed helper failed: '+(Get-Content (Join-Path $case 'normal.err') -Raw))
@@ -99,9 +102,11 @@ function Start-Process {
         if ($scenario -eq 'path-mismatch') { $state.backup=Join-Path $case 'wrong backup';$state | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $journal -Encoding UTF8 }
         if ($scenario -eq 'missing-backup') { Move-Item -LiteralPath $plan.backup -Destination (Join-Path $case 'parked-backup') }
         $child=Start-Process -FilePath $shell -ArgumentList ($args+@('-Recover')) -PassThru -RedirectStandardOutput (Join-Path $case 'recover.out') -RedirectStandardError (Join-Path $case 'recover.err')
+        # Cache the native handle before exit; Windows PowerShell 5.1 otherwise loses ExitCode.
+        $null=$child.Handle
         Wait-Exit $child
         $refused=$scenario -in @('damaged-backup','running-app','corrupt-state','path-mismatch','missing-backup')
-        Assert (($child.ExitCode -ne 0) -eq $refused) ('Unexpected recovery result: '+$scenario+' '+(Get-Content (Join-Path $case 'recover.err') -Raw))
+        Assert (($child.ExitCode -ne 0) -eq $refused) ('Unexpected recovery result: '+$scenario+' ExitCode='+$child.ExitCode+' stderr='+(Get-Content (Join-Path $case 'recover.err') -Raw)+' log='+(Get-Content -LiteralPath $plan.log -Raw))
         $child=$null
         if ($refused -or $scenario -eq 'completed') {
             Assert (!(Test-Path -LiteralPath (Join-Path $case 'restarted'))) 'Unsafe or duplicate restart'
@@ -112,6 +117,8 @@ function Start-Process {
                 [IO.File]::WriteAllText((Join-Path $plan.backup 'AchievementAtlas.exe'),'old-executable')
                 Remove-Item -LiteralPath (Join-Path $case 'active') -ErrorAction SilentlyContinue
                 $child=Start-Process -FilePath $shell -ArgumentList ($args+@('-Recover')) -PassThru -RedirectStandardOutput (Join-Path $case 'retry.out') -RedirectStandardError (Join-Path $case 'retry.err')
+                # Cache the native handle before exit; Windows PowerShell 5.1 otherwise loses ExitCode.
+                $null=$child.Handle
                 Wait-Exit $child;Assert ($child.ExitCode -eq 0) 'Recovery retry failed';$child=$null
             }
         }
@@ -124,6 +131,8 @@ function Start-Process {
         Remove-Item -LiteralPath (Join-Path $case 'restarted') -ErrorAction SilentlyContinue
         $repeat=@('-NoProfile','-NonInteractive','-File',('"'+$copied+'"'),'-Recover')
         $child=Start-Process -FilePath $shell -ArgumentList $repeat -PassThru -RedirectStandardOutput (Join-Path $case 'again.out') -RedirectStandardError (Join-Path $case 'again.err')
+        # Cache the native handle before exit; Windows PowerShell 5.1 otherwise loses ExitCode.
+        $null=$child.Handle
         Wait-Exit $child;Assert ($child.ExitCode -eq 0) 'Repeated recovery failed';$child=$null
         Assert (!(Test-Path -LiteralPath (Join-Path $case 'restarted'))) 'Repeated recovery relaunched application'
         if ($windows) { Assert ($null -eq (Get-ItemProperty -Path $registry -ErrorAction Stop).$hook) 'Recovery hook was not cleaned up' }
