@@ -90,6 +90,10 @@ function Register-RecoveryHook([string]$HelperPath=$PSCommandPath) {
     $helperFull=[IO.Path]::GetFullPath($HelperPath)
     $install=[IO.Path]::GetFullPath($plan.install_dir).TrimEnd([IO.Path]::DirectorySeparatorChar)
     if ($helperFull.StartsWith($install+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) { throw 'Recovery helper must be outside installation' }
+    foreach ($metadataPath in @($helperFull,[IO.Path]::GetFullPath($PlanPath))) {
+        $metadata=[IO.File]::Open($metadataPath,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read)
+        try { $metadata.Flush($true) } finally { $metadata.Dispose() }
+    }
     $command='powershell.exe -NoProfile -NonInteractive -File "'+$HelperPath+'" -Recover'
     if ([IO.Path]::GetFullPath($PlanPath) -ne (Join-Path (Split-Path -Parent $HelperPath) 'plan.json')) { $command+=' -PlanPath "'+$PlanPath+'"' }
     if ($command.Length -gt 260) { throw 'Recovery command exceeds Windows RunOnce limit; installation cancelled' }
