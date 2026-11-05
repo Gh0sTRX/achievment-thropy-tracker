@@ -53,6 +53,12 @@ try {
     Add-Type -AssemblyName UIAutomationClient
     Add-Type -AssemblyName UIAutomationTypes
     function Invoke-NativeButton([string]$Name,[int]$Seconds=60,[string[]]$AcceptedStates=@()) {
+        function Test-NativeControlLabel($Control,[string]$Expected) {
+            if (!$Control.IsEnabled) { return $false }
+            # UIA properties may change between reads; snapshot and normalize once.
+            $label=[string]$Control.Name
+            return $label.IndexOf($Expected,[StringComparison]::OrdinalIgnoreCase) -ge 0
+        }
         $deadline=[DateTime]::UtcNow.AddSeconds($Seconds)
         while ([DateTime]::UtcNow -lt $deadline) {
             $script:active.Refresh()
@@ -66,7 +72,7 @@ try {
                     $elements=$window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
                     foreach ($element in $elements) {
                         $current=$element.Current
-                        if (!$current.IsEnabled -or [string]::IsNullOrEmpty($current.Name) -or $current.Name.IndexOf($Name,[StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
+                        if (!(Test-NativeControlLabel $current $Name)) { continue }
                         if ($current.IsOffscreen) {
                             $scroll=$null
                             if ($element.TryGetCurrentPattern([Windows.Automation.ScrollItemPattern]::Pattern,[ref]$scroll)) {
