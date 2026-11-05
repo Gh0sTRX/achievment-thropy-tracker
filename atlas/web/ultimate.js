@@ -11,7 +11,7 @@ const empty=(text,action='')=>`<div class="empty">${esc(text)}${action?'<br><but
 const tier=a=>a.platform==='psn'?`<span class="tier tier-${esc(['bronze','silver','gold','platinum'].includes(a.trophy_type)?a.trophy_type:'unknown')}">${esc(trophyLabel(a.trophy_type))}</span>`:a.platform==='xbox'?`${fmt(a.points)} G`:'BAŞARIM';
 const achTitle=a=>AtlasModel.secret(a)&&!$('showSecrets').checked?'Gizli başarım':a.name;
 const timeLabel=t=>{const date=AtlasModel.date(t);return date?date.toLocaleString('tr-TR',/^\d{4}-\d{2}-\d{2}$/.test(t)?{dateStyle:'medium'}:{dateStyle:'medium',timeStyle:'short'}):'Tarih kaynakta yok'};
-const sourceLabel=a=>a.metadata_source|| (a.source==='trueachievements_csv'?'TrueAchievements CSV':a.platform==='psn'?'PSN API':a.platform==='xbox'?'Xbox API':a.provider==='steam'?'Steam Web API':'Kayıtlı sağlayıcı');
+const sourceLabel=a=>a.metadata_source||({trueachievements_csv:'TrueAchievements CSV',xbox:'Xbox API',psn:'PSN API',steam:'Steam Web API',steam_web_api:'Steam Web API'})[a.source]||(a.provider==='steam'?'Steam Web API':'Kaynak belirtilmemiş');
 const baseRender=render,baseNavigate=navigate,baseInit=init,baseRenderDetail=renderGameDetail,baseRenderAccount=renderAccount,baseRenderVisuals=renderVisuals;
 gameById=gid=>gameIndex.get(gid);
 achForGame=gid=>groupIndex.get(gid)||[];
