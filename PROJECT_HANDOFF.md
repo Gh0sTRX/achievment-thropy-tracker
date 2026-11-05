@@ -2,6 +2,16 @@
 
 **Güncellendi:** 5 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
 
+## En güncel görev — Issue #10 (yayımlanmamış)
+
+Kullanıcının son master order talimatı: **main'i değiştirme, yeni Development Release yayımlama**. Önceki 0.15.1 yayın yetkisi bu yeni göreve otomatik taşınmaz.
+
+A #11, B #12, C #13, D #14 ayrı ve üst üste kurulu PR'lar. Son çalışma dalı `feature/issue10-controller-performance`; E PR #15. Hiçbiri main/codex'e otomatik merge edilmedi. A Unit/Windows 42066272591/42066272796, B 42066432637/42066432834 başarılı. C/D eski PC planned-state desktop smoke beklentisi düzeltildi. D Unit/Windows 42071862650/42071862634 başarılı; C/E son Actions durumunu yeniden sorgula.
+
+Uygulandı: native `#/game/{id}` Universe, 7 sekme/back/focus/inline, beş gerçek artwork türü/health/kalıcı edition-onayı, PSN title-atomik partial koruma/gruplar, resmi Steam Web API PC registry, DPAPI key, sade nav/4 seçenekli onboarding/Ctrl+K, ortak UI olayları, Gamepad A/B/X/Y/LB/RB, revision/scope/progress cache ve native Playwright testleri. **Gerçek hesap/NPSSO/Steam key yok; canlı test iddiası yok.** Fiziksel gamepad/güç kesintisi/logon testi yok. Üretici logo izni yok; Atlas markası + metin etiketleri.
+
+Yerel son tur: 160 Python, dört Node suite, dört resolution Universe/search, 16 skin/resolution/high-contrast, 5k/15k/40k ve Gamepad API simülasyonu geçti. E Windows build sonucu ilk committe beklenir. Kaynak/sınırlar: [Issue #10 audit](docs/ISSUE_10_DELIVERY_AUDIT_TR.md). Test kanıtları `work/audit/` (gitignore) ve GitHub native-browser artifact'ı. Büyük JSON payload ve Steam sıralı ağ/kalıcı schema cache kalan performans borçlarıdır.
+
 ## Ürün ve tercihlerin değişmeyen temeli
 
 Depo: https://github.com/Gh0sTRX/achievment-thropy-tracker (depodaki yazım aynen korunur).

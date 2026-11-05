@@ -16,6 +16,8 @@ def self_test(report=None):
     from psnawp_api.models.trophies import PlatformType
     xbox._sdk()
     assert PSNAWP and PlatformType.PS4
+    from atlas.pc import provider
+    assert provider('steam').validate('76561198000000000')=='76561198000000000'
     with tempfile.TemporaryDirectory() as root:
         settings.save(root, {'OPENAI_API_KEY': 'self-test-placeholder'}, [])
         assert settings.read(root)['OPENAI_API_KEY'] == 'self-test-placeholder'
@@ -40,7 +42,7 @@ def self_test(report=None):
         finally:
             app.shutdown(); app.server_close(); thread.join(timeout=5)
     result = {'ok': True, 'version': __version__, 'python': sys.version.split()[0],
-              'checks': ['Xbox SDK import', 'PSN SDK import', 'local settings roundtrip',
+              'checks': ['Xbox SDK import', 'PSN SDK import', 'Steam provider import (no live request)', 'local settings roundtrip',
                          'HTTP server', 'HTML and static assets', 'JSON API']}
     if report:
         Path(report).write_text(json.dumps(result, indent=2), encoding='utf-8')

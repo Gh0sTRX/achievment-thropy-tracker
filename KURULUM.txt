@@ -62,3 +62,12 @@ KAYNAK KODU
 Python 3.11+ ile KUR_WINDOWS.bat, sonra BASLAT_WINDOWS.bat.
 BASLAT_TARAYICI.bat yalnız isteğe bağlı tarayıcı modu içindir.
 Microsoft/Sony tarafından yayımlanmış veya onaylanmış bir ürün değildir.
+
+YAYIMLANMAMIŞ ISSUE #10 KAYNAK DEĞİŞİKLİKLERİ
+Bu daldaki yeni Game Universe, Ctrl+K arama ve Steam sağlayıcısı
+mevcut 0.15.1 indirmesinin parçası değildir; yeni release yayımlanmadı.
+Steam sorguları için cihazın Gelişmiş Ayarlar bölümünde resmi Steam Web API
+anahtarı gerekir. Profil ve oyun ayrıntıları herkese açık olmalıdır.
+Anahtarı sohbet/issue/CSV içine yazma; Windows cihaz ayarı DPAPI ile korunur.
+Xbox/PSN servis gereksinimleri devam eder; yalnız profil adını girmek
+hizmetin yetkilendirme ihtiyacını ortadan kaldırmaz.

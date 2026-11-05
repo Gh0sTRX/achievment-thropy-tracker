@@ -1,7 +1,25 @@
 """Bounded media caching; cancellation preserves completed, validated files."""
 from concurrent.futures import ThreadPoolExecutor
 import threading
+import time
+from urllib.error import URLError
+from .sync_control import Cancelled
 from . import artwork
+
+
+def media_request(call,halted):
+    """Retry transient transports only; cancellation/rate limits stop new requests."""
+    for attempt in range(3):
+        if halted():raise Cancelled()
+        try:return call()
+        except Exception as exc:
+            code=getattr(exc,'code',None)
+            transient=code in (408,500,502,503,504) or code is None and isinstance(exc,(URLError,TimeoutError,ConnectionError))
+            if not transient or attempt==2:raise
+            deadline=time.monotonic()+.25*(2**attempt)
+            while time.monotonic()<deadline:
+                if halted():raise Cancelled()
+                time.sleep(.05)
 
 
 def download(store, progress=lambda *a:None, stop=lambda:False):
@@ -20,6 +38,16 @@ def download(store, progress=lambda *a:None, stop=lambda:False):
         nonlocal dirty
         dirty+=1
         if dirty>=16:store.save();dirty=0
+    def record_state(g,kind,state,reason=''):
+        nonlocal dirty
+        from datetime import datetime,timezone
+        with store.lock:
+            current=lookup('game',g['id'])
+            if not current or any(current.get(k)!=g.get(k) for k in ('platform','title_id','platform_edition')):return
+            previous=current.setdefault('artwork_download',{}).get(kind,{})
+            if previous.get('state')==state and previous.get('reason','')==reason:return
+            current['artwork_download'][kind]={'state':state,'reason':reason,'updated_at':datetime.now(timezone.utc).isoformat()}
+            dirty+=1
     try:
         for index,g in enumerate(games):
             if halted():break
@@ -29,38 +57,44 @@ def download(store, progress=lambda *a:None, stop=lambda:False):
                 if value and value!='local':candidates.insert(0,{'kind':kind,'url':value,'provider':g.get('image_source') or g.get('platform')})
             for kind in ('cover','hero','banner','logo','screenshot'):
                 if halted():break
-                if g.get(kind+'_url')=='local' and artwork.cached(store.root,kind,g['id']):continue
+                if g.get(kind+'_url')=='local' and artwork.cached(store.root,kind,g['id']):
+                    record_state(g,kind,'cached');continue
+                if (g.get('artwork_meta') or{}).get(kind,{}).get('provider')=='user_file':
+                    record_state(g,kind,'missing_user_file','Yerel görseli yeniden seç. Otomatik kaynak üzerine yazılmaz.')
+                    results['missing'].append({'game_id':g['id'],'kind':kind});continue
                 found=False
                 for c in candidates:
                     if halted():break
                     if c.get('kind')!=kind or not artwork.safe_url(c.get('url','')):continue
                     try:
-                        data,mime=artwork.fetch(c['url'])
+                        data,mime=media_request(lambda:artwork.fetch(c['url']),halted)
                         if not mime.startswith('image/'):raise ValueError('Görsel yanıtı değil')
                         with store.lock:
                             current=lookup('game',g['id'])
-                            if not current:break
+                            if not current or any(current.get(k)!=g.get(k) for k in ('platform','title_id','platform_edition')):break
                             previous=(current.get('artwork_meta') or {}).get(kind,{})
                             if previous.get('provider')=='user_file':found=True;break
                             meta=artwork.store_bytes(store.root,kind,g['id'],data)
                             from datetime import datetime,timezone
                             current[kind+'_url']='local'
                             current.setdefault('artwork_meta',{})[kind]={**meta,'provider':c.get('provider','official'),
-                                'provider_id':g.get('title_id',''),'source_url':c['url'],'original_url':c['url'],
-                                'rights_note':'Sağlayıcının sunduğu oyun görseli.', 'saved_at':datetime.now(timezone.utc).isoformat()}
+                                'provider_id':c.get('provider_id') or g.get('title_id',''),'game_id':g['id'],'platform':g.get('platform'),'platform_edition':g.get('platform_edition'),'source_url':c['url'],'original_url':c['url'],
+                                'rights_note':c.get('rights_note') or 'Sağlayıcının sunduğu oyun görseli.', 'saved_at':datetime.now(timezone.utc).isoformat()}
                             changed()
-                        results['downloaded']+=1;found=True;break
+                        results['downloaded']+=1;found=True;record_state(g,kind,'downloaded');break
                     except Exception as exc:
                         code=getattr(exc,'code',None)
-                        if code in (401,403,429):results['errors'].append(f'{g["name"]}: medya servisi {code}');blocked.set();break
-                if not found and not halted():results['missing'].append({'game_id':g['id'],'kind':kind})
+                        if code in (401,403,429):record_state(g,kind,'blocked',str(code));results['errors'].append(f'{g["name"]}: medya servisi {code}');blocked.set();break
+                if not found and not halted():
+                    record_state(g,kind,'missing','Güvenilir aday yok veya görsel alınamadı.')
+                    results['missing'].append({'game_id':g['id'],'kind':kind})
             progress(index+1,total,g['name'])
         def icon(a):
             if halted():return a,'stopped',None
             if artwork.cached(store.root,'icon',a['id']):return a,'cached',None
             url=a.get('icon_url') or a.get('icon_candidate')
             try:
-                artwork.cache_image(store.root,'icon',a['id'],url)
+                media_request(lambda:artwork.cache_image(store.root,'icon',a['id'],url),halted)
                 return a,'downloaded',url
             except Exception as exc:
                 code=getattr(exc,'code',None)
@@ -93,8 +127,10 @@ def health(store):
     with store.lock:
         games=[dict(g) for g in store.library['games']]
         items=[dict(a) for a in store.library['achievements']]
-    coverage={kind:sum(bool(artwork.cached(store.root,kind,g['id'])) for g in games) for kind in kinds}
+    present={g['id']:{kind:bool(artwork.cached(store.root,kind,g['id'])) for kind in kinds} for g in games}
+    coverage={kind:sum(present[g['id']][kind] for g in games) for kind in kinds}
+    issues=[{'game_id':g['id'],'name':g.get('name',''),'platform':g.get('platform'),'devices':g.get('devices',[]),'missing':[kind for kind in kinds if not present[g['id']][kind]],'states':g.get('artwork_download',{})} for g in games if not all(present[g['id']].values())]
     icons=sum(bool(artwork.cached(store.root,'icon',a['id'])) for a in items)
     return {'games':len(games),'achievements':len(items),'cached':coverage,'cached_icons':icons,
             'missing':{kind:len(games)-coverage[kind] for kind in kinds},
-            'missing_icons':len(items)-icons,'scope':'validated_local_cache'}
+            'issues':issues[:200],'issue_count':len(issues),'has_more':len(issues)>200,'missing_icons':len(items)-icons,'scope':'validated_local_cache'}

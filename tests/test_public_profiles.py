@@ -161,8 +161,12 @@ class ConnectionSyncTests(unittest.TestCase):
             with patch.object(xbox,'account_info',info),patch.object(public,'readiness',return_value={'xbox':True,'psn':False}),patch.object(public,'fetch',return_value=snapshot(earned=True)):
                 c=Controller(root)
                 c.xbox_reconnect()
-                deadline=time.monotonic()+2
-                while c.public_guard.locked() and time.monotonic()<deadline:time.sleep(.005)
+                deadline=time.monotonic()+5
+                # Profile completion may launch a separate media writer. Join both lifetimes
+                # before TemporaryDirectory removes the archive; never mask cleanup races.
+                while (c.public_guard.locked() or c.media_guard.locked()) and time.monotonic()<deadline:time.sleep(.005)
+                self.assertFalse(c.public_guard.locked())
+                self.assertFalse(c.media_guard.locked())
                 self.assertEqual(len(c.store.library['achievements']),1)
                 self.assertTrue(c.store.library['achievements'][0]['unlocked'])
                 self.assertEqual(c.data_status()['state'],'stored')

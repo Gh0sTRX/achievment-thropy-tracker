@@ -6,7 +6,7 @@ function visualUrl(game,kind='hero'){
  if(!game)return '';
  const value=game[kind+'_url'];
  if(value==='local')return localArt(kind,game.id)+'?v='+encodeURIComponent(game.artwork_meta?.[kind]?.saved_at||DATA.state.sync_at||'1');
- try{const url=new URL(value);const hosts=['steamstatic.com','steamcdn-a.akamaihd.net','steamuserimages-a.akamaihd.net','steamgriddb.com','xboxlive.com','xbox.com','microsoft.com','s-microsoft.com','playstation.net','playstation.com'];if(url.protocol==='https:'&&!url.username&&!url.password&&hosts.some(h=>url.hostname===h||url.hostname.endsWith('.'+h)))return url.href}catch(e){}
+ try{const url=new URL(value);const hosts=['trueachievements.com','steamstatic.com','steamcdn-a.akamaihd.net','steamuserimages-a.akamaihd.net','steamgriddb.com','xboxlive.com','xbox.com','microsoft.com','s-microsoft.com','playstation.net','playstation.com'];if(url.protocol==='https:'&&!url.username&&!url.password&&(!url.port||url.port==='443')&&hosts.some(h=>url.hostname===h||url.hostname.endsWith('.'+h)))return url.href}catch(e){}
  return '';
 }
 function cssUrl(url){return 'url('+encodeURI(url).replace(/[()'"<>\s\\]/g,c=>'%'+c.charCodeAt(0).toString(16))+')'}
@@ -38,9 +38,9 @@ function renderPlatform(){renderDeviceOptions();
  $('scoreLabel').textContent=ACTIVE_PLATFORM==='psn'?'KAZANILAN KUPALAR':ACTIVE_PLATFORM==='pc'?'STEAM BAŞARIMLARI':'XBOX GAMERSCORE';
 }
 function switchPlatform(platform){
- ACTIVE_PLATFORM=platform;ACTIVE_DEVICE='all';selectedGame=null;achPage=0;
+ ACTIVE_PLATFORM=platform;ACTIVE_DEVICE='all';selectedGame=null;achPage=0;if(page==='universe')navigate('games');
  $('gameDetail').classList.add('hidden');$('achGame').value='all';$('achSearch').value='';$('gameSearch').value='';
- $('publicPlatform').value=platform==='psn'?'psn':'xbox';
+ $('publicPlatform').value=platform==='psn'?'psn':platform==='pc'?'pc':'xbox';
  render();
  savePreferences({platform_filter:platform,focus_game_id:null});
 }

@@ -59,27 +59,13 @@
     });
   }
   function init() {
-    if (typeof navigate === 'function') {
-      const nativeNavigate = navigate;
-      navigate = function animatedNavigate(destination) {
-        // Same-screen refreshes must never cause flicker during status polling.
-        const previous = typeof page === 'string' ? page : null;
-        const result = nativeNavigate.apply(this, arguments);
-        if (destination !== previous) animatePage(destination);
-        return result;
-      };
-    }
+    window.addEventListener('atlas:navigate',event=>{const {destination,previous}=event.detail;if(destination!==previous)animatePage(destination)});
     document.body.addEventListener('click', e => {
       const t = e.target.closest('[data-platform], [data-layout], [data-atlas-range], [data-gid]');
       if (!t || reduced()) return;
       // Prior handlers finish native rendering before we examine the new DOM.
       queueMicrotask(() => {
-        if (t.matches('[data-gid]')) {
-          const detail = $('gameDetail');
-          if (!detail?.classList.contains('hidden')) {
-            play(detail, enterFrames(getSkin()), 235);
-          }
-        } else animateSelection();
+        if (!t.matches('[data-gid]')) animateSelection();
       });
     });
     document.body.addEventListener('change', e => {

@@ -34,3 +34,12 @@ html,body{min-width:0}.content,.top-right{min-width:0}body{overflow-wrap:anywher
 #atlasSearchResults img{width:38px;height:52px;object-fit:cover}#atlasSearchResults small{display:block;opacity:.75;margin-top:5px}
 #atlasSearchResults [aria-selected=true]{outline:2px solid var(--accent,#b8e5a2);outline-offset:-3px}
 .platform-tabs [data-platform=xbox]{border-bottom:2px solid #76c442}.platform-tabs [data-platform=psn]{border-bottom:2px solid #66aaff}.platform-tabs [data-platform=pc]{border-bottom:2px solid #98b3cd}
+@media(max-width:768px){
+ body[data-skin] .rail{position:fixed;left:0;top:0;bottom:0;width:244px;min-width:244px;height:100dvh;display:flex;flex-direction:column;align-items:stretch;gap:0;padding:24px 16px;z-index:50}
+ body[data-skin] .content{width:100%}
+ body[data-skin] .rail .nav{display:grid;flex-direction:column;flex-wrap:nowrap;width:100%;gap:4px}
+ body[data-skin] .rail .nav-link{font-size:12px;justify-content:flex-start;white-space:normal}
+}
+/* Missing provider art uses the game's title and theme, never a fabricated letter cover. */
+.feature-letter{display:none}
+.game-title,.featured h2,#detailName{overflow-wrap:anywhere}

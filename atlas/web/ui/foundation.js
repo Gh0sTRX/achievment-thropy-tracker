@@ -127,33 +127,9 @@
   }
 
   function init() {
-    if (typeof render === 'function') {
-      const original = render;
-      render = function foundationRender() {
-        const result = original.apply(this, arguments);
-        drawWelcome();
-        return result;
-      };
-    }
-    if (typeof navigate === 'function') {
-      const original = navigate;
-      navigate = function foundationNavigate(destination) {
-        const result = original.apply(this, arguments);
-        if (extraPages.has(destination)) {
-          const menu = byId('atlasMoreNav');
-          if (menu) menu.open = true;
-        }
-        return result;
-      };
-    }
-    if (typeof renderUpdates === 'function') {
-      const original = renderUpdates;
-      renderUpdates = function foundationRenderUpdates() {
-        const result = original.apply(this, arguments);
-        drawUpdateBlockers();
-        return result;
-      };
-    }
+    window.addEventListener('atlas:render',()=>{drawWelcome();drawUpdateBlockers()});
+    window.addEventListener('atlas:update-status',drawUpdateBlockers);
+    window.addEventListener('atlas:navigate',event=>{if(extraPages.has(event.detail.destination)){const menu=byId('atlasMoreNav');if(menu)menu.open=true}});
     document.body.addEventListener('click', event => {
       const archiveButton = event.target.closest('#atlasArchiveExport, #atlasArchiveRestore');
       if (archiveButton) {

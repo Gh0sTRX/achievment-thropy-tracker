@@ -3,7 +3,7 @@ const {chromium}=require('playwright');
 const fs=require('node:fs'),assert=require('node:assert/strict');
 (async()=>{
  const urls=JSON.parse(fs.readFileSync('work/audit/fixture-urls.json'));
- const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
+ const browser=await chromium.launch({executablePath:process.env.ATLAS_CHROMIUM||'/usr/bin/chromium',args:['--no-sandbox']});
  const results=[];
  for(const [width,height] of [[1920,1080],[1440,900],[980,640],[390,844]]){
   const context=await browser.newContext({viewport:{width,height},reducedMotion:'reduce'});

@@ -40,7 +40,7 @@
     const subtitle = $native('atlasConsoleSubtitle');
     const backdrop = $native('atlasConsoleArtwork');
     title.textContent = g.name || 'Oyun';
-    const achievements = (DATA.library.achievements || []).filter(a => a.game_id === g.id);
+    const achievements = achForGame(g.id);
     const unlocked = achievements.filter(a => a.unlocked).length;
     subtitle.textContent = (g.device_label || g.platform || 'Oyun') + ' · ' +
       unlocked + ' / ' + achievements.length + ' kayıtlı başarım · ' +
@@ -90,38 +90,48 @@
     gamepadConnected = false;
     document.body.classList.remove('atlas-console-open');
     if (returnFocus?.isConnected) returnFocus.focus({preventScroll:true});
+    ensureController();
   }
 
-  function pollController() {
-    const dialog = $native('atlasConsole');
-    if (!dialog?.open) return;
-    try {
-      const pads = navigator.getGamepads?.() || [];
-      const pad = Array.from(pads).find(p => p && p.connected);
-      if (Boolean(pad) !== gamepadConnected) {
-        gamepadConnected = Boolean(pad);
-        $native('atlasControllerStatus').textContent = pad ?
-          'Gamepad bağlı' : 'Klavye kullanılabilir';
-      }
-      if (pad) {
-        const left = Boolean(pad.buttons[14]?.pressed || pad.axes[0] < -0.7);
-        const right = Boolean(pad.buttons[15]?.pressed || pad.axes[0] > 0.7);
-        const accept = Boolean(pad.buttons[0]?.pressed);
-        const back = Boolean(pad.buttons[1]?.pressed);
-        const any = left || right || accept || back;
-        const time = performance.now();
-        if (any && (!held || ((left || right) && !accept && !back && time - lastMove > 260))) {
-          lastMove = time;
-          if (back) { closeConsole(); return; }
-          if (accept) { focusGame(stage[active]?.id); return; }
-          if (left) step(-1); else if (right) step(1);
-        }
-        held = any;
-      } else held = false;
-    } catch (_) {
-      // Browsers without Gamepad API can still use the keyboard.
+  function focusDirection(dx,dy) {
+    if($native('atlasSearch')?.open){const input=$native('atlasSearchQuery');input.dispatchEvent(new KeyboardEvent('keydown',{key:dy<0?'ArrowUp':'ArrowDown',bubbles:true}));return}
+    const root=document.querySelector('dialog[open]')||document.body;
+    const nodes=[...(root?.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select,textarea')||[])].filter(n=>n.getClientRects().length&&!n.closest('[inert]'));
+    if(!nodes.length)return;const selected=document.activeElement,rect=selected?.getBoundingClientRect();
+    let best=null,score=Infinity;
+    if(nodes.includes(selected)&&rect){const x=rect.left+rect.width/2,y=rect.top+rect.height/2;
+      for(const node of nodes){if(node===selected)continue;const r=node.getBoundingClientRect(),vx=r.left+r.width/2-x,vy=r.top+r.height/2-y,forward=dx?vx*dx:vy*dy;if(forward<=2)continue;const distance=forward+Math.abs(dx?vy:vx)*2;if(distance<score){score=distance;best=node}}
     }
-    raf = requestAnimationFrame(pollController);
+    (best||nodes[0]).focus();
+  }
+  function shoulder(direction) {
+    if(page==='universe'&&!$native('atlasConsole')?.open){const tabs=[...document.querySelectorAll('#universe [data-tab]')],i=tabs.findIndex(n=>n.getAttribute('aria-selected')==='true');const next=tabs[(Math.max(0,i)+direction+tabs.length)%tabs.length];next?.click();next?.focus();return}
+    const platforms=['all','xbox','psn','pc'],i=platforms.indexOf(ACTIVE_PLATFORM);switchPlatform(platforms[(i+direction+platforms.length)%platforms.length]);
+    if($native('atlasConsole')?.open){stage=scopedGames();active=0;if(stage.length)showGame();else closeConsole()}
+  }
+  function controllerAction(action) {
+    const consoleOpen=Boolean($native('atlasConsole')?.open),search=$native('atlasSearch');
+    if(action==='back'){if(consoleOpen)closeConsole();else if(search?.open)search.close();else if(document.querySelector('.inline-achievement'))closeInline();else if(page==='universe')window.AtlasGameRoute.back();else if(history.state?.page)history.back();else navigate('home');return}
+    if(action==='search'){if(consoleOpen)closeConsole();window.AtlasSearch?.open();return}
+    if(action==='previous-tab'||action==='next-tab'){shoulder(action==='previous-tab'?-1:1);return}
+    if(action==='pin'){const focus=document.activeElement,host=focus?.closest('.achievement-row,.suggest,.inline-achievement');const button=focus?.matches('[data-pin]')?focus:host?.querySelector('[data-pin]');button?.click();return}
+    if(action==='accept'){if(consoleOpen)focusGame(stage[active]?.id);else if(search?.open)$native('atlasSearchQuery').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));else document.activeElement?.click();return}
+    if(!consoleOpen&&document.activeElement?.tagName==='SELECT'&&['up','down'].includes(action)){const control=document.activeElement;control.selectedIndex=Math.max(0,Math.min(control.options.length-1,control.selectedIndex+(action==='up'?-1:1)));control.dispatchEvent(new Event('change',{bubbles:true}));return}
+    if(consoleOpen){step(action==='left'||action==='up'?-1:1);return}
+    focusDirection(action==='left'?-1:action==='right'?1:0,action==='up'?-1:action==='down'?1:0);
+  }
+  function ensureController(){if(!raf)raf=requestAnimationFrame(pollController)}
+  function pollController() {
+    raf=0;
+    const dialog=$native('atlasConsole');let pad;
+    try{pad=Array.from(navigator.getGamepads?.()||[]).find(p=>p&&p.connected)}catch(_){}
+    gamepadConnected=Boolean(pad);
+    $native('atlasControllerStatus').textContent=pad?'Gamepad bağlı · A aç · B geri · X hedef · Y ara · LB/RB sekme/platform':'Klavye kullanılabilir';
+    if(pad){const pressed=i=>Boolean(pad.buttons[i]?.pressed);let action=pressed(1)?'back':pressed(3)?'search':pressed(2)?'pin':pressed(4)?'previous-tab':pressed(5)?'next-tab':pressed(0)?'accept':pressed(14)||pad.axes[0]<-.7?'left':pressed(15)||pad.axes[0]>.7?'right':pressed(12)||pad.axes[1]<-.7?'up':pressed(13)||pad.axes[1]>.7?'down':null;
+      const time=performance.now(),repeat=['left','right','up','down'].includes(action);
+      if(action&&(!held||(repeat&&time-lastMove>260))){lastMove=time;controllerAction(action)}held=Boolean(action);
+    }else held=false;
+    if(pad||dialog?.open)ensureController();
   }
 
   function openConsole() {
@@ -142,7 +152,7 @@
     dialog.showModal();
     document.body.classList.add('atlas-console-open');
     dialog.querySelector('[data-atlas-console="open"]').focus({preventScroll:true});
-    raf = requestAnimationFrame(pollController);
+    ensureController();
   }
 
   function onKey(event) {
@@ -243,23 +253,16 @@
       if (card) {active = Number(card.dataset.atlasGameIndex); showGame();}
     });
     document.addEventListener('keydown', onKey, true);
+    window.addEventListener('gamepadconnected',ensureController);
+    window.addEventListener('gamepaddisconnected',ensureController);
     $native('timeline')?.addEventListener('click', e => {
       const button = e.target.closest('[data-atlas-range]');
       if (!button) return;
       timelineRange = Number(button.dataset.atlasRange);
       drawTimeline();
     });
-    const previousRender = render;
-    render = function unifiedRender() {
-      previousRender();
-      refreshAppearance();
-      if (page === 'timeline') drawTimeline();
-    };
-    const previousNavigate = navigate;
-    navigate = function unifiedNavigate(target) {
-      previousNavigate(target);
-      if (target === 'timeline') $native('breadcrumb').textContent = 'BAŞARIM ZAMAN ÇİZELGESİ';
-    };
+    window.addEventListener('atlas:render',()=>{refreshAppearance();if(page==='timeline')drawTimeline()});
+    window.addEventListener('atlas:navigate',event=>{if(event.detail.destination==='timeline')$native('breadcrumb').textContent='BAŞARIM ZAMAN ÇİZELGESİ'});
     refreshAppearance();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once:true});

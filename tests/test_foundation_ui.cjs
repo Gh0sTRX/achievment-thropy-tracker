@@ -34,7 +34,7 @@ assert.match(html, /\/ui\/motion\.js/);
 assert.match(html, /\/ui\/motion\.css/);
 const motion = read('atlas/web/ui/motion.js');
 const motionCSS = read('atlas/web/ui/motion.css');
-assert.match(motion, /animatedNavigate/);
+assert.match(motion, /atlas:navigate/);
 assert.match(motion, /previous/);
 assert.match(motion, /reduced\(/);
 assert.match(motion, /prefers-reduced-motion/);
@@ -48,7 +48,7 @@ assert.match(style, /body\.atlas-empty-library #home/);
 assert.match(foundation, /drawUpdateBlockers/);
 assert.match(foundation, /UPDATE_BLOCKERS/);
 assert.match(foundation, /textContent/);
-assert.match(foundation, /renderUpdates = function foundationRenderUpdates/);
+assert.match(foundation, /atlas:update-status/);
 assert.match(server, /def update_blockers\(self\)/);
 assert.match(style, /atlas-welcome-options/);
 for (const id of ['atlasArchivePanel', 'atlasArchiveExport', 'atlasArchiveFile', 'atlasArchiveRestore', 'atlasArchiveStatus']) {
