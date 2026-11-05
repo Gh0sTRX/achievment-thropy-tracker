@@ -1,5 +1,6 @@
 ﻿param([string]$ReportPath='self-update-test-report.json')
 $ErrorActionPreference='Stop'
+$ProgressPreference='SilentlyContinue'
 $root=Join-Path $env:RUNNER_TEMP ('Atlas native self update '+[Guid]::NewGuid())
 New-Item -ItemType Directory -Path $root | Out-Null
 $ownsData=$false;$active=$null;$install=Join-Path $root 'installed application'
@@ -18,7 +19,17 @@ try {
     if (Test-Path -LiteralPath $data) { throw 'Default data directory already exists; refusing to use or delete it' }
     New-Item -ItemType Directory -Path $data | Out-Null
     $ownsData=$true
-    $manifest=Invoke-RestMethod 'https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/download/development/development-manifest.json'
+    for ($attempt=0;$attempt -lt 3;$attempt++) {
+        try {
+            $manifest=Invoke-RestMethod 'https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/download/development/development-manifest.json' -TimeoutSec 30
+            break
+        } catch {
+            $response=$_.Exception.Response
+            $code=if ($response) {[int]$response.StatusCode} else {0}
+            if ($attempt -eq 2 -or ($code -gt 0 -and $code -lt 500 -and $code -ne 429)) { throw }
+            Start-Sleep -Seconds (2*($attempt+1))
+        }
+    }
     # Before 0.15.1 promotion test the shipped 0.14.1 -> 0.15.0 chain;
     # after promotion the same job verifies real 0.15.0 -> 0.15.1 delivery.
     if ([Version]$manifest.version -gt [Version]'0.15.0') {
@@ -54,7 +65,16 @@ try {
                     $elements=$window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
                     foreach ($element in $elements) {
                         $current=$element.Current
-                        if ($current.IsOffscreen -or !$current.IsEnabled -or $current.Name.IndexOf($Name,[StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
+                        if (!$current.IsEnabled -or $current.Name.IndexOf($Name,[StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
+                        if ($current.IsOffscreen) {
+                            $scroll=$null
+                            if ($element.TryGetCurrentPattern([Windows.Automation.ScrollItemPattern]::Pattern,[ref]$scroll)) {
+                                $scroll.ScrollIntoView()
+                                Start-Sleep -Milliseconds 100
+                                $current=$element.Current
+                            }
+                            if ($current.IsOffscreen) { continue }
+                        }
                         $invoke=$null;$expand=$null
                         if ($Name -eq 'Diğer ekranlar' -and $element.TryGetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern,[ref]$expand)) {
                             if ($expand.Current.ExpandCollapseState -ne [Windows.Automation.ExpandCollapseState]::Expanded) { $expand.Expand() }

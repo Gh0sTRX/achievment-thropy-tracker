@@ -1,5 +1,6 @@
 param([Parameter(Mandatory=$true)][string]$SetupPath,[string]$ReportPath='upgrade-test-report.json')
 $ErrorActionPreference='Stop'
+$ProgressPreference='SilentlyContinue'
 if ([Environment]::OSVersion.Platform -ne 'Win32NT') { throw 'Real installer upgrade tests require Windows' }
 $SetupPath=(Resolve-Path -LiteralPath $SetupPath).Path
 $candidateManifest=Get-Content -LiteralPath (Join-Path (Split-Path -Parent $SetupPath) 'update-manifest.json') -Raw | ConvertFrom-Json
