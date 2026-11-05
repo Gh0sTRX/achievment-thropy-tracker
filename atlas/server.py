@@ -49,8 +49,9 @@ class Controller:
             payload=self.store.payload();revision=self.store.revision
         library=payload['library'];pins=payload['state']['pins']
         cache_key=(revision,id(self.store.library),tuple(pins))
-        if self._report_cache and self._report_cache[0]==cache_key:
-            reports=self._report_cache[1]
+        cached_reports=self._report_cache
+        if cached_reports and cached_reports[0]==cache_key:
+            reports=cached_reports[1]
         else:
             reports={}
             for platform in ('xbox','psn','pc'):
