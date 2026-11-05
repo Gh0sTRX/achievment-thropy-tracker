@@ -67,8 +67,17 @@ on the WebView/browser origin and session and is not the source of achievement t
 
 Provider retention, billing and account controls are governed by the providers'
 policies and your agreements with them. This project does not promise that a
-third-party provider retains no queries or images. There is currently **no live
-PC/Steam achievement adapter**; a PC-themed view is not a Steam account connection.
+third-party provider retains no queries or images. The PC provider interface currently
+implements Steam Web API, requiring an operator's `ATLAS_STEAM_API_KEY`. SteamID64 or
+vanity name, AppIDs and the service key are sent over HTTPS to `api.steampowered.com`
+for ResolveVanityURL, GetOwnedGames, GetSchemaForGame and GetPlayerAchievements.
+The key is stored using the same Windows DPAPI settings protection and is excluded
+from library exports and browser status. Game names, achievement descriptions,
+unlock timestamps and icon URLs returned by Steam enter the local JSON archive.
+AppID-bound image candidates may contact Steam CDN hosts (`steamstatic.com` and
+listed Akamai CDN hosts). These images are not redistributed with the application.
+No user credentials were available for live Steam verification during this audit;
+mock integration coverage does not establish real-account access.
 
 ## Automatic guides, explicit consent and cost
 

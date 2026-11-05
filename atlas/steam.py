@@ -1,0 +1,110 @@
+"""Steam Web API PC provider. No scraping, title guessing or Gamerscore conversion."""
+from datetime import datetime, timezone
+import json
+import re
+from urllib.parse import urlencode, urlsplit
+from urllib.request import Request, build_opener, HTTPRedirectHandler
+from urllib.error import HTTPError, URLError
+from . import settings, sync_control, artwork
+
+class SteamError(ValueError):
+    def __init__(self, message, code=None):
+        super().__init__(message); self.code=code
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self,*args,**kwargs):
+        raise SteamError('Steam API yönlendirmesi reddedildi.')
+
+
+def validate(value):
+    value=str(value).strip()
+    if value.startswith('https://'):
+        u=urlsplit(value)
+        if u.hostname!='steamcommunity.com' or u.username or u.password or u.port not in (None,443) or u.query or u.fragment:
+            raise SteamError('SteamID64 veya resmi Steam profil adresini gir.')
+        parts=u.path.strip('/').split('/')
+        if len(parts)!=2 or parts[0] not in ('id','profiles'):raise SteamError('Steam profil adresi geçersiz.')
+        value=parts[1]
+        if parts[0]=='profiles' and not value.isdigit():raise SteamError('SteamID64 geçersiz.')
+    if value.isdigit():
+        if not 76561197960265728<=int(value)<2**64:raise SteamError('SteamID64 geçersiz.')
+    elif not re.fullmatch(r'[A-Za-z0-9_-]{2,64}',value):raise SteamError('Steam kullanıcı adresini veya SteamID64 gir.')
+    return value
+
+
+def request(interface,method,version='v1',**params):
+    sync_control.check()
+    key=settings.get('ATLAS_STEAM_API_KEY')
+    if not key:raise SteamError('Steam Web API anahtarı cihazda ayarlanmamış.')
+    url='https://api.steampowered.com/'+interface+'/'+method+'/'+version+'/?'+urlencode({'key':key,**params})
+    try:
+        with build_opener(NoRedirect()).open(Request(url,headers={'User-Agent':'AchievementAtlas'}),timeout=20) as response:
+            raw=response.read(4_000_001)
+        if len(raw)>4_000_000:raise SteamError('Steam yanıtı boyut sınırını aştı.')
+        result=json.loads(raw)
+        if not isinstance(result,dict):raise SteamError('Steam yanıt biçimi geçersiz.')
+        sync_control.check();return result
+    except HTTPError as e:
+        messages={401:'Steam anahtarı reddedildi.',403:'Steam erişimi reddedildi; gizlilik veya anahtarı kontrol et.',429:'Steam hız sınırı; daha sonra yeniden dene.'}
+        raise SteamError(messages.get(e.code,'Steam servisi isteği tamamlayamadı.'),e.code) from None
+    except (URLError,TimeoutError,OSError,json.JSONDecodeError):
+        # Never expose a request URL: it contains the service key.
+        raise SteamError('Steam ağ yanıtı alınamadı; önceki kayıt korundu.') from None
+
+
+def fetch(username,progress=lambda *args:None):
+    value=validate(username)
+    if value.isdigit():sid=value
+    else:
+        resolved=request('ISteamUser','ResolveVanityURL',vanityurl=value).get('response',{})
+        sid=str(resolved.get('steamid',''))
+        if resolved.get('success')!=1 or not sid.isdigit():raise SteamError('Steam kullanıcı adresi çözümlenemedi.')
+        validate(sid)
+    owned=request('IPlayerService','GetOwnedGames',steamid=sid,include_appinfo=1,include_played_free_games=1).get('response',{})
+    if type(owned.get('game_count')) is not int or not isinstance(owned.get('games',[]),list):
+        raise SteamError('Steam oyun ayrıntıları gizli veya erişilemiyor. Profil ve oyun ayrıntılarını herkese açık yap.')
+    if owned['game_count']!=len(owned.get('games',[])):raise SteamError('Steam oyun listesi eksik; önceki kayıt korundu.')
+    games=[];items=[];warnings=[];failed=[];seen=set()
+    for row in owned.get('games',[]):
+        sync_control.check();appid=str(row.get('appid',''))
+        if not appid.isdigit() or int(appid)<=0 or appid in seen:raise SteamError('Steam AppID listesi geçersiz.')
+        seen.add(appid)
+        try:
+            schema=request('ISteamUserStats','GetSchemaForGame','v2',appid=appid,l='english').get('game',{})
+            if not isinstance(schema,dict) or not schema.get('gameName'):raise SteamError('Steam oyun şeması alınamadı.')
+            definitions=schema.get('availableGameStats',{}).get('achievements',[])
+            if not isinstance(definitions,list):raise SteamError('Steam başarım şeması geçersiz.')
+            player={}
+            if definitions:
+                stats=request('ISteamUserStats','GetPlayerAchievements',steamid=sid,appid=appid,l='english').get('playerstats',{})
+                if stats.get('success') is not True or str(stats.get('steamID',''))!=sid:raise SteamError('Steam başarım görünürlüğü veya hesap kimliği doğrulanamadı.')
+                entries=stats.get('achievements',[])
+                if not isinstance(entries,list):raise SteamError('Steam kazanım listesi geçersiz.')
+                player={a.get('apiname'):a for a in entries}
+                if len(player)!=len(entries):raise SteamError('Tekrarlanan Steam başarım kimliği.')
+            gid='steam:'+appid;name=str(row.get('name') or schema['gameName'])
+            g={'id':gid,'title_id':appid,'steam_appid':appid,'provider':'steam','platform':'pc','name':name,'platform_edition':'steam','devices':['pc'],'device_label':'PC · Steam','ownership':'unknown','art_candidates':[]}
+            # AppID comes from this account's official list, never a title match.
+            for kind,filename in (('cover','library_600x900.jpg'),('hero','library_hero.jpg'),('logo','logo.png'),('banner','header.jpg')):
+                url='https://cdn.akamai.steamstatic.com/steam/apps/'+appid+'/'+filename
+                g['art_candidates'].append({'kind':kind,'url':url,'provider':'Steam AppID','provider_id':appid})
+            current=[];keys=set()
+            for definition in definitions:
+                api=definition.get('name')
+                if not isinstance(api,str) or not api or api in keys or api not in player:raise SteamError('Steam başarım kimlikleri eksik veya tekrarlı.')
+                keys.add(api);entry=player[api]
+                if type(entry.get('achieved')) is not int or entry['achieved'] not in (0,1):raise SteamError('Steam kazanılma bilgisi eksik.')
+                unlocked=bool(entry['achieved']);stamp='';epoch=entry.get('unlocktime')
+                if unlocked and type(epoch) is int and epoch>0:
+                    try:stamp=datetime.fromtimestamp(epoch,timezone.utc).isoformat()
+                    except (OverflowError,OSError,ValueError):pass
+                icon=definition.get('icon' if unlocked else 'icongray','')
+                current.append({'id':gid+':'+api,'provider_id':api,'provider':'steam','game_id':gid,'title_id':appid,'game_name':name,'platform':'pc','devices':['pc'],'device_label':'PC · Steam','platform_edition':'steam','name':str(definition.get('displayName') or api),'description':str(definition.get('description') or ''),'is_secret':definition.get('hidden') in (1,True),'unlocked':unlocked,'unlock_time':stamp,'points':0,'trophy_type':'','dlc':'','icon_url':icon if artwork.safe_url(icon) else '', 'source':'steam_web_api'})
+            games.append(g);items.extend(current)
+        except sync_control.Cancelled:raise
+        except SteamError as exc:
+            if exc.code in (401,403,429):raise
+            failed.append(appid);warnings.append({'game':str(row.get('name') or appid),'reason':str(exc)})
+        progress(len(games)+len(failed),len(owned.get('games',[])),str(row.get('name') or appid))
+    if not games and owned['game_count']:raise SteamError('Steam oyunları alınamadı; önceki arşiv korundu.')
+    return {'id':sid,'username':value,'provider':'steam','warnings':warnings,'failed_title_ids':failed},games,items

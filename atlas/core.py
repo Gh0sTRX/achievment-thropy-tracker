@@ -279,12 +279,14 @@ class Library:
         from . import identity
         platform, account_id = identity.validate_snapshot(snapshot)
         with self.lock:
+            provider=snapshot.get('provider','')
+            def in_scope(g):return g.get('platform')==platform and (platform!='pc' or g.get('provider','')==provider)
             profiles = self.state.setdefault('public_profiles', {})
             previous = profiles.get(platform, {})
             identity.reject_name_reuse(previous, snapshot)
             same = str(previous.get('id')) == account_id
             if previous.get('id'):
-                previous_games = [g for g in self.library['games'] if g.get('platform') == platform]
+                previous_games = [g for g in self.library['games'] if in_scope(g)]
                 previous_ids = {g['id'] for g in previous_games}
                 atomic_write(self.root/'profiles'/(game_id(platform, previous['id'])+'.json'),
                     {**previous, 'platform': platform, 'games': previous_games,
@@ -293,7 +295,8 @@ class Library:
             key = game_id(platform, snapshot['id'])
             archive = self.root/'profiles'/(key+'.json')
             cached = self._read(archive, {})
-            old_items = {a['id']: a for a in (self.library['achievements'] if same else cached.get('achievements', []))}
+            prior_games = {g['id']: g for g in (self.library['games'] if same else cached.get('games', [])) if in_scope(g)}
+            old_items = {a['id']: a for a in (self.library['achievements'] if same else cached.get('achievements', [])) if a.get('game_id') in prior_games}
             new_items = deepcopy(snapshot['achievements'])
             for a in new_items:
                 prior = old_items.get(a['id'], {})
@@ -303,9 +306,9 @@ class Library:
                 if prior.get('guide') and prior.get('description') == a.get('description') and prior.get('device_label','') == a.get('device_label','') and prior.get('platform_edition','') == a.get('platform_edition',''):
                     a['guide'] = prior['guide']
             new_games = deepcopy(snapshot['games'])
-            prior_games = {g['id']: g for g in (self.library['games'] if same else cached.get('games', []))}
-            failed = set(snapshot.get('failed_title_ids', []))
-            retained_failed = [deepcopy(g) for g in prior_games.values() if g.get('title_id') in failed]
+            failed = {str(t) for t in snapshot.get('failed_title_ids', [])}
+            incoming_ids={g['id'] for g in new_games}
+            retained_failed = [deepcopy(g) for g in prior_games.values() if str(g.get('title_id')) in failed and g['id'] not in incoming_ids]
             retained_failed_ids = {g['id'] for g in retained_failed}
             new_games.extend(retained_failed)
             new_items.extend(deepcopy(a) for a in old_items.values() if a['game_id'] in retained_failed_ids)
@@ -315,13 +318,14 @@ class Library:
                     if prior.get(field): g[field] = prior[field]
                 if prior.get('cover_url') == 'local': g['cover_url'] = 'local'
             atomic_write(archive, {**snapshot, 'games': new_games, 'achievements': new_items})
-            retained_games = [g for g in self.library['games'] if g.get('platform') not in (platform, 'demo')]
+            retained_games = [g for g in self.library['games'] if not in_scope(g) and g.get('platform')!='demo']
             retained_ids = {g['id'] for g in retained_games}
             retained_items = [a for a in self.library['achievements'] if a['game_id'] in retained_ids]
             self.library = {'schema': 2, 'platform': 'mixed', 'gamertag': snapshot['username'],
                 'created_at': self.library.get('created_at', ''), 'complete_export': False,
                 'games': retained_games+new_games, 'achievements': retained_items+new_items}
             profiles[platform] = {k: snapshot[k] for k in ('id', 'username', 'synced_at')}
+            if provider:profiles[platform]['provider']=provider
             valid = {a['id'] for a in self.library['achievements']}
             self.state['pins'] = [p for p in self.state['pins'] if p in valid]
             self.state['sync_at'] = snapshot['synced_at']
