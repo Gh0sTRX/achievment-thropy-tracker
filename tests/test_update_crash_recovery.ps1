@@ -31,7 +31,10 @@ try {
         $sha=[Security.Cryptography.SHA256]::Create()
         $hook='!AchievementAtlasRecovery-'+([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes([IO.Path]::GetFullPath($planPath))))).Replace('-','').Substring(0,16);$sha.Dispose()
         $hookNames+=$hook
-        $copied=Join-Path $case 'apply-update.ps1';Copy-Item -LiteralPath $helper -Destination $copied
+        $copied=Join-Path $case 'apply-update.ps1'
+        # Test-only diagnostic context; production helper and failure semantics are unchanged.
+        $diagnosticHelper=(Get-Content -LiteralPath $helper -Raw).Replace('$updateFailure=$_.Exception.Message','$updateFailure=$_.Exception.Message+"; trace: "+$_.ScriptStackTrace')
+        Set-Content -LiteralPath $copied -Value $diagnosticHelper -Encoding UTF8
         $wrapper=Join-Path $case 'driver.ps1'
         @'
 param([string]$Helper,[string]$Plan,[string]$RegistryPath,[switch]$Recover)
