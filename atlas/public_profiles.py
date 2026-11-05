@@ -122,7 +122,7 @@ async def _xbox(username, progress):
                 for image in meta.get('images',[]):
                     if not isinstance(image,dict):continue
                     typ=str(image.get('imageType') or image.get('imagePurpose') or image.get('type') or '').lower()
-                    kind='logo' if 'logo' in typ else 'cover' if any(w in typ for w in ('box','poster','cover')) else ''
+                    kind='logo' if 'logo' in typ else 'cover' if any(w in typ for w in ('box','poster','cover')) else 'hero' if any(w in typ for w in ('background','wallpaper','hero')) else 'banner' if 'banner' in typ else 'screenshot' if 'screenshot' in typ else ''
                     url=str(image.get('uri') or image.get('url') or '')
                     if kind and artwork.safe_url(url):g['art_candidates'].append({'kind':kind,'url':url,'provider':'Xbox TitleHub'})
                 cached=sync_control.reuse(g,title,xuid)

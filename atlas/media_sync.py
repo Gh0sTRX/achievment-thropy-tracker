@@ -24,10 +24,10 @@ def download(store, progress=lambda *a:None, stop=lambda:False):
         for index,g in enumerate(games):
             if halted():break
             candidates=list(g.get('art_candidates',[]))
-            for kind in ('cover','logo'):
+            for kind in ('cover','hero','banner','logo','screenshot'):
                 value=g.get(kind+'_url','')
                 if value and value!='local':candidates.insert(0,{'kind':kind,'url':value,'provider':g.get('image_source') or g.get('platform')})
-            for kind in ('cover','logo'):
+            for kind in ('cover','hero','banner','logo','screenshot'):
                 if halted():break
                 if g.get(kind+'_url')=='local' and artwork.cached(store.root,kind,g['id']):continue
                 found=False
@@ -85,3 +85,16 @@ def download(store, progress=lambda *a:None, stop=lambda:False):
         if dirty:
             with store.lock:store.save()
     return results
+
+
+def health(store):
+    """Coverage reflects validated local bytes, never merely a candidate URL."""
+    kinds=('cover','hero','banner','logo','screenshot')
+    with store.lock:
+        games=[dict(g) for g in store.library['games']]
+        items=[dict(a) for a in store.library['achievements']]
+    coverage={kind:sum(bool(artwork.cached(store.root,kind,g['id'])) for g in games) for kind in kinds}
+    icons=sum(bool(artwork.cached(store.root,'icon',a['id'])) for a in items)
+    return {'games':len(games),'achievements':len(items),'cached':coverage,'cached_icons':icons,
+            'missing':{kind:len(games)-coverage[kind] for kind in kinds},
+            'missing_icons':len(items)-icons,'scope':'validated_local_cache'}
