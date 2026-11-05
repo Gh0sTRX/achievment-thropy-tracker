@@ -2,7 +2,6 @@ param([string]$ReportPath='self-update-test-report.json')
 $ErrorActionPreference='Stop'
 $root=Join-Path $env:RUNNER_TEMP ('Atlas native self update '+[Guid]::NewGuid())
 New-Item -ItemType Directory -Path $root | Out-Null
-$oldArgs=$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
 $ownsData=$false;$active=$null;$install=Join-Path $root 'installed application'
 $reportFull=[IO.Path]::GetFullPath($ReportPath)
 # Reuse helpers without executing the separate installer matrix entry point.
@@ -19,9 +18,6 @@ try {
     if (Test-Path -LiteralPath $data) { throw 'Default data directory already exists; refusing to use or delete it' }
     New-Item -ItemType Directory -Path $data | Out-Null
     $ownsData=$true
-    $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0);$listener.Start()
-    $port=$listener.LocalEndpoint.Port;$listener.Stop()
-    $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=$port"
     $old=Join-Path $root 'published-0.14.1-setup.exe'
     Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/download/development/AchievementAtlas-0.14.1-Windows-x64-Setup.exe' -OutFile $old
     if ((Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash.ToLower() -ne 'c0169c3f10bcf2b1dd2303f8f03aa081d3d04b3456d395a3e453b13ae727be7d') { throw 'Old installer checksum mismatch' }
@@ -35,8 +31,36 @@ try {
     $payload=Get-Records $session;$gid=$payload.library.games[0].id
     Post $session '/api/game/notes' @{game_id=$gid;notes='Upgrade fixture note'} | Out-Null
     $oldPid=$active.Id
-    & node "$PSScriptRoot/test_native_update_buttons.cjs" $port (Join-Path $root 'buttons.json')
-    if ($LASTEXITCODE -ne 0) { throw 'Native update button test failed' }
+    Add-Type -AssemblyName UIAutomationClient
+    Add-Type -AssemblyName UIAutomationTypes
+    function Invoke-NativeButton([string]$Name,[int]$Seconds=60) {
+        $deadline=[DateTime]::UtcNow.AddSeconds($Seconds)
+        while ([DateTime]::UtcNow -lt $deadline) {
+            $script:active.Refresh()
+            if ($script:active.HasExited) { throw 'Native window closed before button invocation' }
+            if ($script:active.MainWindowHandle -ne [IntPtr]::Zero) {
+                $window=[Windows.Automation.AutomationElement]::FromHandle($script:active.MainWindowHandle)
+                $elements=$window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
+                foreach ($element in $elements) {
+                    $current=$element.Current
+                    if ($current.IsOffscreen -or !$current.IsEnabled -or $current.Name.IndexOf($Name,[StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
+                    $invoke=$null
+                    if ($element.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern,[ref]$invoke)) {
+                        Write-Output ('Invoking native button: '+$current.Name)
+                        $invoke.Invoke()
+                        return
+                    }
+                }
+            }
+            Start-Sleep -Milliseconds 400
+        }
+        throw ('Native accessible button not available: '+$Name)
+    }
+    Invoke-NativeButton 'Güncellemeler'
+    Invoke-NativeButton 'GÜNCELLEMELERİ KONTROL ET'
+    Invoke-NativeButton 'GÜNCELLEMEYİ İNDİR' 90
+    Invoke-NativeButton 'KUR VE YENİDEN BAŞLAT' 180
+    @{ok=$true;driver='Windows UI Automation InvokePattern';checks=@('real native navigation','real check button','real download button','verified ready state','real install button')} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $root 'buttons.json') -Encoding UTF8
     if (!$active.WaitForExit(30000)) { throw 'Old application did not exit for update' }
     $active=$null
     $exe=Join-Path $install 'AchievementAtlas.exe'
@@ -72,7 +96,7 @@ try {
     if (!$log.Contains('Update installed: '+$manifest.version)) { throw 'Helper did not report successful installation' }
     $proof=Get-Content -LiteralPath $plan.verify_report -Raw | ConvertFrom-Json
     if (!$proof.verified -or $proof.sha256 -ne $manifest.sha256) { throw 'Published installer provenance did not verify' }
-    @{ok=$true;from='0.14.1';to=$manifest.version;run_id=$manifest.run_id;sha256=$proof.sha256;scope='Unmodified shipped updater; real native WebView2 buttons, GitHub metadata/download/proof, helper, installer and native restart; isolated default data directory';buttons=(Get-Content -LiteralPath (Join-Path $root 'buttons.json') -Raw | ConvertFrom-Json);records_preserved=$true} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $reportFull -Encoding UTF8
+    @{ok=$true;from='0.14.1';to=$manifest.version;run_id=$manifest.run_id;sha256=$proof.sha256;scope='Unmodified shipped updater; real native UI Automation buttons, GitHub metadata/download/proof, helper, installer and native restart; isolated default data directory';buttons=(Get-Content -LiteralPath (Join-Path $root 'buttons.json') -Raw | ConvertFrom-Json);records_preserved=$true} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $reportFull -Encoding UTF8
     Write-Output ('Native self-update passed: 0.14.1 -> '+$manifest.version)
 } catch {
     if ($active) { $active.Refresh();Write-Output ('Native window at failure: '+$active.MainWindowTitle) }
@@ -81,7 +105,6 @@ try {
 } finally {
     if ($active -and !$active.HasExited) { $active.Kill();$active.WaitForExit(10000) | Out-Null }
     if (Test-Path -LiteralPath (Join-Path $install 'unins000.exe')) { Start-Process (Join-Path $install 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait | Out-Null }
-    $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=$oldArgs
     if ($ownsData) { Remove-Item -LiteralPath $data -Recurse -Force }
     Remove-Item -LiteralPath $root -Recurse -Force
 }

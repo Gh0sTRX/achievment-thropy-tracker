@@ -142,13 +142,6 @@ jobs:
         run: |
           $setup = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
           ./tests/test_windows_upgrade.ps1 -SetupPath $setup.FullName -ReportPath upgrade-test-report.json
-      - name: Verify shipped native in-app update buttons through restart
-        shell: powershell
-        run: |
-          npm install --prefix work/ci-playwright --no-save --no-package-lock playwright@1.56.1
-          if ($LASTEXITCODE -ne 0) { throw 'Playwright CDP driver installation failed' }
-          $env:ATLAS_PLAYWRIGHT_MODULE = (Resolve-Path work/ci-playwright/node_modules/playwright).Path
-          ./tests/test_windows_self_update.ps1 -ReportPath self-update-test-report.json
       - name: Preserve upgrade diagnostics on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -164,7 +157,7 @@ jobs:
           Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.15.0-Windows-x64-Portable.zip
           Compress-Archive preview -DestinationPath dist\installer\AchievementAtlas-0.15.0-Preview.zip
           Copy-Item app-signing.json dist/installer/
-          Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json,upgrade-test-report.json,self-update-test-report.json dist\installer\
+          Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json,upgrade-test-report.json dist\installer\
           Get-ChildItem dist\installer\*.exe,dist\installer\*.zip | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist\installer\SHA256SUMS.txt
           python -m pip freeze | Set-Content dist\installer\dependencies.txt
       - name: Attest push-built development installer
@@ -190,7 +183,7 @@ jobs:
 
   publish:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, native-self-update]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -272,7 +265,7 @@ jobs:
   publish-authorized-push:
     # Explicit release commit marker; ordinary pushes only build candidates.
     if: github.event_name == 'push' && github.ref == 'refs/heads/codex/public-profile-trophies' && contains(github.event.head_commit.message, '[publish-development]')
-    needs: build
+    needs: [build, native-self-update]
     runs-on: ubuntu-latest
     concurrency:
       group: atlas-development-promotion
@@ -306,3 +299,22 @@ jobs:
           fi
           gh release upload development release-files/*-Setup.exe release-files/SHA256SUMS.txt release-files/update-bundle.json release-files/development-verification.json --clobber
           gh release upload development release-files/development-manifest.json --clobber
+
+  native-self-update:
+    if: github.event_name != 'workflow_dispatch' || inputs.promote_run_id == ''
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise shipped native update buttons through verified restart
+        shell: powershell
+        run: ./tests/test_windows_self_update.ps1 -ReportPath self-update-test-report.json
+      - name: Preserve native self-update result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-native-self-update-report
+          path: self-update-test-report.json
+          if-no-files-found: warn
