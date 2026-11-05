@@ -34,6 +34,7 @@ try {
         $copied=Join-Path $case 'apply-update.ps1'
         # Test-only diagnostic context; production helper and failure semantics are unchanged.
         $diagnosticHelper=(Get-Content -LiteralPath $helper -Raw).Replace('$updateFailure=$_.Exception.Message','$updateFailure=$_.Exception.Message+"; trace: "+$_.ScriptStackTrace')
+        if ($windows) { $diagnosticHelper=$diagnosticHelper.Replace('HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce',$registry) }
         Set-Content -LiteralPath $copied -Value $diagnosticHelper -Encoding UTF8
         $wrapper=Join-Path $case 'driver.ps1'
         @'
@@ -41,28 +42,7 @@ param([string]$Helper,[string]$Plan,[string]$RegistryPath,[switch]$Recover)
 $ErrorActionPreference='Stop'
 $global:testPlan=Get-Content -LiteralPath $Plan -Raw -Encoding UTF8 | ConvertFrom-Json
 $global:testRoot=Split-Path -Parent $Plan
-if ([Environment]::OSVersion.Platform -eq 'Win32NT') {
-    $global:testRegistry=$RegistryPath
-    function Map-TestRegistry($Path) {
-        if ($Path -eq 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce') { return $global:testRegistry }
-        return $Path
-    }
-    function Test-Path { param($LiteralPath,$Path)
-        if ($PSBoundParameters.ContainsKey('LiteralPath')) { return Microsoft.PowerShell.Management\Test-Path -LiteralPath (Map-TestRegistry $LiteralPath) }
-        Microsoft.PowerShell.Management\Test-Path -Path (Map-TestRegistry $Path)
-    }
-    function New-Item { param($Path,$ItemType,[switch]$Force)
-        if ($PSBoundParameters.ContainsKey('ItemType')) { Microsoft.PowerShell.Management\New-Item -Path (Map-TestRegistry $Path) -ItemType $ItemType -Force:$Force }
-        else { Microsoft.PowerShell.Management\New-Item -Path (Map-TestRegistry $Path) -Force:$Force }
-    }
-    function Get-Item { param($LiteralPath,$Path,[switch]$Force)
-        if ($PSBoundParameters.ContainsKey('LiteralPath')) { return Microsoft.PowerShell.Management\Get-Item -LiteralPath (Map-TestRegistry $LiteralPath) -Force:$Force }
-        Microsoft.PowerShell.Management\Get-Item -Path (Map-TestRegistry $Path) -Force:$Force
-    }
-    function New-ItemProperty { param($Path,$Name,$Value,$PropertyType,[switch]$Force) Microsoft.PowerShell.Management\New-ItemProperty -Path (Map-TestRegistry $Path) -Name $Name -Value $Value -PropertyType $PropertyType -Force:$Force }
-    function Get-ItemPropertyValue { param($Path,$Name) Microsoft.PowerShell.Management\Get-ItemPropertyValue -Path (Map-TestRegistry $Path) -Name $Name }
-    function Remove-ItemProperty { param($Path,$Name,$ErrorAction) Microsoft.PowerShell.Management\Remove-ItemProperty -Path (Map-TestRegistry $Path) -Name $Name -ErrorAction $ErrorAction }
-} else {
+if ([Environment]::OSVersion.Platform -ne 'Win32NT') {
     $global:testHooks=@{}
     function New-Item { param($Path,$ItemType,[switch]$Force) if ($Path -like 'HKCU:*') { return };Microsoft.PowerShell.Management\New-Item @PSBoundParameters }
     function Get-Item { param($LiteralPath,[switch]$Force)
