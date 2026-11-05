@@ -22,6 +22,24 @@ MAX_INSTALLER=300_000_000
 HOSTS={'api.github.com','github.com','release-assets.githubusercontent.com','objects.githubusercontent.com'}
 
 
+def windows_recovery_pending():
+    """Block overlapping recovery even if the user switches library folders."""
+    if sys.platform != 'win32':
+        return False
+    import winreg
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\RunOnce') as key:
+            for index in range(winreg.QueryInfoKey(key)[1]):
+                name, _, _ = winreg.EnumValue(key, index)
+                if name.casefold().startswith('!achievementatlasrecovery-'):
+                    return True
+    except FileNotFoundError:
+        return False
+    except OSError:
+        raise ValueError('Windows güncelleme kurtarma durumu okunamadı; kurulum başlatılmadı.') from None
+    return False
+
+
 def version(value):
     if not isinstance(value,str) or not re.fullmatch(r'v?\d{1,5}\.\d{1,5}\.\d{1,5}',value):
         raise ValueError('Güncelleme sürümü geçersiz.')
@@ -183,6 +201,20 @@ class Updater:
         threading.Thread(target=worker,daemon=True).start()
         return {'message':'Güncelleme kontrolü başladı.'}
 
+    def ensure_no_pending_recovery(self):
+        message='Önce yarıda kalan güncelleme kurtarılmalı. Yeni güncelleme başlatılmadı; mevcut dosyalar korunuyor.'
+        if windows_recovery_pending():
+            raise ValueError(message)
+        for journal in (self.root/'updates').glob('*/recovery-state.json'):
+            try:
+                if journal.stat().st_size > 2_000_000:
+                    raise ValueError(message)
+                state=json.loads(journal.read_text(encoding='utf-8-sig'))
+                if state.get('format') != 'atlas-update-recovery-v1' or state.get('state') not in ('completed','rolled_back'):
+                    raise ValueError(message)
+            except (OSError, TypeError, AttributeError, UnicodeError, json.JSONDecodeError):
+                raise ValueError(message) from None
+
     def supported_install(self):
         if sys.platform!='win32' or not getattr(sys,'frozen',False):
             raise ValueError('Otomatik kurulum Windows Setup ile kurulan sürüm içindir; kaynak/taşınabilir sürümü elle güncelle.')
@@ -200,6 +232,7 @@ class Updater:
         def worker():
             path=None
             try:
+                self.ensure_no_pending_recovery()
                 self.supported_install()
                 anchor=None
                 if self.channel=='stable':
@@ -235,6 +268,7 @@ class Updater:
     def install(self):
         if not self.guard.acquire(blocking=False):raise ValueError('Güncelleme işlemi zaten çalışıyor.')
         try:
+            self.ensure_no_pending_recovery()
             directory=self.supported_install()
             if self.state.get('state')!='ready' or not self.ready_path or not self.manifest:raise ValueError('Doğrulanmış güncelleme hazır değil.')
             path=self.ready_path

@@ -65,15 +65,20 @@ try {
 
     # Execute the real helper, replacing OS/process boundaries only.
     foreach ($scenario in @('exit-failure','launch-exception','deleted-install','corrupt-recovery','success')) {
-        $case=Fixture $scenario;$script:install=Join-Path $case 'install';$backup=Join-Path $case 'backup'
+        $case=Fixture $scenario;$script:install=Join-Path $case 'install';$backup=Join-Path $case 'previous-version'
         Move-Item -LiteralPath (Join-Path $install 'old.exe') -Destination (Join-Path $install 'AchievementAtlas.exe')
         Set-Content -LiteralPath (Join-Path $install 'unins000.exe') -Value 'uninstaller'
         $original=@(Get-InstallInventory $install)
         $script:plan=@{install_dir=$install;backup=$backup;exe=(Join-Path $install 'AchievementAtlas.exe');installer=(Join-Path $case 'setup.exe');ready=(Join-Path $case 'ready');log=(Join-Path $case 'update.log');verify_report=(Join-Path $case 'verify.json');manifest='manifest';bundle='bundle';mode='development';data_dir=(Join-Path $case 'custom data');parent_pid=99999999;version='test'}
         Set-Content -LiteralPath $plan.installer -Value 'fake-installer'
         $plan.sha256=(Get-FileHash -LiteralPath $plan.installer -Algorithm SHA256).Hash.ToLower()
-        $planPath=Join-Path $case 'plan.json';$plan | ConvertTo-Json | Set-Content -LiteralPath $planPath
-        $global:AtlasRecoveryTest=@{plan=$plan;install=$install;restarts=0;scenario=$scenario}
+        $planPath=Join-Path $case 'plan.json';$plan | ConvertTo-Json | Set-Content -LiteralPath $planPath -Encoding UTF8
+        $global:AtlasRecoveryTest=@{plan=$plan;install=$install;restarts=0;scenario=$scenario;hooks=@{}}
+        $copiedHelper=Join-Path $case 'apply-update.ps1';Copy-Item -LiteralPath $helper -Destination $copiedHelper
+        function New-Item { param($Path,$ItemType,[switch]$Force) if ($Path -like 'HKCU:*') { return };Microsoft.PowerShell.Management\New-Item @PSBoundParameters }
+        function New-ItemProperty { param($Path,$Name,$Value,$PropertyType,[switch]$Force) $global:AtlasRecoveryTest.hooks[$Name]=$Value }
+        function Get-ItemPropertyValue { param($Path,$Name) return $global:AtlasRecoveryTest.hooks[$Name] }
+        function Remove-ItemProperty { param($Path,$Name,$ErrorAction) $global:AtlasRecoveryTest.hooks.Remove($Name) }
         function Wait-Process { param($Id,$Timeout,$ErrorAction) }
         function Get-Process { param($Id,$ErrorAction) }
         function Start-Process {
@@ -93,7 +98,7 @@ try {
             if ($ArgumentList.Count -ne 2 -or $ArgumentList[0] -ne '--data-dir' -or $ArgumentList[1] -ne ('"'+$global:AtlasRecoveryTest.plan.data_dir+'"')) { throw 'Restart lost custom data directory' }
             $global:AtlasRecoveryTest.restarts++
         }
-        & $helper -PlanPath $planPath
+        & $copiedHelper -PlanPath $planPath
         if ($scenario -eq 'corrupt-recovery') {
             Assert ($global:AtlasRecoveryTest.restarts -eq 0) 'Restarted mixed application after rollback failed'
             Assert ((Get-Content -LiteralPath $plan.log -Raw).Contains('ROLLBACK FAILED')) 'Missing recovery diagnostics'

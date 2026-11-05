@@ -37,3 +37,19 @@ Name: "{group}\Kaldır"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Achievement Atlas"; Filename: "{app}\AchievementAtlas.exe"; AppUserModelID: "AchievementAtlas.Desktop"; Tasks: desktopicon
 [Run]
 Filename: "{app}\AchievementAtlas.exe"; Description: "Achievement Atlas'ı başlat"; Flags: nowait postinstall skipifsilent
+
+[Code]
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Names: TArrayOfString;
+  I: Integer;
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    { A cancelled update must never reinstall an app the user uninstalled. }
+    if RegGetValueNames(HKCU, 'Software\Microsoft\Windows\CurrentVersion\RunOnce', Names) then
+      for I := 0 to GetArrayLength(Names) - 1 do
+        if Pos('!AchievementAtlasRecovery-', Names[I]) = 1 then
+          RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\RunOnce', Names[I]);
+  end;
+end;
