@@ -119,3 +119,23 @@ class UpdaterTests(unittest.TestCase):
                     with self.assertRaises(ValueError):c.install_update()
                     install.assert_not_called()
             finally:c.public_guard.release()
+
+
+class UpdatePlanTests(unittest.TestCase):
+    def test_install_plan_preserves_custom_data_directory(self):
+        with TemporaryDirectory() as temporary:
+            root=Path(temporary)/'custom library';root.mkdir()
+            install=Path(temporary)/'installed application';install.mkdir()
+            download=Path(temporary)/'download';download.mkdir()
+            candidate=download/'setup.exe';candidate.write_bytes(b'verified installer')
+            u=updater.Updater(root,channel='stable')
+            u.state['state']='ready';u.ready_path=candidate;u.manifest=manifest(b'verified installer');u.release={'version':'99.0.0'}
+            def start_helper(*args,**kwargs):
+                plan=json.loads((download/'plan.json').read_text())
+                self.assertEqual(plan['data_dir'],str(root.resolve()))
+                Path(plan['ready']).write_text('ready')
+                return unittest.mock.Mock()
+            with patch.object(u,'supported_install',return_value=install),patch.object(updater.sys,'executable',str(install/'AchievementAtlas.exe')),patch.object(updater,'verify_signature',return_value='a'*64),patch.object(updater.subprocess,'Popen',side_effect=start_helper),patch.object(updater.threading,'Timer'):
+                u.install()
+            self.assertEqual(u.snapshot()['state'],'installing')
+            self.assertFalse(u.exit_requested.is_set())

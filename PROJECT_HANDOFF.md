@@ -139,3 +139,7 @@ Devam dalı: `fix/update-rollback-snapshot`. Kurulum hatasında yeni sürümün 
 ### Devam — Windows yükseltme matrisi
 
 PR #8 / `fix/update-rollback-snapshot` üzerinde gerçek 0.13.0/0.14.1 yayımlanmış installer → yeni Setup yükseltmesi, snapshot ile bilinçli dosya geri alma, eski/new native uygulamada kayıt/kimlik/not/pin ve uninstall sonrası dış veri koruma testi eklendi. `tests/test_windows_upgrade.ps1`, Windows installer workflow'unda çalışır; `upgrade-test-report.json` artifact'ı sonucu belgeler. Son CI sonucunu canlı kontrol et; testin eklenmiş olması geçtiği anlamına gelmez. Güncelleme düğmesi üzerinden tam self-update ve güç kesintisi hâlâ ayrı test kapsamıdır.
+
+### Devam — native güncelleme düğmeleri ve data-dir
+
+PR #8'de native WebView2 düğmelerinden yayımlanmış 0.14.1→güncel geliştirme sürümü self-update testi eklendi. Tam ağ/köken kanıtı/helper/installer/yeniden açılış zinciri, izole varsayılan veri klasöründe çalışır. Son CI sonucu görülmeden geçti deme. Ayrıca yeniden başlatmada özel `--data-dir` kaybı düzeltildi (install plan + helper'ın başarılı/geri alma başlatmaları). Eski dağıtılmış helper'ın davranışı geriye dönük değişmez. Kalıcı update power-loss journal hâlâ sonraki iştir.

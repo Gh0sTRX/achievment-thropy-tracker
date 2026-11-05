@@ -69,7 +69,7 @@ try {
         Move-Item -LiteralPath (Join-Path $install 'old.exe') -Destination (Join-Path $install 'AchievementAtlas.exe')
         Set-Content -LiteralPath (Join-Path $install 'unins000.exe') -Value 'uninstaller'
         $original=@(Get-InstallInventory $install)
-        $script:plan=@{install_dir=$install;backup=$backup;exe=(Join-Path $install 'AchievementAtlas.exe');installer=(Join-Path $case 'setup.exe');ready=(Join-Path $case 'ready');log=(Join-Path $case 'update.log');verify_report=(Join-Path $case 'verify.json');manifest='manifest';bundle='bundle';mode='development';parent_pid=99999999;version='test'}
+        $script:plan=@{install_dir=$install;backup=$backup;exe=(Join-Path $install 'AchievementAtlas.exe');installer=(Join-Path $case 'setup.exe');ready=(Join-Path $case 'ready');log=(Join-Path $case 'update.log');verify_report=(Join-Path $case 'verify.json');manifest='manifest';bundle='bundle';mode='development';data_dir=(Join-Path $case 'custom data');parent_pid=99999999;version='test'}
         Set-Content -LiteralPath $plan.installer -Value 'fake-installer'
         $plan.sha256=(Get-FileHash -LiteralPath $plan.installer -Algorithm SHA256).Hash.ToLower()
         $planPath=Join-Path $case 'plan.json';$plan | ConvertTo-Json | Set-Content -LiteralPath $planPath
@@ -90,6 +90,7 @@ try {
                 if ($global:AtlasRecoveryTest.scenario -eq 'corrupt-recovery') { Set-Content -LiteralPath (Join-Path $global:AtlasRecoveryTest.plan.backup 'AchievementAtlas.exe') -Value 'corrupt' }
                 return [PSCustomObject]@{ExitCode=$(if ($global:AtlasRecoveryTest.scenario -eq 'success') {0} else {5})}
             }
+            if ($ArgumentList.Count -ne 2 -or $ArgumentList[0] -ne '--data-dir' -or $ArgumentList[1] -ne ('"'+$global:AtlasRecoveryTest.plan.data_dir+'"')) { throw 'Restart lost custom data directory' }
             $global:AtlasRecoveryTest.restarts++
         }
         & $helper -PlanPath $planPath

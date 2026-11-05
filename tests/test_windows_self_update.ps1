@@ -1,0 +1,82 @@
+param([string]$ReportPath='self-update-test-report.json')
+$ErrorActionPreference='Stop'
+$root=Join-Path $env:RUNNER_TEMP ('Atlas native self update '+[Guid]::NewGuid())
+New-Item -ItemType Directory -Path $root | Out-Null
+$oldLocal=$env:LOCALAPPDATA;$oldArgs=$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
+$active=$null;$install=Join-Path $root 'installed application'
+$reportFull=[IO.Path]::GetFullPath($ReportPath)
+# Reuse helpers without executing the separate installer matrix entry point.
+$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile((Resolve-Path "$PSScriptRoot/test_windows_upgrade.ps1"),[ref]$tokens,[ref]$errors)
+foreach ($name in @('Install-Package','Start-Atlas','Stop-Atlas','Post','Get-Records','Assert-Records')) {
+    $definition=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$true)
+    . ([ScriptBlock]::Create($definition.Extent.Text))
+}
+try {
+    # Environment isolation is inherited by the shipped updater and its restarted app.
+    $env:LOCALAPPDATA=Join-Path $root 'isolated local app data'
+    $data=Join-Path $env:LOCALAPPDATA 'AchievementAtlas'
+    $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0);$listener.Start()
+    $port=$listener.LocalEndpoint.Port;$listener.Stop()
+    $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=$port"
+    $old=Join-Path $root 'published-0.14.1-setup.exe'
+    Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/download/development/AchievementAtlas-0.14.1-Windows-x64-Setup.exe' -OutFile $old
+    if ((Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash.ToLower() -ne 'c0169c3f10bcf2b1dd2303f8f03aa081d3d04b3456d395a3e453b13ae727be7d') { throw 'Old installer checksum mismatch' }
+    $manifest=Invoke-RestMethod 'https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/download/development/development-manifest.json'
+    Install-Package $old $install
+    $session=Start-Atlas $install $data
+    $earned="GameName,AchievementName,AchievementPageURL,Gamerscore,TAScore,TARatio,DLCName,UnlockDate`nSelf Update Fixture,First,https://www.trueachievements.com/a456/first-achievement,20,25,1.25,,2026-01-01`n"
+    $locked="GameName,AchievementName,AchievementPageURL,Gamerscore,TAScore,TARatio,DLCName,Unachieveable`nSelf Update Fixture,Second,https://www.trueachievements.com/a457/second-achievement,30,40,1.35,,`n"
+    Post $session '/api/import' @{earned=$earned;locked=$locked;gamertag='CI synthetic fixture'} | Out-Null
+    Post $session '/api/pin' @{id='ta:457';pinned=$true} | Out-Null
+    $payload=Get-Records $session;$gid=$payload.library.games[0].id
+    Post $session '/api/game/notes' @{game_id=$gid;notes='Upgrade fixture note'} | Out-Null
+    $oldPid=$active.Id
+    & node "$PSScriptRoot/test_native_update_buttons.cjs" $port (Join-Path $root 'buttons.json')
+    if ($LASTEXITCODE -ne 0) { throw 'Native update button test failed' }
+    if (!$active.WaitForExit(30000)) { throw 'Old application did not exit for update' }
+    $active=$null
+    $exe=Join-Path $install 'AchievementAtlas.exe'
+    $deadline=[DateTime]::UtcNow.AddSeconds(150);$new=$null
+    while ([DateTime]::UtcNow -lt $deadline) {
+        $new=Get-CimInstance Win32_Process -Filter "Name='AchievementAtlas.exe'" | Where-Object {$_.ProcessId -ne $oldPid -and $_.ExecutablePath -eq $exe -and $_.CommandLine -notlike '*--verify-dev-update*'} | Select-Object -First 1
+        if ($new) { break }
+        Start-Sleep -Milliseconds 500
+    }
+    if (!$new) { throw 'Verified update did not restart the native app' }
+    $script:active=Get-Process -Id $new.ProcessId
+    # Inspect the helper-restarted process; do not start a replacement ourselves.
+    $newSession=$null;$deadline=[DateTime]::UtcNow.AddSeconds(60)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        foreach ($socket in @(Get-NetTCPConnection -OwningProcess $active.Id -State Listen -ErrorAction SilentlyContinue)) {
+            if ($socket.LocalAddress -ne '127.0.0.1') { continue }
+            try {
+                $url='http://127.0.0.1:'+$socket.LocalPort
+                $status=Invoke-RestMethod ($url+'/api/data') -TimeoutSec 3
+                if ($status.update.current -eq $manifest.version) { $newSession=@{url=$url};break }
+            } catch { }
+        }
+        if ($newSession) { break }
+        Start-Sleep -Milliseconds 300
+    }
+    if (!$newSession) { throw 'Restarted app did not report published version' }
+    Assert-Records (Get-Records $newSession) $gid
+    Stop-Atlas
+    $plans=@(Get-ChildItem -LiteralPath (Join-Path $data 'updates') -Filter plan.json -Recurse)
+    if ($plans.Count -ne 1) { throw 'Expected exactly one real update plan' }
+    $plan=Get-Content -LiteralPath $plans[0].FullName -Raw | ConvertFrom-Json
+    $log=Get-Content -LiteralPath $plan.log -Raw
+    if (!$log.Contains('Update installed: '+$manifest.version)) { throw 'Helper did not report successful installation' }
+    $proof=Get-Content -LiteralPath $plan.verify_report -Raw | ConvertFrom-Json
+    if (!$proof.verified -or $proof.sha256 -ne $manifest.sha256) { throw 'Published installer provenance did not verify' }
+    @{ok=$true;from='0.14.1';to=$manifest.version;run_id=$manifest.run_id;sha256=$proof.sha256;scope='Unmodified shipped updater; real native WebView2 buttons, GitHub metadata/download/proof, helper, installer and native restart; isolated default data directory';buttons=(Get-Content -LiteralPath (Join-Path $root 'buttons.json') -Raw | ConvertFrom-Json);records_preserved=$true} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $reportFull -Encoding UTF8
+    Write-Output ('Native self-update passed: 0.14.1 -> '+$manifest.version)
+} catch {
+    @{ok=$false;error=$_.Exception.Message} | ConvertTo-Json | Set-Content -LiteralPath $reportFull -Encoding UTF8
+    throw
+} finally {
+    if ($active -and !$active.HasExited) { $active.Kill();$active.WaitForExit(10000) | Out-Null }
+    if (Test-Path -LiteralPath (Join-Path $install 'unins000.exe')) { Start-Process (Join-Path $install 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait | Out-Null }
+    $env:LOCALAPPDATA=$oldLocal;$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=$oldArgs
+    Remove-Item -LiteralPath $root -Recurse -Force
+}

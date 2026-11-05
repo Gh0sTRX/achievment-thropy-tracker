@@ -249,6 +249,7 @@ class Updater:
             helper=Path(__file__).resolve().parent.parent/'scripts'/'apply_update.ps1'
             copied=path.parent/'apply-update.ps1';shutil.copyfile(helper,copied)
             plan={'parent_pid':os.getpid(),'installer':str(path),'install_dir':str(directory),
+                  'data_dir':str(self.root.resolve()),
                   'exe':str(Path(sys.executable).resolve()),'sha256':self.manifest['sha256'],
                   'signer_sha256':self.manifest.get('signer_sha256'),'version':self.release['version'],
                   'mode':self.channel,'manifest':str(path.parent/'development-manifest.json'),

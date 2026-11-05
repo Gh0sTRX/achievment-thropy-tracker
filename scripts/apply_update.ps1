@@ -59,6 +59,14 @@ $plan=Get-Content -LiteralPath $PlanPath -Raw | ConvertFrom-Json
 $installationStarted=$false
 $installationCompleted=$false
 $canRelaunch=$true
+function Start-UpdatedApplication {
+    if ($plan.data_dir) {
+        Start-Process -FilePath $plan.exe -ArgumentList '--data-dir',('"'+$plan.data_dir+'"')
+    } else {
+        # Compatibility with plans made by older versions.
+        Start-Process -FilePath $plan.exe
+    }
+}
 function Verify-Installer {
     if ((Get-FileHash -LiteralPath $plan.installer -Algorithm SHA256).Hash.ToLower() -ne $plan.sha256) { throw 'Installer hash changed' }
     if ($plan.mode -eq 'development') {
@@ -90,7 +98,7 @@ try {
         throw ('Installer failed: '+$process.ExitCode)
     }
     $installationCompleted=$true
-    Start-Process -FilePath $plan.exe
+    Start-UpdatedApplication
     'Update installed: '+$plan.version | Add-Content -LiteralPath $plan.log
 } catch {
     $updateFailure=$_.Exception.Message
@@ -105,6 +113,6 @@ try {
     }
     ('Update cancelled or failed: '+$updateFailure) | Add-Content -LiteralPath $plan.log
     if ($canRelaunch -and !(Get-Process -Id $plan.parent_pid -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath $plan.exe)) {
-        Start-Process -FilePath $plan.exe
+        Start-UpdatedApplication
     }
 }
