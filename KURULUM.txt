@@ -74,3 +74,9 @@ Profil ve oyun ayrıntıları herkese açık olmalıdır. Xbox/PSN servis gereks
 sürer. Anahtarı sohbet/issue/CSV içine yazma; Windows ayarı DPAPI ile korunur.
 Gerçek Xbox/PSN/Steam hesap kabulü ve fiziksel gamepad testi yapılmış sayılmaz.
 Ayrıntılı eksikler docs/RELEASE_NOTES_0_16_0_TR.md dosyasındadır.
+
+UYGULAMA İÇİ 0.16.0 GÜNCELLEMESİ
+Diğer ekranlar > Güncellemeler > Güncellemeleri kontrol et yolunu kullan.
+İndirme doğrulandıktan sonra Kur ve yeniden başlat düğmesi etkinleşir.
+Bu akış harici Chrome indirmesi gerektirmez. Windows yayıncı imzası henüz yoktur;
+GitHub/Sigstore köken doğrulaması Windows imzasından farklıdır.
