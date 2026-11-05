@@ -2,6 +2,18 @@
 
 **Güncellendi:** 5 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
 
+## Aktif görev — Issue #22 kaynak düzeltmeleri, YAYIN YOK
+
+Kullanıcı Issue #22'nin tamamını uygulamayı, küçük test edilebilir PR'lar ve rapor vermeyi istedi. **Bu görevde main/geliştirme dalına otomatik merge ve yeni Development Release YOK.** Önceki 0.16.1 yayın yetkisi bu yeni işe taşınmaz.
+
+PR zinciri: #23 `fix/22-achievement-universe` → codex; #24 `fix/22-media-provenance` → #23 dalı; #25 `fix/22-provider-setup-history` → #24 dalı. Son kaynak `1512997624fd6ad1954fbf9f9f093460ba70b474`. Hepsi incelemeye açık tutulur. Bu belge doğrulama dalında; yeni sürüm yayımlanmadı, sürüm 0.16.1 kaldı. Geliştirme tabanı `145accefdf1053d826249d52e54aeba6aa69fbfd`, main `98f870b908fa73ec2711c2f3fd359eca92a7ab77` korunur.
+
+Uygulandı: Vault/Universe ortak satır ve gerçek tarihler/kaynak/ikon/açıklama; URL'siz yerel ikon; decode sıralı kompakt hero/kapak; gerçek görsel sayaçları ve güvenli cache; açık kimlik onaylı Xbox metadata zenginleştirme; görünür ve düzeltilmiş keşif HTTP akışı; PSN/Steam uygulama içi ayar+ayrı bağlantı testi; platform ad/durum/geçmiş ayrımı; global sarı bant yok; rehber hatası ayrı; legacy app filtresi ve oyun vitrin/öneri/media hariç tutma; CSV/pin/not/metadata/yerel görsel koruma. Gizli bilgi girilen alanlar temizlenir, mevcut DPAPI sürer. Resmî Sony OAuth veya anahtarsız Steam vaadi yok.
+
+Yerelde 203 Python, dört Node suite, yeni metadata/setup Chromium testleri ve önceki Universe/search/16 theme/5k–40k/gzip/partial/gamepad/reduced-motion kontrolleri geçti. Windows son kaynak CI sonuçları audit dosyasında doğrulandıktan sonra yazılır. Gerçek PSN/Steam/Xbox kabulü, fiziksel gamepad/NVDA ve kullanıcı arşiviyle önce/sonra art kapsamı ölçülmedi. Test kayıtları sentetiktir, gerçek başarımlar diye raporlanmaz.
+
+Rapor: docs/ISSUE_22_REAL_USER_UX_AUDIT_TR.md. PR'ları ve Actions'ı yeniden sorgulamadan başarılı/release var deme. Sonraki işlem kullanıcı incelemesi ve gerçek izinli hesap kabulüdür; yeni sürüm/main merge için açık yeni talep gerekir.
+
 ## 0.16.1 YAYIMLANDI — en güncel sonuç
 
 Kullanıcı “devam et ve yayınla” talebi tamamlandı. PR #21 (18 dosya) geliştirme dalına merge edildi; main `98f870b908fa73ec2711c2f3fd359eca92a7ab77` korunur. Kaynak `1a3fab89be01f3283e62ea67f98ebfc6a35156bf`; Windows trusted push/yayın `42096532071`, 184-test matrix/browser/PowerShell `42096532065` başarılı. Gzip/kısmi yenileme, rapor/scope cache, geç yanıt koruması ve artwork health POST düzeltmesi. 40k sentetik ilk JSON 16.327.656→696.660 byte; değişmeyen yanıt 2.030 byte. Gerçek hesap hızı değildir.
