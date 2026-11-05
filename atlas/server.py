@@ -4,6 +4,7 @@ import asyncio
 import base64
 import math
 import json
+import gzip
 import mimetypes
 import os
 import queue
@@ -44,24 +45,26 @@ class Controller:
         self.action_guard=threading.RLock()
         self._report_cache=None
 
-    def status(self):
+    def status(self,known_library_token=None):
         with self.store.lock:
-            payload=self.store.payload();revision=self.store.revision
-        library=payload['library'];pins=payload['state']['pins']
-        cache_key=(revision,id(self.store.library),tuple(pins))
-        cached_reports=self._report_cache
-        if cached_reports and cached_reports[0]==cache_key:
-            reports=cached_reports[1]
-        else:
-            reports={}
-            for platform in ('xbox','psn','pc'):
-                games=[g for g in library['games'] if g.get('platform')==platform]
-                ids={g['id'] for g in games}
-                scoped={**library,'games':games,'achievements':[a for a in library['achievements'] if a['game_id'] in ids]}
-                reports[platform]={'recommendations':recommendations.rank(scoped,pins),'insights':recommendations.insights(scoped)}
-            reports['all']={'recommendations':recommendations.rank(library,pins),'insights':recommendations.insights(library)}
-            self._report_cache=(cache_key,reports)
-        return {'revision':revision,'library':payload, 'recommendations':reports['all']['recommendations'],
+            token=self.store.content_token()
+            unchanged=known_library_token==token
+            payload=self.store.payload(include_library=not unchanged);revision=self.store.revision
+            library=payload['library'] if payload['library'] is not None else self.store.library;pins=payload['state']['pins']
+            cache_key=(token,tuple(pins))
+            cached_reports=self._report_cache
+            if cached_reports and cached_reports[0]==cache_key:
+                reports=cached_reports[1]
+            else:
+                reports={}
+                for platform in ('xbox','psn','pc'):
+                    games=[g for g in library['games'] if g.get('platform')==platform]
+                    ids={g['id'] for g in games}
+                    scoped={**library,'games':games,'achievements':[a for a in library['achievements'] if a['game_id'] in ids]}
+                    reports[platform]={'recommendations':recommendations.rank(scoped,pins),'insights':recommendations.insights(scoped)}
+                reports['all']={'recommendations':recommendations.rank(library,pins),'insights':recommendations.insights(library)}
+                self._report_cache=(cache_key,reports)
+        return {'revision':revision,'library_token':token,'library_unchanged':unchanged,'library':payload, 'recommendations':reports['all']['recommendations'],
                 'insights':reports['all']['insights'],'platform_reports':reports,
                 'providers':public_profiles.readiness(), 'guides_ready':guides.configured(),
                 'settings':settings.status(), 'data_status':self.data_status(), 'update':self.updates.snapshot(),
@@ -526,6 +529,20 @@ class Controller:
         threading.Thread(target=worker,daemon=True).start()
         return {'message':f'{len(selected)} official icon URLs queued. Missing URLs cannot be invented.'}
 
+def accepts_gzip(header):
+    values={}
+    for item in str(header).split(','):
+        parts=item.strip().split(';');coding=parts[0].strip().lower()
+        quality=1.0
+        for part in parts[1:]:
+            key,separator,value=part.strip().partition('=')
+            if key.lower()=='q' and separator:
+                try:quality=float(value)
+                except ValueError:quality=0.0
+        values[coding]=quality if math.isfinite(quality) and 0<=quality<=1 else 0.0
+    return values.get('gzip',values.get('*',0))>0
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version='AchievementAtlas/0.5'
     def log_message(self,*args):pass
@@ -539,9 +556,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('X-Content-Type-Options','nosniff')
         self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(data)))
         self.end_headers();self.wfile.write(data)
-    def reply(self,value,status=200):
+    def reply(self,value,status=200,compress=False):
         data=json.dumps(value,ensure_ascii=False).encode('utf-8')
+        compressed=False
+        if compress and len(data)>=2048 and accepts_gzip(self.headers.get('Accept-Encoding','')):
+            packed=gzip.compress(data,compresslevel=3,mtime=0)
+            if len(packed)<len(data):data=packed;compressed=True
         self.send_response(status);self.send_header('Content-Type','application/json; charset=utf-8')
+        if compress:self.send_header('Vary','Accept-Encoding')
+        if compressed:self.send_header('Content-Encoding','gzip')
         self.send_header('Cache-Control','no-store');self.send_header('X-Content-Type-Options','nosniff')
         self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
     def do_GET(self):
@@ -558,7 +581,7 @@ class Handler(BaseHTTPRequestHandler):
             with c.store.lock:
                 return self.reply({'revision':c.store.revision,'status':c.store.status,'data_status':c.data_status(),'update':c.updates.snapshot(),
                                    'update_blockers':c.update_blockers()})
-        if path=='/api/data':return self.reply(self.server.controller.status())
+        if path=='/api/data':return self.reply(self.server.controller.status(self.headers.get('X-Atlas-Library-Token')),compress=True)
         if path=='/api/art/health':return self.reply(media_sync.health(self.server.controller.store))
         if path=='/api/art/sources':return self.reply(artwork.sources())
         seg=path.split('/')
@@ -594,6 +617,7 @@ class Handler(BaseHTTPRequestHandler):
                '/api/pin':self.server.controller.set_pin,
                '/api/game/notes':self.server.controller.save_notes,
                '/api/preferences':lambda d:self.server.controller.store.set_preferences(d),
+               '/api/art/health':lambda d:media_sync.health(self.server.controller.store),
                '/api/art/key':self.server.controller.set_sgdb_key,
                '/api/art/search':self.server.controller.search_art,
                '/api/art/choices':self.server.controller.get_art_choices,

@@ -31,8 +31,10 @@ try {
             Start-Sleep -Seconds (2*($attempt+1))
         }
     }
-    # After publication exercise the exact shipped 0.15.1 -> 0.16+ native updater.
-    if ([Version]$manifest.version -gt [Version]'0.15.1') {
+    # After publication exercise the exact shipped 0.16.0 -> 0.16.1+ native updater.
+    if ([Version]$manifest.version -gt [Version]'0.16.0') {
+        $baselineVersion='0.16.0';$baselineHash='498c7ead5cdc6e0692b9232c5b1a8a2056111b482bd91ad391bb44d79294563b'
+    } elseif ([Version]$manifest.version -gt [Version]'0.15.1') {
         $baselineVersion='0.15.1';$baselineHash='dba8a8c385ee261ac59970b7ac9e6d3fb10da426af39a6d6641e2b0cecbec3e4'
     } elseif ([Version]$manifest.version -gt [Version]'0.15.0') {
         $baselineVersion='0.15.0';$baselineHash='e016ac7532a77c690a1a6a5e0f4afb0cc24a4c0b4064a54ccf4a31a0205ced09'

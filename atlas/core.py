@@ -113,6 +113,8 @@ class Library:
         journal.recover_pending(self.root)
         archive.recover_interrupted_restore(self.root)
         self.revision=0
+        self._library_token=None
+        self._library_token_object=None
         self.library=self._read(self.library_path, empty_library())
         self.state=self._read(self.state_path, {'pins':[],'hidden':[],'custom_art':{},'xbox_titles':{},'linked_profile':None,'sync_at':None,'log':[]})
         for key,default in [('pins',[]),('hidden',[]),('custom_art',{}),('xbox_titles',{}),('linked_profile',None),('sync_at',None),('log',[])]:
@@ -174,13 +176,25 @@ class Library:
         from . import journal
         with self.lock:
             try:
-                journal.save_pair(self.root, self.library, self.state)
+                token=journal.save_pair(self.root, self.library, self.state)
             except Exception:
                 # After an I/O error the in-memory state must match recovered disk.
                 self.library = self._read(self.library_path, empty_library())
                 self.state = self._read(self.state_path, {})
+                self._library_token=None
+                self._library_token_object=None
                 raise
+            self._library_token=token
+            self._library_token_object=self.library
             self.revision += 1
+
+    def content_token(self):
+        from . import journal
+        with self.lock:
+            if self._library_token is None or self._library_token_object is not self.library:
+                self._library_token=journal.content_token(self.library)
+                self._library_token_object=self.library
+            return self._library_token
 
     def export_archive(self):
         """Portable current library and non-secret state, not OAuth or image cache."""
@@ -211,9 +225,9 @@ class Library:
                     'games': len(self.library['games']),
                     'achievements': len(self.library['achievements'])}
 
-    def payload(self):
+    def payload(self,include_library=True):
         with self.lock:
-            return {'library':deepcopy(self.library),'state':deepcopy(self.state),'status':deepcopy(self.status)}
+            return {'library':deepcopy(self.library) if include_library else None,'state':deepcopy(self.state),'status':deepcopy(self.status)}
 
     def import_csv(self,earned,locked,gamertag=''):
         lib=build_library(earned,locked,gamertag)

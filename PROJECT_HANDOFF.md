@@ -2,6 +2,10 @@
 
 **Güncellendi:** 5 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
 
+## 0.16.1 hazırlığı — güncel görev
+
+Kullanıcı “devam et ve yayınla” dedi. `perf/library-transfer` dalı fc74ed9 geliştirme dalından oluşturuldu. Gzip, içerik token'ı ile kısmi yenileme, rapor/scope cache, geç yanıt koruması ve artwork health POST düzeltmesi; 184 Python testi. Yayın henüz doğrulanmadı. Ayrıntı docs/RELEASE_NOTES_0_16_1_TR.md. Main korunur. PR/CI/manifest sonuçlarını yayın sonrasında güncelle.
+
 ## 0.16.0 YAYIMLANDI — en güncel sonuç
 
 5 Kasım 2026: Kullanıcının açık yayın talebi tamamlandı. PR #11–#20 geliştirme dalında birleştirildi (ana ürün zinciri #11–#18; #19 kuyruk/alt süreç temizliği, #20 tek okumalı UIA ad eşlemesi). Main `98f870b908fa73ec2711c2f3fd359eca92a7ab77` korunur.

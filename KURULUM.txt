@@ -1,4 +1,4 @@
-ACHIEVEMENT ATLAS 0.16.0 — WINDOWS GELİŞTİRME SÜRÜMÜ
+ACHIEVEMENT ATLAS 0.16.1 — WINDOWS GELİŞTİRME SÜRÜMÜ
 
 KURULUM
 Windows 10/11 64 bit içindir; Python veya yönetici izni gerekmez.
@@ -75,8 +75,13 @@ sürer. Anahtarı sohbet/issue/CSV içine yazma; Windows ayarı DPAPI ile korunu
 Gerçek Xbox/PSN/Steam hesap kabulü ve fiziksel gamepad testi yapılmış sayılmaz.
 Ayrıntılı eksikler docs/RELEASE_NOTES_0_16_0_TR.md dosyasındadır.
 
-UYGULAMA İÇİ 0.16.0 GÜNCELLEMESİ
+UYGULAMA İÇİ 0.16.1 GÜNCELLEMESİ
 Diğer ekranlar > Güncellemeler > Güncellemeleri kontrol et yolunu kullan.
 İndirme doğrulandıktan sonra Kur ve yeniden başlat düğmesi etkinleşir.
 Bu akış harici Chrome indirmesi gerektirmez. Windows yayıncı imzası henüz yoktur;
 GitHub/Sigstore köken doğrulaması Windows imzasından farklıdır.
+
+0.16.1 — BÜYÜK KÜTÜPHANE AKTARIMI
+İlk yanıt gzip ile küçültülür; değişmeyen kütüphane tekrar gönderilmez.
+Görsel Sağlığı düğmesinin POST isteği düzeltildi. Arşiv biçimi değişmez.
+Ayrıntılar: docs/RELEASE_NOTES_0_16_1_TR.md
