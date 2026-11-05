@@ -35,3 +35,12 @@ Sentetik testte 100 oyunun cache sıcak sorgusu 201→101 API çağrısı yaptı
 Xbox/PSN sorgusu hâlâ geçerli servis erişimi gerektirir; yalnız kullanıcı adı yazılması sağlayıcı yetkilendirmesini ortadan kaldırmaz. Steam API anahtarı da cihazda ayarlanmalıdır. Gerçek parola/oturum/API anahtarını issue veya sohbette paylaşma.
 
 Geliştirme kanalı SHA256 + GitHub/Sigstore köken doğrulaması kullanır. Bu, Windows yayıncı imzası değildir. 0.15.1 kullanıcıları uygulamadaki Diğer ekranlar → Güncellemeler yolunu kullanabilir. Eski arşivler korunur; olağan yedekleme önerilir. Main dalı değiştirilmez.
+
+
+## Yayın sonrası kanıt — 5 Kasım 2026
+
+- [Trusted Windows build ve yayın](https://github.com/Gh0sTRX/achievment-thropy-tracker/actions/runs/42089196768) başarılı.
+- [175 test, JS, PowerShell ve native browser](https://github.com/Gh0sTRX/achievment-thropy-tracker/actions/runs/42089196427) başarılı.
+- [Stok 0.15.1→0.16.0 native güncelleme](https://github.com/Gh0sTRX/achievment-thropy-tracker/actions/runs/42089180677) yayın sonrası yeniden çalıştırıldı ve başarılı oldu; job 127466984546, [rapor artifact](https://github.com/Gh0sTRX/achievment-thropy-tracker/actions/runs/42089180677/artifacts/13443839045).
+- Kaynak `165145886d67f236021b1b551b345341eb0d7563`; installer 33.316.608 byte; SHA256 `498c7ead5cdc6e0692b9232c5b1a8a2056111b482bd91ad391bb44d79294563b`.
+- Windows yayıncı imzası yok; manifest `authenticode_signed: false`. Fiziksel ve gerçek hesap eksikleri yukarıda kalır.

@@ -2,6 +2,23 @@
 
 **Güncellendi:** 5 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
 
+## 0.16.0 YAYIMLANDI — en güncel sonuç
+
+5 Kasım 2026: Kullanıcının açık yayın talebi tamamlandı. PR #11–#20 geliştirme dalında birleştirildi (ana ürün zinciri #11–#18; #19 kuyruk/alt süreç temizliği, #20 tek okumalı UIA ad eşlemesi). Main `98f870b908fa73ec2711c2f3fd359eca92a7ab77` korunur.
+
+- Yayın kaynak commit'i: `165145886d67f236021b1b551b345341eb0d7563`.
+- Başarılı trusted push/attestation/publication koşusu: `42089196768`.
+- Başarılı 175-test Windows/Linux/JS/PowerShell/browser koşusu: `42089196427`.
+- GitHub development release: Achievement Atlas 0.16.0 — Development.
+- Installer: `AchievementAtlas-0.16.0-Windows-x64-Setup.exe`, 33.316.608 byte.
+- SHA256: `498c7ead5cdc6e0692b9232c5b1a8a2056111b482bd91ad391bb44d79294563b`.
+- Gerçek yayın manifesti HTTP üzerinden doğrulandı: version 0.16.0, source_commit yukarıdaki commit, run_id 42089196768, authenticode_signed false.
+- Yayın SONRASI stok **0.15.1→0.16.0** native UIA düğmeleri, indirme/köken/hash/helper/installer/yeniden açılış ve kayıt koruma testi başarılı. PR20 Windows koşusu `42089180677` tekrar çalıştırıldı; native job `127466984546`; log açıkça `Native self-update passed: 0.15.1 -> 0.16.0` der. Rapor artifact `13443839045`. Artifact ZIP yerel indirmesi ağ politikası nedeniyle alınamadı; başarı kanıtı GitHub job/log ve artifact kaydıdır, içerik yerelde açıldı diye raporlama.
+
+Eski bekleyen yayın koşusu 42086939651 iptal edildi. Başarısız UIA adayının (42088444741) yayını yapılmadı. Yeni kuyruk ayrımı ve süreç ağacı temizliği test/hash/attestation kontrollerini kaldırmaz. Gerçek hesap, fiziksel gamepad/ekran okuyucu/güç kesintisi/logon, kapsamlı artwork ve Windows imzası eksikleri sürer. Ayrıntı docs/RELEASE_NOTES_0_16_0_TR.md.
+
+Uygulama içi güncelleme: Diğer ekranlar → Güncellemeler. Rutin belge/kod commit'inde `[publish-development]` kullanma; sonraki yeni sürüm yayını ayrı talep olmalıdır. Bu bölümden önceki “yayımlanmamış/yayın yok” kayıtları tarihî hazırlık durumlarıdır.
+
 ## En son yetki — 0.16.0 release hazırlığı
 
 Kullanıcı son mesajında “devam et eksiklerimiz neler onu da söyle relase ye” diyerek yayın istedi. Önceki “yeni release yayımlama” sınırı bu yeni yayın talebiyle güncellendi; main korunur. 0.16.0, PR #11–#17 zinciri üzerine hazırlanır. Release dalı `release/0.16.0`; ayrı release PR'ı, test, geliştirme dalına merge ve yalnız yetkili `[publish-development]` commit marker'ı ile trusted push yayını kullanılır. Parola/anahtar, imza veya provenance kontrolleri atlanmaz. Yayın sonucunu Actions/manifeste bakmadan tamamlandı sayma.
