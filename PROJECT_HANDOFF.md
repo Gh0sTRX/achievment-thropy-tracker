@@ -17,7 +17,7 @@ Windows için local-first achievement/trophy companion. TrueAchievements CSV ve 
 ## Git dal/PR zinciri
 
 1. **main**: eski temel sürüm; şu anki geliştirmeleri otomatik üzerine alma.
-2. **codex/public-profile-trophies**: v0.15.0 Development Release tabanı; taslak PR #1, main dalına karşı.
+2. **codex/public-profile-trophies**: v0.15.1 Development Release tabanı; taslak PR #1, main dalına karşı.
 3. **feature/atlas-ultimate-v5-live-ui**: önceki taslak PR #2; güncel v5.1 zaten geliştirme dalında, eski dosyaları üzerine kopyalama.
 4. **feature/unified-native-themes**: PR #4; dört temayı tek native shell'e indirir, ayrı Console Mode ve Timeline.
 5. **feature/v015-foundation-onboarding-recovery**: PR #4 dalından türemiş v0.15 Foundation başlangıcı; beş ana menü, ilk açılış rehberi, kaynak durum şeridi, ayrıntılı update blockers ve iptal.
@@ -26,7 +26,7 @@ Windows için local-first achievement/trophy companion. TrueAchievements CSV ve 
 
 ## Yayın ve güven
 
-Son yayımlanan sürüm: **Achievement Atlas v0.15.0 Development**
+Son yayımlanan sürüm: **Achievement Atlas v0.15.1 Development**
 https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/tag/development
 
 GitHub/Sigstore build provenance, Windows Authenticode/SignPath yayıncı imzası değildir. SignPath Foundation başvurusunun onaylandığını iddia etme. Testli Setup; fakat gerçek kullanıcı ortamında eski sürüm yükseltme / veri kurtarma / tam rollback doğrulaması eksik.
@@ -149,3 +149,16 @@ PR #8'de native WebView2 düğmelerinden yayımlanmış 0.14.1→güncel gelişt
 PR #8'in son doğrulanan commit'i `7adcc8a3eada6581f4840d1209fd0a7accd6b3f9`: 144 Python testi, 9 helper senaryosu, gerçek 0.13.0/0.14.1→aday kurulum matrisi ve yayımlanmış 0.14.1→0.15.0 gerçek native düğme/köken/helper/yeniden açılış zinciri geçti. Windows koşusu: https://github.com/Gh0sTRX/achievment-thropy-tracker/actions/runs/42017115300 . PR #8 henüz merge/release edilmedi.
 
 Yeni `feature/update-crash-recovery` dalı PR #8 üzerine bağımlıdır. Kalıcı recovery-state.json + kullanıcı kapsamlı tek seferlik Windows RunOnce denemesi, yeni süreçte kurtarma ve uninstall sırasında kurtarma görevinin iptali eklenir. Ayrıntı/sınırlar: `docs/UPDATE_CRASH_RECOVERY_TR.md`. Son CI görülmeden Windows/güç kesintisi doğrulandı deme. Fiziksel güç kesintisi ve gerçek logon testi bu CI süreci öldürme testlerinden farklıdır. main ve mevcut Development Release korunur.
+
+
+## 5 Kasım 2026 — 0.15.1 YAYIMLANDI (en güncel kayıt)
+
+Kullanıcı açıkça güncelleme olarak yayın istedi. PR #9 önce PR #8 dalına, ardından sürümlenmiş/test edilmiş PR #8 `codex/public-profile-trophies` dalına birleştirildi. Yayın kodu commit'i: `8b904e2f297ffae4d131799abeeb604c457c5100`. Main değişmedi (`98f870b908fa73ec2711c2f3fd359eca92a7ab77`). Önceki 'henüz merge/release edilmedi' kayıtları tarihseldir.
+
+- Development manifest: **0.15.1**, run `42052975199`, GitHub push provenance, Authenticode imzası **yok**.
+- Gerçek yayımlanmış Setup: `AchievementAtlas-0.15.1-Windows-x64-Setup.exe`, 33,285,398 byte; SHA256 `dba8a8c385ee261ac59970b7ac9e6d3fb10da426af39a6d6641e2b0cecbec3e4`.
+- Setup, manifest ve köken kanıtı gerçek indirme bağlantısından indirilip tekrar kriptografik doğrulandı.
+- Başarılı yayın Windows koşusu: https://github.com/Gh0sTRX/achievment-thropy-tracker/actions/runs/42052975199 ; unit koşusu `42052975153` başarılı. 146 Python testi; 9 rollback ve 8 yeni süreç kesintisi senaryosu Windows/Linux ve PowerShell 5.1/pwsh üzerinde geçti. Gerçek 0.13.0/0.14.1/0.15.0 → 0.15.1 yükseltme, kayıt/not/pin, geri alma ve uninstall kontrolleri geçti.
+- Yayın SONRASI gerçek stok **0.15.0 → 0.15.1** native UIA menü/kontrol et/indir/kur/yeniden açılış akışı başarılı. PR8 Windows koşusu `42051960172` yeniden çalıştırıldı; native job `127339880613`; rapor artifact `13429325710`. Düğmeler gerçek native pencerede çalıştı, network/Sigstore/helper/installer ve kayıt koruması doğrulandı.
+- Fiziksel güç kesintisi ve gerçek yeniden logon hâlâ doğrulanmış değildir. Yeni kalıcı kurtarma, 0.15.1 kurulduktan sonra yapılan sonraki güncellemelerde kullanılır; ilk geçişi eski yardımcı yürütür. Gerçek Xbox/PSN hesap ve fiziksel gamepad testleri de ayrı eksiklerdir.
+- Yayın kaynakları: docs/RELEASE_NOTES_0_15_1_TR.md, docs/UPDATE_CRASH_RECOVERY_TR.md, KURULUM.txt. Yeni görevde manifest/branch/Actions durumlarını tekrar canlı oku. Rutin committe `[publish-development]` kullanma; yayın kullanıcı tarafından açıkça istenmelidir.

@@ -135,7 +135,7 @@ or maintainer [@Gh0sTRX](https://github.com/Gh0sTRX). Do not put sensitive data 
 issues; follow SECURITY.md for sensitive concerns. Achievement Atlas is independent
 of Microsoft, Sony, OpenAI, Brave, SteamGridDB, TrueAchievements and SignPath Foundation.
 
-## Pending-update recovery (development source, not yet released)
+## Pending-update recovery (0.15.1 development channel)
 
 Before replacing installed files, the new update helper persists a local file/hash
 inventory and pending state next to the update plan and previous-version backup.
