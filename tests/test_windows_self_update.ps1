@@ -69,6 +69,7 @@ try {
                         if ($current.IsOffscreen) {
                             $scroll=$null
                             if ($element.TryGetCurrentPattern([Windows.Automation.ScrollItemPattern]::Pattern,[ref]$scroll)) {
+                                Write-Output ('Scrolling native control: '+$current.Name)
                                 $scroll.ScrollIntoView()
                                 Start-Sleep -Milliseconds 100
                                 $current=$element.Current
