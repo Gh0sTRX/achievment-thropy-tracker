@@ -101,7 +101,7 @@ function Start-Process {
         } else {
             $deadline=[DateTime]::UtcNow.AddSeconds(30)
             while (!(Test-Path -LiteralPath (Join-Path $case 'crash-barrier'))) {
-                if ($child.HasExited) { throw ('Helper exited before crash barrier: '+(Get-Content (Join-Path $case 'normal.err') -Raw)) }
+                if ($child.HasExited) { throw ('Helper exited before crash barrier: '+(Get-Content (Join-Path $case 'normal.err') -Raw)+'; helper log: '+$(if(Test-Path -LiteralPath $plan.log){Get-Content -LiteralPath $plan.log -Raw}else{'not written'})) }
                 if ([DateTime]::UtcNow -gt $deadline) { throw 'Crash barrier timed out' }
                 Start-Sleep -Milliseconds 100
             }
