@@ -74,3 +74,10 @@ class AccountsTests(unittest.TestCase):
     with urlopen(request) as response:self.assertEqual(json.load(response),{'titles':[]})
     sync.assert_not_called()
   finally:app.shutdown();app.server_close();thread.join()
+ def test_wrapped_steam_sync_errors_keep_safe_classification(self):
+  from atlas import pc,steam
+  for code,state in ((401,'expired'),(403,'expired'),(429,'rate_limited')):
+   with patch('atlas.steam.fetch',side_effect=steam.SteamError('safe service message',code)):
+    try:pc.fetch('SyntheticSteam')
+    except ValueError as exc:self.assertEqual(accounts.failure(exc)[0],state)
+    else:self.fail('Expected provider failure')

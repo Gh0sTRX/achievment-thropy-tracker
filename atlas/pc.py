@@ -8,4 +8,6 @@ def provider(name='steam'):
 
 def fetch(username,progress=lambda *args:None,name='steam'):
     try:return provider(name).fetch(username,progress)
-    except steam.SteamError as error:raise ValueError(str(error)) from None
+    except steam.SteamError as error:
+        fault=ValueError(str(error));fault.code=error.code
+        raise fault from None

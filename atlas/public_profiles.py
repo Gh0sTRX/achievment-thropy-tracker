@@ -259,7 +259,10 @@ def fetch(platform, username, progress=lambda *args: None, stop=lambda:False, ca
         raise
     except Exception as exc:
         # SDK exceptions can contain request headers or tokens; expose only the class.
-        raise ValueError('Profil alınamadı: '+type(exc).__name__+'. Gizlilik, servis oturumu, ağ erişimi ve hız limitini kontrol et.') from None
+        fault=ValueError('Profil alınamadı: '+type(exc).__name__+'. Gizlilik, servis oturumu, ağ erişimi ve hız limitini kontrol et.')
+        fault.code=getattr(exc,'code',None) or getattr(getattr(exc,'response',None),'status_code',None)
+        fault.provider_error_type=type(exc).__name__
+        raise fault from None
     finally:sync_control.context.reset(token)
     if stop():raise sync_control.Cancelled()
     if (not games or not items) and platform!='pc':

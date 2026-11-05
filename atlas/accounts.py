@@ -32,8 +32,8 @@ def probe(platform,username):
 def failure(exc):
     if isinstance(exc,ImportError):return 'failed','Bu pakette sağlayıcı bileşeni eksik. Güncel Windows kurulum paketini kullan.'
     code=getattr(exc,'code',None) or getattr(getattr(exc,'response',None),'status_code',None)
-    name=type(exc).__name__.lower()
-    if code==429:return 'rate_limited','İstek sınırına ulaşıldı. Daha sonra yeniden dene.'
+    name=str(getattr(exc,'provider_error_type',type(exc).__name__)).lower()
+    if code==429 or any(k in name for k in ('toomanyrequests','ratelimit')):return 'rate_limited','İstek sınırına ulaşıldı. Daha sonra yeniden dene.'
     if code in (401,403) or any(k in name for k in ('unauthorized','authentication','forbidden')):return 'expired','Erişim reddedildi veya oturum süresi doldu. Oturumu/anahtarı ve profil gizliliğini kontrol et.'
     if isinstance(exc,ValueError) and 'gizli' in str(exc):return 'private','Profil/oyun ayrıntıları gizli. Görünürlüğü kontrol et.'
     return 'failed','Bağlantı doğrulanamadı. Kullanıcı adını, ağ erişimini ve servis oturumunu kontrol edip yeniden dene.'
