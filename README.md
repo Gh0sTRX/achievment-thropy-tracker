@@ -2,7 +2,7 @@
 
 **A local-first, open-source Windows achievement and trophy companion.** Achievement Atlas brings your recorded Xbox, PlayStation and Steam activity into a cinematic desktop interface with game libraries, achievement details, a Quest Board, a collection museum, and user-chosen *real* game artwork.
 
-> **Development release v0.16.0.** The core import and UI have automated test coverage. Network-dependent Xbox and PSN public-profile adapters require a separately authorized operator session and have **not** been verified end-to-end with a real target account. The source now includes an official Steam Web API provider; real Steam account access has **not** been verified. Platform filters do not prove a live account integration. This is an independent community project, not affiliated with Microsoft, Sony, Valve, TrueAchievements or SignPath.
+> **Development release v0.16.1.** The core import and UI have automated test coverage. Network-dependent Xbox and PSN public-profile adapters require a separately authorized operator session and have **not** been verified end-to-end with a real target account. The source now includes an official Steam Web API provider; real Steam account access has **not** been verified. Platform filters do not prove a live account integration. This is an independent community project, not affiliated with Microsoft, Sony, Valve, TrueAchievements or SignPath.
 
 ## What works in the source
 
@@ -16,7 +16,7 @@
 
 ## Installation
 
-0.16.0 packages the Issue #10 integration and Steam performance follow-ups. Read the [release notes](docs/RELEASE_NOTES_0_16_0_TR.md) for features and remaining limits. For source changes and validation scope see [Issue #10 delivery audit](docs/ISSUE_10_DELIVERY_AUDIT_TR.md). Keyboard: Ctrl+K or `/` search, Escape back; gamepad: A open, B back, X pin, Y search, LB/RB tabs or platform.
+0.16.1 reduces large-library transfers and avoids resending unchanged achievement data. Read the [release notes](docs/RELEASE_NOTES_0_16_1_TR.md) for features and remaining limits. For source changes and validation scope see [Issue #10 delivery audit](docs/ISSUE_10_DELIVERY_AUDIT_TR.md). Keyboard: Ctrl+K or `/` search, Escape back; gamepad: A open, B back, X pin, Y search, LB/RB tabs or platform.
 
 Download the latest verified **development pre-release** from [GitHub Releases](https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/tag/development). The Windows Setup.exe is built by GitHub Actions on Windows; it does not require a separate Python installation. Read [KURULUM.txt](KURULUM.txt) and [README_TR.md](README_TR.md).
 

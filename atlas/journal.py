@@ -6,6 +6,7 @@ legacy fields. This protects normal saves, not separate profile/media caches.
 """
 from __future__ import annotations
 import json
+import hashlib
 import os
 import tempfile
 from pathlib import Path
@@ -102,3 +103,9 @@ def save_pair(root, library: dict, state: dict):
         if not (root / _MARKER).exists():
             for backup in _SAVED:
                 (root / backup).unlink(missing_ok=True)
+
+    return hashlib.sha256(contents[0]).hexdigest()
+
+
+def content_token(document):
+    return hashlib.sha256(_payload(document)).hexdigest()
