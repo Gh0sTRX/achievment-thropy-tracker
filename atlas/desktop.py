@@ -38,8 +38,8 @@ def open_window(url, smoke_report=None, shutdown_event=None):
                 if window.evaluate_js("document.querySelectorAll('.source-card').length === 11"):break
                 time.sleep(.2)
             else:raise RuntimeError('Artwork source panel did not load')
-            if not window.evaluate_js("switchPlatform('pc'); document.getElementById('platformNote').textContent.includes('planlanıyor')"):
-                raise RuntimeError('PC planned-state failed')
+            if not window.evaluate_js("switchPlatform('pc'); document.getElementById('platformNote').textContent.includes('Steam') && document.querySelector('#publicPlatform option[value=pc]') !== null"):
+                raise RuntimeError('PC provider availability state failed')
             window.evaluate_js("switchPlatform('psn'); navigate('account'); true")
             window.evaluate_js("navigate('updates'); true")
             if not window.evaluate_js("Boolean(document.getElementById('checkUpdate') && document.getElementById('installUpdate').classList.contains('hidden'))"):
@@ -54,7 +54,7 @@ def open_window(url, smoke_report=None, shutdown_event=None):
                 raise RuntimeError('Ultimate data projection failed')
             from pathlib import Path
             import json
-            Path(smoke_report).write_text(json.dumps({'ok':True,'renderer':'edgechromium','checks':['taskbar icon','Ultimate screens','honest empty metrics','native window','HTML loaded','JavaScript app ready','data status visible','11 artwork sources','platform switch','PC planned state','simple account screen','update screen blocks unverified install']}), encoding='utf-8')
+            Path(smoke_report).write_text(json.dumps({'ok':True,'renderer':'edgechromium','checks':['taskbar icon','Ultimate screens','honest empty metrics','native window','HTML loaded','JavaScript app ready','data status visible','11 artwork sources','platform switch','PC Steam provider entry (not live account verification)','simple account screen','update screen blocks unverified install']}), encoding='utf-8')
         except Exception as exc:
             errors.append(str(exc))
         finally:
