@@ -20,3 +20,10 @@
 Yerel PowerShell 7.4.6/Linux: 9 senaryo geçti. GitHub Windows PowerShell 5.1 ve pwsh sonuçları PR kontrollerinde ayrıca takip edilir. Windows installer workflow'una da eklendi. Bu testler gerçek Inno Setup'ın yarıda kesilmesi, gerçek 0.14.1→0.15 kullanıcı yükseltmesi veya fiziksel Windows cihaz testi değildir.
 
 **Kalan:** güç kesintisinden sonra otomatik devam eden kalıcı update journal yok. Snapshot envanteri yardımcı süreç belleğindedir. ACL, ADS, registry, kısayol ve Inno uninstall kayıtlarının transaction geri alınması garanti edilmez; kapsam kurulum ağacının dosya/dizin içeriğidir. Disk dolması/kilitli dosya geri almayı engellerse yedek tutulur, uygulama başlatılmaz. Bilgisayarda/VM'de gerçek eski→yeni yükseltme ve kesinti matrisi sonraki adımdır.
+
+
+## Gerçek kurulum yükseltme matrisi
+
+`tests/test_windows_upgrade.ps1` Windows installer CI içinde gerçek yayımlanmış 0.13.0 ve 0.14.1 Setup dosyalarını sabit SHA256 ile indirir. Geçici ayrı kurulum/veri klasöründe eski native uygulamayı açıp localhost API üzerinden iki sentetik başarım, sabitleme ve oyun notu oluşturur. Yeni Setup aynı kurulum klasörüne gerçekten kurulur. Production snapshot fonksiyonlarıyla eski dosya kümesine bilinçli geri dönülür; eski EXE sürümü/self-test ve native uygulama kayıtları denetlenir. Yeniden yükseltme, yeni EXE sürümü/self-test, native başlatma, kalıcı yeni sabitleme ve restart yapılır. Son uninstall sonrasında dış veri klasöründeki library ve byte sentinel korunmalıdır.
+
+Sonuç `upgrade-test-report.json` içinde artifact'a eklenir; CI sonucu görülmeden başarılı sayılmaz. Bu, Windows runner üzerinde gerçek Inno installer ve native EXE yükseltme testidir; gerçek kullanıcı verisi veya Xbox/PSN hesabı içermez. Installer sürecini kasıtlı öldürme, güç kesintisi, tam GUI güncelleme düğmesi zinciri ve registry transaction geri alma testi değildir. Hata durumları önceki dokuz helper senaryosunda OS süreç sınırında enjekte edilir.

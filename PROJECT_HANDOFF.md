@@ -134,3 +134,8 @@ Bu bölüm önceki Preview/yayın bekleme notlarının güncel sonucudur. Kullan
 Yayın akışı: Normal push yalnız aday derler ve push provenance oluşturur. Manuel `promote_run_id` başarılı özgün push artifact'ını doğrulayarak yayımlar. Ayrıca geliştirme dalında commit mesajında `[publish-development]` varsa başarılı build ardından açık yayın yapılır. **Bu işareti rutin geliştirme commitlerine koyma.** Ayrıntı: `docs/UPDATE_DELIVERY_FIX_TR.md`.
 
 Devam dalı: `fix/update-rollback-snapshot`. Kurulum hatasında yeni sürümün orphan dosyalarını temizleyen, yedeği ve geri alınmış dosya kümesini SHA256 ile doğrulayan düzeltme. `docs/UPDATE_ROLLBACK_SNAPSHOT_TR.md` test kapsamını ve güç kesintisi sınırlarını açıklar. Bu değişiklik henüz yayımlanmış 0.15 Setup'a dahil değildir. Canlı hesap/gerçek kullanıcı bilgisayarı/fiziksel gamepad testi yapılmış sayılmaz.
+
+
+### Devam — Windows yükseltme matrisi
+
+PR #8 / `fix/update-rollback-snapshot` üzerinde gerçek 0.13.0/0.14.1 yayımlanmış installer → yeni Setup yükseltmesi, snapshot ile bilinçli dosya geri alma, eski/new native uygulamada kayıt/kimlik/not/pin ve uninstall sonrası dış veri koruma testi eklendi. `tests/test_windows_upgrade.ps1`, Windows installer workflow'unda çalışır; `upgrade-test-report.json` artifact'ı sonucu belgeler. Son CI sonucunu canlı kontrol et; testin eklenmiş olması geçtiği anlamına gelmez. Güncelleme düğmesi üzerinden tam self-update ve güç kesintisi hâlâ ayrı test kapsamıdır.

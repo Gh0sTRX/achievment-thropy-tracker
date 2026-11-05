@@ -137,6 +137,11 @@ jobs:
           if ($process.ExitCode -ne 0 -or !(Test-Path installed-test-report.json)) { throw 'Installed self-test failed' }
           $process = Start-Process (Join-Path $installDir 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw 'Uninstall failed' }
+      - name: Verify real old-to-new native installer upgrades and rollback
+        shell: powershell
+        run: |
+          $setup = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
+          ./tests/test_windows_upgrade.ps1 -SetupPath $setup.FullName -ReportPath upgrade-test-report.json
       - name: Prepare portable app, setup and checksums
         shell: pwsh
         run: |
@@ -145,7 +150,7 @@ jobs:
           Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.15.0-Windows-x64-Portable.zip
           Compress-Archive preview -DestinationPath dist\installer\AchievementAtlas-0.15.0-Preview.zip
           Copy-Item app-signing.json dist/installer/
-          Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json dist\installer\
+          Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json,upgrade-test-report.json dist\installer\
           Get-ChildItem dist\installer\*.exe,dist\installer\*.zip | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist\installer\SHA256SUMS.txt
           python -m pip freeze | Set-Content dist\installer\dependencies.txt
       - name: Attest push-built development installer
