@@ -52,7 +52,23 @@ try {
                         if ($element.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern,[ref]$invoke)) {
                             Write-Output ('Invoking native button: '+$current.Name)
                             $invoke.Invoke()
-                            return
+                            if (!$AcceptedStates.Count) { return }
+                            # A click can race the preceding check response in the
+                            # shipped UI. Require the actual operation to acknowledge
+                            # before advancing, otherwise reacquire and retry the UI.
+                            $ackDeadline=[DateTime]::UtcNow.AddSeconds(8)
+                            while ([DateTime]::UtcNow -lt $ackDeadline) {
+                                $script:active.Refresh()
+                                if ($script:active.HasExited -and 'installing' -in $AcceptedStates) { return }
+                                $observed=$null
+                                try { $observed=Invoke-RestMethod ($session.url+'/api/status') -TimeoutSec 3 } catch { }
+                                if ($observed) {
+                                    if ($observed.update.state -in $AcceptedStates) { return }
+                                    if ($observed.update.state -in @('blocked','error','no_release')) { throw ('Actual update failed: '+$observed.update.message) }
+                                }
+                                Start-Sleep -Milliseconds 200
+                            }
+                            break
                         }
                     }
                 }
@@ -72,7 +88,8 @@ try {
             }
             Start-Sleep -Milliseconds 400
         }
-        throw ('Native accessible button not available: '+$Name)
+        $lastStatus=$null;try { $lastStatus=Invoke-RestMethod ($session.url+'/api/status') -TimeoutSec 3 } catch { }
+        throw ('Native accessible button not available: '+$Name+'; state='+$lastStatus.update.state+'; '+$lastStatus.update.message)
     }
     Invoke-NativeButton 'Güncellemeler'
     Invoke-NativeButton 'GÜNCELLEMELERİ KONTROL ET'
