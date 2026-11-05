@@ -1,4 +1,4 @@
-ACHIEVEMENT ATLAS 0.15.1 — WINDOWS GELİŞTİRME SÜRÜMÜ
+ACHIEVEMENT ATLAS 0.16.0 — WINDOWS GELİŞTİRME SÜRÜMÜ
 
 KURULUM
 Windows 10/11 64 bit içindir; Python veya yönetici izni gerekmez.
@@ -63,11 +63,14 @@ Python 3.11+ ile KUR_WINDOWS.bat, sonra BASLAT_WINDOWS.bat.
 BASLAT_TARAYICI.bat yalnız isteğe bağlı tarayıcı modu içindir.
 Microsoft/Sony tarafından yayımlanmış veya onaylanmış bir ürün değildir.
 
-YAYIMLANMAMIŞ ISSUE #10 KAYNAK DEĞİŞİKLİKLERİ
-Bu daldaki yeni Game Universe, Ctrl+K arama ve Steam sağlayıcısı
-mevcut 0.15.1 indirmesinin parçası değildir; yeni release yayımlanmadı.
-Steam sorguları için cihazın Gelişmiş Ayarlar bölümünde resmi Steam Web API
-anahtarı gerekir. Profil ve oyun ayrıntıları herkese açık olmalıdır.
-Anahtarı sohbet/issue/CSV içine yazma; Windows cihaz ayarı DPAPI ile korunur.
-Xbox/PSN servis gereksinimleri devam eder; yalnız profil adını girmek
-hizmetin yetkilendirme ihtiyacını ortadan kaldırmaz.
+0.16.0 — ISSUE #10 VE STEAM HIZLANDIRMALARI
+Game Universe ayrı oyun sayfası, Ctrl+K arama, sade menü, gamepad gezinmesi,
+görsel sağlığı ve Steam sağlayıcısı bu sürümdedir. Steam metadata cache'i
+6 saat saklanır; oyuncu ilerlemesi her eşitlemede yeniden sorgulanır.
+En fazla üç oyun aynı anda indirilir; durdurma/429 sonraki grubu engeller.
+
+Steam için Gelişmiş Ayarlar bölümünde resmi Steam Web API anahtarı gerekir.
+Profil ve oyun ayrıntıları herkese açık olmalıdır. Xbox/PSN servis gereksinimleri
+sürer. Anahtarı sohbet/issue/CSV içine yazma; Windows ayarı DPAPI ile korunur.
+Gerçek Xbox/PSN/Steam hesap kabulü ve fiziksel gamepad testi yapılmış sayılmaz.
+Ayrıntılı eksikler docs/RELEASE_NOTES_0_16_0_TR.md dosyasındadır.
