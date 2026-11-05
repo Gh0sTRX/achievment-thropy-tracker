@@ -2,6 +2,10 @@
 
 **Güncellendi:** 5 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
 
+## Devam görevi — Steam metadata cache (yayımlanmamış)
+
+Kullanıcı “devam et” dedi. PR #15'in son a7065a4 kaynağı Unit/Windows 42072993663/42072993224 başarılıydı. Yeni dal `feature/steam-schema-cache`, #15 üzerine; yeni release/main merge yok. Steam public schema metadata'sı 6 saat yerel ayrı dosyada; earned/oyuncu listesi her seferinde canlı sorgu sınırından geçer. Force/TTL/bozuk dosya/yeni kimlik invalidation testleri eklendi. 100 oyunlu mock bütçe 201→101 çağrı; canlı hesap hızı ölçülmedi. Ayrıntı docs/STEAM_SCHEMA_CACHE_TR.md. Yeni PR/CI sonuçlarını GitHub'dan yeniden kontrol et.
+
 ## En güncel görev — Issue #10 (yayımlanmamış)
 
 Kullanıcının son master order talimatı: **main'i değiştirme, yeni Development Release yayımlama**. Önceki 0.15.1 yayın yetkisi bu yeni göreve otomatik taşınmaz.

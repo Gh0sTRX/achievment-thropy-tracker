@@ -2,6 +2,8 @@
 from datetime import datetime, timezone
 import json
 import re
+import time
+from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError, URLError
@@ -52,6 +54,48 @@ def request(interface,method,version='v1',**params):
         raise SteamError('Steam ağ yanıtı alınamadı; önceki kayıt korundu.') from None
 
 
+SCHEMA_TTL=6*60*60
+
+def clean_schema(schema):
+    if not isinstance(schema,dict) or not isinstance(schema.get('gameName'),str) or not schema['gameName']:
+        raise SteamError('Steam oyun şeması alınamadı.')
+    stats=schema.get('availableGameStats',{})
+    if not isinstance(stats,dict):raise SteamError('Steam başarım şeması geçersiz.')
+    definitions=stats.get('achievements',[])
+    if not isinstance(definitions,list):raise SteamError('Steam başarım şeması geçersiz.')
+    seen=set();clean=[]
+    for row in definitions:
+        if not isinstance(row,dict) or not isinstance(row.get('name'),str) or not row['name'] or row['name'] in seen:
+            raise SteamError('Steam başarım şeması kimlikleri geçersiz.')
+        seen.add(row['name'])
+        clean.append({k:row[k] for k in ('name','displayName','description','hidden','icon','icongray') if k in row})
+    return {'gameName':schema['gameName'],'availableGameStats':{'achievements':clean}}
+
+def schema_for(appid,refresh=False):
+    """Only public schema metadata is cached; player unlocks and keys never enter it."""
+    if not re.fullmatch(r'[1-9][0-9]{0,9}',str(appid)) or int(appid)>4294967295:raise SteamError('Steam AppID geçersiz.')
+    context=sync_control.context.get() or{}
+    root=(context.get('cache') or{}).get('schema_root')
+    path=Path(root)/(str(appid)+'-english.json') if root else None
+    if path and not refresh and not context.get('force'):
+        try:
+            if path.stat().st_size<=4_000_000:
+                cached=json.loads(path.read_text(encoding='utf-8'))
+                age=time.time()-cached['fetched_at']
+                schema=clean_schema(cached['schema'])
+                if cached.get('version')==1 and cached.get('appid')==str(appid) and cached.get('language')=='english' and 0<=age<SCHEMA_TTL and schema['availableGameStats']['achievements']:
+                    return schema
+        except (OSError,ValueError,TypeError,KeyError):pass
+    schema=clean_schema(request('ISteamUserStats','GetSchemaForGame','v2',appid=appid,l='english').get('game',{}))
+    sync_control.check()
+    if path and schema['availableGameStats']['achievements']:
+        try:
+            from .core import atomic_write
+            atomic_write(path,{'version':1,'appid':str(appid),'language':'english','fetched_at':time.time(),'schema':schema})
+        except OSError:pass # Cache failure must not discard successfully fetched profile data.
+    return schema
+
+
 def fetch(username,progress=lambda *args:None):
     value=validate(username)
     if value.isdigit():sid=value
@@ -64,16 +108,18 @@ def fetch(username,progress=lambda *args:None):
     if type(owned.get('game_count')) is not int or not isinstance(owned.get('games',[]),list):
         raise SteamError('Steam oyun ayrıntıları gizli veya erişilemiyor. Profil ve oyun ayrıntılarını herkese açık yap.')
     if owned['game_count']!=len(owned.get('games',[])):raise SteamError('Steam oyun listesi eksik; önceki kayıt korundu.')
+    context=sync_control.context.get() or{}
+    known_games={a.get('game_id') for a in (context.get('cache') or{}).get('achievements',[])}
     games=[];items=[];warnings=[];failed=[];seen=set()
     for row in owned.get('games',[]):
         sync_control.check();appid=str(row.get('appid',''))
         if not appid.isdigit() or int(appid)<=0 or appid in seen:raise SteamError('Steam AppID listesi geçersiz.')
         seen.add(appid)
         try:
-            schema=request('ISteamUserStats','GetSchemaForGame','v2',appid=appid,l='english').get('game',{})
-            if not isinstance(schema,dict) or not schema.get('gameName'):raise SteamError('Steam oyun şeması alınamadı.')
-            definitions=schema.get('availableGameStats',{}).get('achievements',[])
-            if not isinstance(definitions,list):raise SteamError('Steam başarım şeması geçersiz.')
+            schema=schema_for(appid)
+            definitions=schema['availableGameStats']['achievements']
+            if not definitions and 'steam:'+appid in known_games:
+                raise SteamError('Steam boş şema döndürdü; önceki başarım listesi korunur.')
             player={}
             if definitions:
                 stats=request('ISteamUserStats','GetPlayerAchievements',steamid=sid,appid=appid,l='english').get('playerstats',{})
@@ -82,6 +128,10 @@ def fetch(username,progress=lambda *args:None):
                 if not isinstance(entries,list):raise SteamError('Steam kazanım listesi geçersiz.')
                 player={a.get('apiname'):a for a in entries}
                 if len(player)!=len(entries):raise SteamError('Tekrarlanan Steam başarım kimliği.')
+                if set(player)!={row['name'] for row in definitions}:
+                    schema=schema_for(appid,refresh=True)
+                    definitions=schema['availableGameStats']['achievements']
+                    if set(player)!={row['name'] for row in definitions}:raise SteamError('Steam şeması ve kazanım listesi uyuşmuyor; önceki kayıt korundu.')
             gid='steam:'+appid;name=str(row.get('name') or schema['gameName'])
             g={'id':gid,'title_id':appid,'steam_appid':appid,'provider':'steam','platform':'pc','name':name,'platform_edition':'steam','devices':['pc'],'device_label':'PC · Steam','ownership':'unknown','art_candidates':[]}
             # AppID comes from this account's official list, never a title match.

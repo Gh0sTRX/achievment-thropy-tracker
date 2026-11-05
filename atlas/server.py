@@ -150,7 +150,7 @@ class Controller:
                 with self.store.lock:
                     profile=self.store.state.get('public_profiles',{}).get(platform,{})
                     prior=self.store.payload()['library']
-                    cache={'id':profile.get('id'),'games':prior['games'],'achievements':prior['achievements']}
+                    cache={'id':profile.get('id'),'games':prior['games'],'achievements':prior['achievements'],'schema_root':self.store.root/'cache'/'steam-schemas'}
                 snapshot = public_profiles.fetch(platform, username, progress, stop=self.public_stop.is_set,cache=cache,force=data.get('force') is True)
                 if self.public_stop.is_set():raise sync_control.Cancelled()
                 report = self.store.apply_public_profile(snapshot)
