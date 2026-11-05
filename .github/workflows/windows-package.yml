@@ -38,7 +38,8 @@ on:
         type: string
 concurrency:
   group: atlas-${{ github.workflow }}-${{ github.ref }}-${{ inputs.promote_run_id != '' && 'promotion' || 'build' }}
-  cancel-in-progress: ${{ inputs.promote_run_id == '' }}
+  # Superseded PR checks may stop; never interrupt an authorized push publication.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
