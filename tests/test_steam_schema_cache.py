@@ -80,3 +80,16 @@ class SteamSchemaCacheTests(unittest.TestCase):
             self.assertEqual((cold,warm),(201,101))
             self.assertEqual(len(first['achievements']),100);self.assertEqual(first['achievements'],second['achievements'])
             self.assertEqual(sum(c.args[1]=='GetPlayerAchievements' for c in call.call_args_list),100)
+
+    def test_empty_schema_does_not_erase_previously_known_achievements(self):
+        with TemporaryDirectory() as root:
+            cache={'schema_root':root}
+            with patch.object(steam,'request',side_effect=responses):first=public_profiles.fetch('pc',SID,cache=cache)
+            cache['achievements']=first['achievements']
+            path=Path(root)/'10-english.json';before=path.read_bytes()
+            def request(*args,**kw):
+                if args[1]=='GetSchemaForGame':return {'game':{'gameName':'Same Name'}}
+                return responses(*args,**kw)
+            with patch.object(steam,'request',side_effect=request),self.assertRaisesRegex(ValueError,'önceki arşiv'):
+                public_profiles.fetch('pc',SID,cache=cache,force=True)
+            self.assertEqual(path.read_bytes(),before)
