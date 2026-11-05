@@ -39,6 +39,10 @@ $global:testRoot=Split-Path -Parent $Plan
 if ([Environment]::OSVersion.Platform -ne 'Win32NT') {
     $global:testHooks=@{}
     function New-Item { param($Path,$ItemType,[switch]$Force) if ($Path -like 'HKCU:*') { return };Microsoft.PowerShell.Management\New-Item @PSBoundParameters }
+    function Get-Item { param($LiteralPath,[switch]$Force)
+        if ($LiteralPath -like 'HKCU:*') { $key=New-Object PSObject;$key | Add-Member ScriptMethod Flush {};$key | Add-Member ScriptMethod Dispose {};return $key }
+        Microsoft.PowerShell.Management\Get-Item @PSBoundParameters
+    }
     function New-ItemProperty { param($Path,$Name,$Value,$PropertyType,[switch]$Force) $global:testHooks[$Name]=$Value }
     function Get-ItemPropertyValue { param($Path,$Name) return $global:testHooks[$Name] }
     function Remove-ItemProperty { param($Path,$Name,$ErrorAction) $global:testHooks.Remove($Name) }

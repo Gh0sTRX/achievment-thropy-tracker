@@ -33,6 +33,15 @@ function Save-InstallSnapshot([string]$InstallDirectory,[string]$BackupDirectory
     foreach ($item in Get-ChildItem -LiteralPath $install -Force) {
         Copy-Item -LiteralPath $item.FullName -Destination $backup -Recurse -Force
     }
+    # Commit backup bytes before the pending marker can authorize replacement.
+    foreach ($file in Get-ChildItem -LiteralPath $backup -Recurse -Force -File) {
+        $attributes=$file.Attributes
+        try {
+            [IO.File]::SetAttributes($file.FullName,($attributes -band (-bnot [IO.FileAttributes]::ReadOnly)))
+            $stream=[IO.File]::Open($file.FullName,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read)
+            try { $stream.Flush($true) } finally { $stream.Dispose() }
+        } finally { [IO.File]::SetAttributes($file.FullName,$attributes) }
+    }
     Assert-SnapshotMatches $backup $inventory
     return ,$inventory
 }
@@ -87,6 +96,8 @@ function Register-RecoveryHook([string]$HelperPath=$PSCommandPath) {
     New-ItemProperty -Path $key -Name (Recovery-HookName) -Value $command -PropertyType String -Force | Out-Null
     $actual=Get-ItemPropertyValue -Path $key -Name (Recovery-HookName)
     if ($actual -ne $command) { throw 'Windows recovery hook could not be verified' }
+    $registryKey=Get-Item -LiteralPath $key
+    try { $registryKey.Flush() } finally { $registryKey.Dispose() }
 }
 function Remove-RecoveryHook {
     $key='HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'

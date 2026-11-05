@@ -76,6 +76,10 @@ try {
         $global:AtlasRecoveryTest=@{plan=$plan;install=$install;restarts=0;scenario=$scenario;hooks=@{}}
         $copiedHelper=Join-Path $case 'apply-update.ps1';Copy-Item -LiteralPath $helper -Destination $copiedHelper
         function New-Item { param($Path,$ItemType,[switch]$Force) if ($Path -like 'HKCU:*') { return };Microsoft.PowerShell.Management\New-Item @PSBoundParameters }
+        function Get-Item { param($LiteralPath,[switch]$Force)
+            if ($LiteralPath -like 'HKCU:*') { $key=New-Object PSObject;$key | Add-Member ScriptMethod Flush {};$key | Add-Member ScriptMethod Dispose {};return $key }
+            Microsoft.PowerShell.Management\Get-Item @PSBoundParameters
+        }
         function New-ItemProperty { param($Path,$Name,$Value,$PropertyType,[switch]$Force) $global:AtlasRecoveryTest.hooks[$Name]=$Value }
         function Get-ItemPropertyValue { param($Path,$Name) return $global:AtlasRecoveryTest.hooks[$Name] }
         function Remove-ItemProperty { param($Path,$Name,$ErrorAction) $global:AtlasRecoveryTest.hooks.Remove($Name) }
