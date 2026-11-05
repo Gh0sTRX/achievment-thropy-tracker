@@ -134,3 +134,18 @@ Questions: [repository issues](https://github.com/Gh0sTRX/achievment-thropy-trac
 or maintainer [@Gh0sTRX](https://github.com/Gh0sTRX). Do not put sensitive data in public
 issues; follow SECURITY.md for sensitive concerns. Achievement Atlas is independent
 of Microsoft, Sony, OpenAI, Brave, SteamGridDB, TrueAchievements and SignPath Foundation.
+
+## Pending-update recovery (development source, not yet released)
+
+Before replacing installed files, the new update helper persists a local file/hash
+inventory and pending state next to the update plan and previous-version backup.
+It registers a per-user Windows RunOnce value named
+`!AchievementAtlasRecovery-<plan hash>` to attempt recovery after the next sign-in.
+The command contains only the local helper path and recovery option, not account
+credentials. Completed or restored updates remove their value; the new uninstaller
+removes only Atlas recovery entries while preserving unrelated RunOnce values.
+Backups/logs remain in the selected local data directory. No remote service is added.
+Uninstall before deleting pending-update recovery files, or preserve them until
+recovery finishes. Windows policy/timing can prevent this one-shot attempt; it is
+not a guarantee of physical power-loss recovery. See
+[recovery implementation and limits](docs/UPDATE_CRASH_RECOVERY_TR.md).

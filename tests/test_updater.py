@@ -119,3 +119,49 @@ class UpdaterTests(unittest.TestCase):
                     with self.assertRaises(ValueError):c.install_update()
                     install.assert_not_called()
             finally:c.public_guard.release()
+
+
+class UpdatePlanTests(unittest.TestCase):
+    def test_install_plan_preserves_custom_data_directory(self):
+        with TemporaryDirectory() as temporary:
+            root=Path(temporary)/'custom library';root.mkdir()
+            install=Path(temporary)/'installed application';install.mkdir()
+            download=Path(temporary)/'download';download.mkdir()
+            candidate=download/'setup.exe';candidate.write_bytes(b'verified installer')
+            u=updater.Updater(root,channel='stable')
+            u.state['state']='ready';u.ready_path=candidate;u.manifest=manifest(b'verified installer');u.release={'version':'99.0.0'}
+            def start_helper(*args,**kwargs):
+                plan=json.loads((download/'plan.json').read_text())
+                self.assertEqual(plan['data_dir'],str(root.resolve()))
+                Path(plan['ready']).write_text('ready')
+                return unittest.mock.Mock()
+            with patch.object(u,'supported_install',return_value=install),patch.object(updater.sys,'executable',str(install/'AchievementAtlas.exe')),patch.object(updater,'verify_signature',return_value='a'*64),patch.object(updater.subprocess,'Popen',side_effect=start_helper),patch.object(updater.threading,'Timer'):
+                u.install()
+            self.assertEqual(u.snapshot()['state'],'installing')
+            self.assertFalse(u.exit_requested.is_set())
+
+
+class PendingRecoveryTests(unittest.TestCase):
+    def test_pending_or_corrupt_recovery_blocks_new_install(self):
+        with TemporaryDirectory() as root:
+            u=updater.Updater(root)
+            directory=Path(root)/'updates'/'previous-attempt';directory.mkdir(parents=True)
+            journal=directory/'recovery-state.json'
+            for value in ('{broken',json.dumps({'format':'atlas-update-recovery-v1','state':'pending'})):
+                journal.write_text(value)
+                with patch.object(updater,'windows_recovery_pending',return_value=False),patch.object(u,'supported_install') as supported:
+                    with self.assertRaisesRegex(ValueError,'kurtarılmalı'):u.install()
+                    supported.assert_not_called()
+                self.assertFalse(u.exit_requested.is_set())
+            for state in ('completed','rolled_back'):
+                journal.write_text(json.dumps({'format':'atlas-update-recovery-v1','state':state}))
+                with patch.object(updater,'windows_recovery_pending',return_value=False):u.ensure_no_pending_recovery()
+
+    def test_other_library_recovery_hook_blocks_update_before_network(self):
+        with TemporaryDirectory() as root:
+            u=updater.Updater(root,channel='stable');u.release=updater.release_info(release());u.manifest=manifest()
+            with patch.object(updater,'windows_recovery_pending',return_value=True),patch.object(updater,'open_url') as network:
+                u.download();wait(u)
+            self.assertEqual(u.snapshot()['state'],'blocked')
+            self.assertIn('kurtarılmalı',u.snapshot()['message'])
+            network.assert_not_called()

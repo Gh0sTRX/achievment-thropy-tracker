@@ -38,7 +38,8 @@ on:
         type: string
 concurrency:
   group: atlas-${{ github.workflow }}-${{ github.ref }}-${{ inputs.promote_run_id != '' && 'promotion' || 'build' }}
-  cancel-in-progress: ${{ inputs.promote_run_id == '' }}
+  # Superseded PR checks may stop; never interrupt an authorized push publication.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
@@ -78,6 +79,11 @@ jobs:
           $tokens=$null; $errors=$null
           [Management.Automation.Language.Parser]::ParseFile((Resolve-Path scripts/apply_update.ps1),[ref]$tokens,[ref]$errors) | Out-Null
           if ($errors.Count) { $errors | Format-List; throw 'Update helper syntax error' }
+      - name: Verify failed-update snapshot recovery
+        shell: powershell
+        run: |
+          ./tests/test_update_snapshot.ps1
+          ./tests/test_update_crash_recovery.ps1
       - name: Build standalone application
         run: python -m PyInstaller --noconfirm packaging/windows.spec
       - name: Sign application when a trusted certificate is configured
@@ -134,15 +140,33 @@ jobs:
           if ($process.ExitCode -ne 0 -or !(Test-Path installed-test-report.json)) { throw 'Installed self-test failed' }
           $process = Start-Process (Join-Path $installDir 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw 'Uninstall failed' }
+      - name: Verify real old-to-new native installer upgrades and rollback
+        shell: powershell
+        run: |
+          $setup = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
+          $test = Start-Process powershell.exe -ArgumentList '-NoProfile','-NonInteractive','-MTA','-File','tests/test_windows_upgrade.ps1','-SetupPath',('"'+$setup.FullName+'"'),'-ReportPath','upgrade-test-report.json' -PassThru -NoNewWindow
+          $null = $test.Handle
+          if (!$test.WaitForExit(360000)) { $test.Kill(); throw 'Native upgrade matrix timed out' }
+          $test.WaitForExit()
+          if ($test.ExitCode -ne 0) { throw 'Native upgrade matrix failed' }
+      - name: Preserve upgrade diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-upgrade-failure-reports
+          path: '*update-test-report.json'
+          if-no-files-found: ignore
       - name: Prepare portable app, setup and checksums
         shell: pwsh
         run: |
           Copy-Item KURULUM.txt dist\AchievementAtlas\
           Copy-Item LICENSE dist\AchievementAtlas\
-          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.15.0-Windows-x64-Portable.zip
-          Compress-Archive preview -DestinationPath dist\installer\AchievementAtlas-0.15.0-Preview.zip
+          New-Item -ItemType Directory -Path dist/AchievementAtlas/docs -Force | Out-Null
+          Copy-Item docs/PUBLIC_PROFILES_TR.md,docs/UPDATE_CRASH_RECOVERY_TR.md,docs/UPDATE_ROLLBACK_SNAPSHOT_TR.md,docs/RELEASE_NOTES_0_15_1_TR.md dist/AchievementAtlas/docs/
+          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.15.1-Windows-x64-Portable.zip
+          Compress-Archive preview -DestinationPath dist\installer\AchievementAtlas-0.15.1-Preview.zip
           Copy-Item app-signing.json dist/installer/
-          Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json dist\installer\
+          Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json,upgrade-test-report.json dist\installer\
           Get-ChildItem dist\installer\*.exe,dist\installer\*.zip | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist\installer\SHA256SUMS.txt
           python -m pip freeze | Set-Content dist\installer\dependencies.txt
       - name: Attest push-built development installer
@@ -161,21 +185,21 @@ jobs:
           python scripts/build_dev_manifest.py dist/installer
       - uses: actions/upload-artifact@v4
         with:
-          name: AchievementAtlas-0.15.0-Windows-x64
+          name: AchievementAtlas-0.15.1-Windows-x64
           path: dist/installer/*
           retention-days: 30
           if-no-files-found: error
 
   publish:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, native-self-update]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: AchievementAtlas-0.15.0-Windows-x64
+          name: AchievementAtlas-0.15.1-Windows-x64
           path: release-files
       - name: Require a signed, matching stable release
         env:
@@ -250,7 +274,7 @@ jobs:
   publish-authorized-push:
     # Explicit release commit marker; ordinary pushes only build candidates.
     if: github.event_name == 'push' && github.ref == 'refs/heads/codex/public-profile-trophies' && contains(github.event.head_commit.message, '[publish-development]')
-    needs: build
+    needs: [build, native-self-update]
     runs-on: ubuntu-latest
     concurrency:
       group: atlas-development-promotion
@@ -269,7 +293,7 @@ jobs:
           python-version: '3.12'
       - uses: actions/download-artifact@v4
         with:
-          name: AchievementAtlas-0.15.0-Windows-x64
+          name: AchievementAtlas-0.15.1-Windows-x64
           path: release-files
       - name: Reverify the exact successful push build
         run: |
@@ -278,9 +302,31 @@ jobs:
       - name: Publish explicitly authorized development update
         run: |
           if gh release view development >/dev/null 2>&1; then
-            gh release edit development --prerelease --title 'Achievement Atlas — Development' --notes '0.15.0 Windows installer. GitHub push provenance verified. Windows Authenticode signing may be absent.'
+            gh release edit development --prerelease --title 'Achievement Atlas — Development' --notes '0.15.1 Windows update: verified rollback, custom library path and interrupted-update recovery. GitHub push provenance verified. Windows Authenticode signing may be absent.'
           else
-            gh release create development --target "$CANDIDATE_COMMIT" --prerelease --title 'Achievement Atlas — Development' --notes '0.15.0 Windows installer. GitHub push provenance verified. Windows Authenticode signing may be absent.'
+            gh release create development --target "$CANDIDATE_COMMIT" --prerelease --title 'Achievement Atlas — Development' --notes '0.15.1 Windows update: verified rollback, custom library path and interrupted-update recovery. GitHub push provenance verified. Windows Authenticode signing may be absent.'
           fi
           gh release upload development release-files/*-Setup.exe release-files/SHA256SUMS.txt release-files/update-bundle.json release-files/development-verification.json --clobber
           gh release upload development release-files/development-manifest.json --clobber
+
+  native-self-update:
+    if: github.event_name != 'workflow_dispatch' || inputs.promote_run_id == ''
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise shipped native update buttons through verified restart
+        shell: powershell
+        run: |
+          powershell.exe -NoProfile -NonInteractive -MTA -File ./tests/test_windows_self_update.ps1 -ReportPath self-update-test-report.json
+          if ($LASTEXITCODE -ne 0) { throw 'Native self-update test failed' }
+      - name: Preserve native self-update result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-native-self-update-report
+          overwrite: true
+          path: self-update-test-report.json
+          if-no-files-found: warn

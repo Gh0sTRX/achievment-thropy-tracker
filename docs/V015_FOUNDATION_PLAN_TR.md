@@ -1,9 +1,9 @@
 # Achievement Atlas v0.15 Foundation — Ürünleşme Planı
 
-**Durum:** Geliştirme dalı. Henüz yayınlanmış Windows sürümü değildir.
+**Durum (5 Kasım 2026):** 0.15.0 Development Windows Setup yayımlandı; PR #4/#5/#6/#7 birleştirildi. Aşağıdaki ilk dilim ve eski sıra maddeleri tarihsel plandır; güncel devam kaydı PROJECT_HANDOFF.md içindedir.
 **Taban:** feature/unified-native-themes (PR #4).
 **Ana geliştirme:** codex/public-profile-trophies (PR #1).
-**Son yayın:** v0.14.1 Development. Ana dal olan main değiştirilmez.
+**Son yayın:** v0.15.0 Development. Ana dal olan main değiştirilmez.
 
 ## Ürün amacı
 
