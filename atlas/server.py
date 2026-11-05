@@ -541,6 +541,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply({'revision':c.store.revision,'status':c.store.status,'data_status':c.data_status(),'update':c.updates.snapshot(),
                                    'update_blockers':c.update_blockers()})
         if path=='/api/data':return self.reply(self.server.controller.status())
+        if path=='/api/art/health':return self.reply(media_sync.health(self.server.controller.store))
         if path=='/api/art/sources':return self.reply(artwork.sources())
         seg=path.split('/')
         if len(seg)==5 and seg[1]=='art' and seg[2] in artwork.CATEGORIES:
