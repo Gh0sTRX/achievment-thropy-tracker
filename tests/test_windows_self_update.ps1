@@ -66,7 +66,7 @@ try {
                     $elements=$window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
                     foreach ($element in $elements) {
                         $current=$element.Current
-                        if (!$current.IsEnabled -or $current.Name.IndexOf($Name,[StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
+                        if (!$current.IsEnabled -or [string]::IsNullOrEmpty($current.Name) -or $current.Name.IndexOf($Name,[StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
                         if ($current.IsOffscreen) {
                             $scroll=$null
                             if ($element.TryGetCurrentPattern([Windows.Automation.ScrollItemPattern]::Pattern,[ref]$scroll)) {
