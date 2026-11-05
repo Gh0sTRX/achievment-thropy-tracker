@@ -13,4 +13,4 @@ Görsel indirme kapak/logo yanında hero/banner/screenshot adaylarını da kulla
 
 ## Henüz tamamlanmayanlar
 
-Kalıcı SteamGridDB eşleştirme kaydı, kullanıcıya 2–5 aday sıralama, sağlayıcıya göre yeniden deneme beklemeleri, Game Universe tab klavye ok gezinmesi ve gamepad B desteği sonraki parçalarda tamamlanmalıdır. Bu PR bütün Issue 10 teslimatı değildir. Yeni release oluşturmaz.
+Kalıcı SteamGridDB eşleştirme kaydı, kullanıcıya 2–5 aday sıralama, sağlayıcıya göre yeniden deneme beklemeleri, Game Universe tab klavye ok gezinmesi ve gamepad B desteği bu B parçasından sonra E PR #15 içinde eklendi. Bu PR bütün Issue 10 teslimatı değildir. Yeni release oluşturmaz.

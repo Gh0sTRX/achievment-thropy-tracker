@@ -40,7 +40,7 @@ Bunlar birbirinin üzerine kurulu inceleme PR'larıdır. Feature dalı değişik
 | İkinci fixture indirmesi | — | 0 ağ çağrısı | Cache tekrar kullanımı |
 | Gerçek kullanıcının kütüphanesi | Ölçülmedi | Ölçülmedi | Bu ortamda gerçek arşiv/servis oturumu yok |
 
-Bu oran gerçek hesap için kapak başarısı değildir. CDN'de her AppID için her dosyanın bulunacağı varsayılmaz. IGDB kimlik/lisans erişimi tanımlanmadığından yeni IGDB bağlantısı eklenmedi; yetkisiz scraping veya AI artwork yapılmadı.
+Bu oran gerçek hesap için kapak başarısı değildir. [Steam Library Assets belgesi](https://partner.steamgames.com/doc/store/assets/libraryassets) incelendi; CDN'de her AppID için her dosyanın bulunacağı varsayılmaz. [IGDB resmî başlangıç belgesi](https://api-docs.igdb.com/#getting-started) Twitch uygulaması, Client ID/Secret ve OAuth erişimi ister; kullanım koşulları ayrıca geçerlidir. Bu erişim tanımlanmadığından yeni IGDB bağlantısı eklenmedi; yetkisiz scraping veya AI artwork yapılmadı.
 
 ## 5. Xbox
 
@@ -94,8 +94,8 @@ PRIVACY.md Steam akışı ve CDN'leriyle güncellendi. API anahtarları dışa a
 - Chromium: dört çözünürlükte rota/back/forward/deep-link/odak/not taslağı; native arama; 16 tema×çözünürlük/high-contrast/ARIA tab/identity bileşimi; simüle Gamepad API A/RB/X/Y/B; 5k/15k/40k performans ve cache invalidation geçti. Browser page error 0; fixture XSS çalışmadı.
 - A: Unit tests **42066272591** ve Windows installer **42066272796** başarılı; native self-update başarılı; yayın işleri atlandı.
 - B: Unit/Windows **42066432637 / 42066432834** başarılı.
-- C/D ilk Windows koşusu eski `PC planned-state` smoke beklentisinde durdu. Beklenti gerçek Steam girişini doğrulayacak şekilde düzeltildi, yeniden koşular GitHub Actions'ta izlenir.
-- E için gerçek Windows penceresinde sentetik Game Universe/tab/search/back/focus smoke eklendi. Bu belgenin ilk commit'inde E CI sonucu beklenir; tamamlanmadan başarılı build iddia edilmez. Son durum PR kontrolü/Actions'tan okunmalıdır.
+- C/D ilk Windows koşusu eski `PC planned-state` smoke beklentisinde durdu. Beklenti gerçek Steam girişini doğrulayacak şekilde düzeltildi. D Unit/Windows **42071862650 / 42071862634** başarılı; C son Windows koşusu **42071856570** bu belge yazılırken installer yükseltme matrisindeydi. Güncel [PR #13 kontrolleri](https://github.com/Gh0sTRX/achievment-thropy-tracker/pull/13/checks) ayrıca izlenir.
+- E için gerçek Windows penceresinde sentetik Game Universe/tab/search/back/focus smoke eklendi. Bu belgenin ilk commit'inde E CI sonucu beklenir; tamamlanmadan başarılı build iddia edilmez. Son durum [PR #15 kontrolleri](https://github.com/Gh0sTRX/achievment-thropy-tracker/pull/15/checks) üzerinden okunmalıdır. İlk E browser CI işi başarılıydı. İlk E Python CI turu test klasörü temizliği ile ayrı medya yazıcısı arasında yarış saptadı; test artık her iki yazıcının bitmesini bekler. Sessiz cleanup veya assertion kaldırma yapılmadı. Frozen self-test Steam sağlayıcı modülünün pakette bulunduğunu gerçek import ile kontrol eder; bu canlı Steam çağrısı değildir.
 - Fiziksel gamepad, fiziksel elektrik kesintisi/logon ve gerçek Xbox/PSN/Steam hesabı doğrulanmadı.
 
 ## 13. Kalan önemli on eksik ve önerilen sıra
