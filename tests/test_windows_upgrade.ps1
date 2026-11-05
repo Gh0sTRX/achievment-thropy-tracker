@@ -93,6 +93,18 @@ try {
         $before=Get-Records $session;$gid=$before.library.games[0].id
         Post $session '/api/game/notes' @{game_id=$gid;notes='Upgrade fixture note'} | Out-Null
         Assert-Records (Get-Records $session) $gid
+        if ($baseline.version -eq '0.15.0') {
+            # Verify the shipped Foundation navigation before promotion as well.
+            Add-Type -AssemblyName UIAutomationClient
+            Add-Type -AssemblyName UIAutomationTypes
+            $navigationTokens=$null;$navigationErrors=$null
+            $navigationAst=[Management.Automation.Language.Parser]::ParseFile((Resolve-Path "$PSScriptRoot/test_windows_self_update.ps1"),[ref]$navigationTokens,[ref]$navigationErrors)
+            if ($navigationErrors.Count) { throw 'Native update navigation parser failed' }
+            $navigationFunction=$navigationAst.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Invoke-NativeButton'},$true)
+            . ([ScriptBlock]::Create($navigationFunction.Extent.Text))
+            Invoke-NativeButton ('Di'+[char]0x011F+'er ekranlar')
+            Invoke-NativeButton ('G'+[char]0x00FC+'ncellemeler')
+        }
         Stop-Atlas
         # Sentinel outside the installation must survive upgrade/rollback/uninstall byte-for-byte.
         $sentinel=Join-Path $data 'profile-history-sentinel.bin'
