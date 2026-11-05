@@ -74,7 +74,7 @@ for ResolveVanityURL, GetOwnedGames, GetSchemaForGame and GetPlayerAchievements.
 The key is stored using the same Windows DPAPI settings protection and is excluded
 from library exports and browser status. Game names, achievement descriptions,
 unlock timestamps and icon URLs returned by Steam enter the local JSON archive.
-AppID-bound image candidates may contact Steam CDN hosts (`steamstatic.com` and
+Public game-schema metadata may be cached for six hours under `cache/steam-schemas`; this cache excludes account IDs, keys and player unlock state and is not part of library exports. Delete that folder to clear it; a full refresh bypasses it. AppID-bound image candidates may contact Steam CDN hosts (`steamstatic.com` and
 listed Akamai CDN hosts). These images are not redistributed with the application.
 No user credentials were available for live Steam verification during this audit;
 mock integration coverage does not establish real-account access.
