@@ -54,6 +54,10 @@ function Stop-Atlas {
 function Post($Session,[string]$Path,$Body) {
     Invoke-RestMethod -Uri ($Session.url+$Path) -Method Post -ContentType 'application/json' -Headers @{'X-Atlas-Token'=$Session.token;'Origin'=$Session.url} -Body ($Body | ConvertTo-Json -Depth 20 -Compress)
 }
+function Get-Records($Session) {
+    # /api/data wraps the Library payload under its own library property.
+    return (Invoke-RestMethod ($Session.url+'/api/data')).library
+}
 function Assert-Records($Payload,[string]$GameId) {
     if (@($Payload.library.achievements).Count -ne 2 -or @($Payload.library.games).Count -ne 1) { throw 'Upgrade changed record counts' }
     $earned=@($Payload.library.achievements | Where-Object {$_.id -eq 'ta:456'})
@@ -68,6 +72,7 @@ try {
         @{version='0.13.0';sha='6e459970d45f04334f5d65300a8ce98261736d712e8996e01108b2dfef85e5d2'},
         @{version='0.14.1';sha='c0169c3f10bcf2b1dd2303f8f03aa081d3d04b3456d395a3e453b13ae727be7d'}
     )) {
+        Write-Output ('Upgrade matrix baseline '+$baseline.version)
         $case=Join-Path $root $baseline.version
         New-Item -ItemType Directory -Path $case | Out-Null
         $old=Join-Path $case 'baseline-setup.exe'
@@ -81,9 +86,9 @@ try {
         $locked="GameName,AchievementName,AchievementPageURL,Gamerscore,TAScore,TARatio,DLCName,Unachieveable`nUpgrade Fixture,Second,https://www.trueachievements.com/a457/second-achievement,30,40,1.35,,`n"
         Post $session '/api/import' @{earned=$earned;locked=$locked;gamertag='CI synthetic fixture'} | Out-Null
         Post $session '/api/pin' @{id='ta:457';pinned=$true} | Out-Null
-        $before=Invoke-RestMethod ($session.url+'/api/data');$gid=$before.library.games[0].id
+        $before=Get-Records $session;$gid=$before.library.games[0].id
         Post $session '/api/game/notes' @{game_id=$gid;notes='Upgrade fixture note'} | Out-Null
-        Assert-Records (Invoke-RestMethod ($session.url+'/api/data')) $gid
+        Assert-Records (Get-Records $session) $gid
         Stop-Atlas
         # Sentinel outside the installation must survive upgrade/rollback/uninstall byte-for-byte.
         $sentinel=Join-Path $data 'profile-history-sentinel.bin'
@@ -91,32 +96,36 @@ try {
         $sentinelHash=(Get-FileHash -LiteralPath $sentinel).Hash
         $backup=Join-Path $case 'verified previous version'
         $inventory=Save-InstallSnapshot $install $backup
+        Write-Output ('Installing candidate over '+$baseline.version)
         Install-Package $SetupPath $install
         # Real Inno upgrade followed by intentional file-tree rollback (not a simulated installer failure).
+        Write-Output 'Restoring verified old installation snapshot'
         Restore-InstallSnapshot $install $backup $inventory
         $selfReport=Join-Path $case 'rolled-back-self-test.json'
         $p=Start-Process -FilePath (Join-Path $install 'AchievementAtlas.exe') -ArgumentList '--self-test','--report',"`"$selfReport`"" -Wait -PassThru
         if ($p.ExitCode -ne 0 -or (Get-Content -LiteralPath $selfReport -Raw | ConvertFrom-Json).version -ne $baseline.version) { throw 'Restored old executable self-test/version failed' }
         $session=Start-Atlas $install $data
-        Assert-Records (Invoke-RestMethod ($session.url+'/api/data')) $gid
+        Assert-Records (Get-Records $session) $gid
         Stop-Atlas
+        Write-Output ('Installing candidate over '+$baseline.version)
         Install-Package $SetupPath $install
         $newReport=Join-Path $case 'upgraded-self-test.json'
         $p=Start-Process -FilePath (Join-Path $install 'AchievementAtlas.exe') -ArgumentList '--self-test','--report',"`"$newReport`"" -Wait -PassThru
         if ($p.ExitCode -ne 0 -or (Get-Content -LiteralPath $newReport -Raw | ConvertFrom-Json).version -ne '0.15.0') { throw 'Upgraded executable self-test/version failed' }
         $session=Start-Atlas $install $data
-        Assert-Records (Invoke-RestMethod ($session.url+'/api/data')) $gid
+        Assert-Records (Get-Records $session) $gid
         # A real write through the new installed application followed by a restart.
         Post $session '/api/pin' @{id='ta:456';pinned=$true} | Out-Null
         Stop-Atlas
         $session=Start-Atlas $install $data
-        $after=Invoke-RestMethod ($session.url+'/api/data');Assert-Records $after $gid
+        $after=Get-Records $session;Assert-Records $after $gid
         if ('ta:456' -notin $after.state.pins) { throw 'New-version write did not survive restart' }
         Stop-Atlas
         $p=Start-Process -FilePath (Join-Path $install 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
         if ($p.ExitCode -ne 0) { throw 'Upgrade uninstall failed' }
         if ((Get-FileHash -LiteralPath $sentinel).Hash -ne $sentinelHash) { throw 'External user data changed' }
         if (!(Test-Path -LiteralPath (Join-Path $data 'library.json'))) { throw 'Uninstall removed user library' }
+        Write-Output ('Upgrade/rollback passed: '+$baseline.version)
         $results+=@{baseline=$baseline.version;ok=$true;checks=@('pinned baseline checksum','native old application API import','real Inno in-place upgrade','verified intentional file rollback','old executable version and restart','new native restart and writes','external data survives uninstall')}
         $install=$null
     }
