@@ -1,4 +1,4 @@
-#define AppVersion "0.15.1"
+#define AppVersion "0.16.0"
 [Setup]
 AppId={{36A259D0-55AD-4B8F-83E4-D716F3955AAF}
 AppName=Achievement Atlas
@@ -33,7 +33,7 @@ Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\docs\PUBLIC_PROFILES_TR.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "..\docs\UPDATE_CRASH_RECOVERY_TR.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "..\docs\UPDATE_ROLLBACK_SNAPSHOT_TR.md"; DestDir: "{app}\docs"; Flags: ignoreversion
-Source: "..\docs\RELEASE_NOTES_0_15_1_TR.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\docs\RELEASE_NOTES_0_16_0_TR.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 [Icons]
 Name: "{group}\Achievement Atlas"; Filename: "{app}\AchievementAtlas.exe"; AppUserModelID: "AchievementAtlas.Desktop"
 Name: "{group}\Kaldır"; Filename: "{uninstallexe}"

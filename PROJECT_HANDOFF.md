@@ -2,6 +2,12 @@
 
 **Güncellendi:** 5 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
 
+## En son yetki — 0.16.0 release hazırlığı
+
+Kullanıcı son mesajında “devam et eksiklerimiz neler onu da söyle relase ye” diyerek yayın istedi. Önceki “yeni release yayımlama” sınırı bu yeni yayın talebiyle güncellendi; main korunur. 0.16.0, PR #11–#17 zinciri üzerine hazırlanır. Release dalı `release/0.16.0`; ayrı release PR'ı, test, geliştirme dalına merge ve yalnız yetkili `[publish-development]` commit marker'ı ile trusted push yayını kullanılır. Parola/anahtar, imza veya provenance kontrolleri atlanmaz. Yayın sonucunu Actions/manifeste bakmadan tamamlandı sayma.
+
+Yeni release notu: docs/RELEASE_NOTES_0_16_0_TR.md. Kalan on eksik orada; gerçek hesap, fiziksel cihaz ve imza eksikleri sürer. Yeni self-update testi, yayın sonrası 0.15.1→0.16.0 stok kurulumunu doğrulamak için 0.15.1 baseline hash'ini içerir.
+
 ## Son devam — Steam sınırlı paralellik (yayımlanmamış)
 
 Yeni dal `feature/steam-bounded-sync`, PR #16 üzerine. En fazla üç oyunluk bounded batch, kopyalanan cache/force/stop bağlamı, auth/429 sonrasında yeni grupları engelleme ve kararlı sonuç sırası eklendi. 175 test yerelde geçti; sentetik 30 oyun benchmark medyanı 312,44→106,44 ms. Gerçek Steam hesabı test edilmedi. docs/STEAM_BOUNDED_SYNC_TR.md ayrıntıları içerir. PR/CI sonuçlarını GitHub'dan yeniden sorgula; main merge/yeni release yok.

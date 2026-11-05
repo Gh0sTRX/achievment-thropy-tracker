@@ -31,9 +31,10 @@ try {
             Start-Sleep -Seconds (2*($attempt+1))
         }
     }
-    # Before 0.15.1 promotion test the shipped 0.14.1 -> 0.15.0 chain;
-    # after promotion the same job verifies real 0.15.0 -> 0.15.1 delivery.
-    if ([Version]$manifest.version -gt [Version]'0.15.0') {
+    # After publication exercise the exact shipped 0.15.1 -> 0.16+ native updater.
+    if ([Version]$manifest.version -gt [Version]'0.15.1') {
+        $baselineVersion='0.15.1';$baselineHash='dba8a8c385ee261ac59970b7ac9e6d3fb10da426af39a6d6641e2b0cecbec3e4'
+    } elseif ([Version]$manifest.version -gt [Version]'0.15.0') {
         $baselineVersion='0.15.0';$baselineHash='e016ac7532a77c690a1a6a5e0f4afb0cc24a4c0b4064a54ccf4a31a0205ced09'
     } else {
         $baselineVersion='0.14.1';$baselineHash='c0169c3f10bcf2b1dd2303f8f03aa081d3d04b3456d395a3e453b13ae727be7d'
@@ -65,7 +66,7 @@ try {
                     $elements=$window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
                     foreach ($element in $elements) {
                         $current=$element.Current
-                        if (!$current.IsEnabled -or $current.Name.IndexOf($Name,[StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
+                        if (!$current.IsEnabled -or [string]::IsNullOrEmpty($current.Name) -or $current.Name.IndexOf($Name,[StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
                         if ($current.IsOffscreen) {
                             $scroll=$null
                             if ($element.TryGetCurrentPattern([Windows.Automation.ScrollItemPattern]::Pattern,[ref]$scroll)) {
