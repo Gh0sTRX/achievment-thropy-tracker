@@ -64,13 +64,27 @@ def cache_token(ident):
     if not re.fullmatch(r'[a-zA-Z0-9:_-]{2,120}',value):raise ValueError('Geçersiz görsel kimliği.')
     return re.sub('[^a-zA-Z0-9_-]','_',value)
 
+from functools import lru_cache
+
+@lru_cache(maxsize=1024)
+def _decoded_cache(path,mtime,size):
+    from PIL import Image
+    try:
+        with Image.open(path) as image:
+            if image.width*image.height>16_000_000 or max(image.size)>8192:return False
+            image.verify()
+        return True
+    except Exception:return False
+
 def cached(root,category,ident):
     try:clean=cache_token(ident)
     except ValueError:return None
     # Existing Xbox/PSN cache filenames remain compatible.
     for ext in ('.png','.jpg','.webp'):
         p=root/'artwork'/(category+'_'+clean+ext)
-        if p.is_file() and p.stat().st_size<=MAX_BYTES:return p
+        if p.is_file():
+            stat=p.stat()
+            if 0<stat.st_size<=MAX_BYTES and _decoded_cache(str(p),stat.st_mtime_ns,stat.st_size):return p
     return None
 
 def sgdb_json(path,key):

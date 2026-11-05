@@ -19,3 +19,9 @@ async function applyGameHero(g){
  if(serial===gameHeroSerial)$('detailHint').textContent='Bu oyun için doğrulanmış görsel kaynağı yok. Görseller sekmesinden eşleşmeyi onaylayabilir veya kendi dosyanı seçebilirsin.';
 }
 document.addEventListener('click',async e=>{if(e.target.closest('[data-universe-art]')){const gid=selectedGame;navigate('artwork');$('artGame').value=gid;renderVisuals();$('artGame').focus()}if(e.target.closest('[data-universe-media]')){const r=await run(()=>api('/api/media/download',{game_id:selectedGame}));if(r)toast(r.message)}});
+
+let enrichmentPreview=null;
+document.addEventListener('click',async e=>{
+ if(e.target.closest('[data-enrich]')){const gid=selectedGame;const result=await run(()=>api('/api/enrichment/preview',{game_id:gid}));if(!result||gid!==selectedGame||!$('enrichPreview'))return;enrichmentPreview=result;$('enrichPreview').innerHTML=`<p>İsim/puan yalnız öneridir. Oyun/edisyonu ve her sağlayıcı kimliğini doğrulayarak seç: ${esc(result.game)} · ${esc(result.edition||'Belirtilmemiş')}</p>${result.pairs.map(p=>`<label class="enrich-pair"><input type="checkbox" value="${esc(p.local_id)}">${esc(p.name)} · Xbox kimliği ${esc(p.provider_id)}</label>`).join('')}<button class="secondary" data-enrich-confirm>Seçilen kimlikleri onayla ve zenginleştir</button>`}
+ if(e.target.closest('[data-enrich-confirm]')&&enrichmentPreview){const selected=[...document.querySelectorAll('.enrich-pair input:checked')].map(n=>n.value);const r=await run(()=>api('/api/enrichment/confirm',{token:enrichmentPreview.token,confirmed:true,selected}));if(r){toast(r.message);await reload()}}
+});

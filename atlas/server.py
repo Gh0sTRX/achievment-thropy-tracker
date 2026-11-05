@@ -31,6 +31,7 @@ class Controller:
         self.store=Library(root)
         settings.activate(self.store.root)
         self.active_matches=[]
+        self.enrichment_batches={}
         self.start_guard=threading.Lock()
         self.public_guard=threading.Lock()
         self.guide_guard=threading.Lock()
@@ -162,7 +163,7 @@ class Controller:
                 if self.public_stop.is_set():
                     self.store.status['public_job']['message']='Profil kaydedildi; sonraki indirmeler durduruldu.'
                     return
-                self.download_media()
+                self.download_media({'platform':platform})
                 if settings.get('ATLAS_AUTO_GUIDES','0') == '1' and guides.configured() and not self.public_stop.is_set():
                     try:self.generate_guides({'platform': platform})
                     except ValueError as exc:self.store.status['public_job']['message'] += ' '+str(exc)
@@ -178,15 +179,19 @@ class Controller:
         threading.Thread(target=worker, daemon=True).start()
         return {'message': 'Herkese açık profil eşitlemesi başladı.'}
 
-    def download_media(self):
+    def download_media(self,data=None):
+        data=data or {}
+        platform=data.get('platform') or None
+        gid=data.get('game_id') or None
+        if gid:platform=self.art_game(data).get('platform')
         if not self.media_guard.acquire(blocking=False):return {'message':'Görsel indirmesi zaten çalışıyor.'}
         self.media_stop.clear()
-        self.store.status['media_job']={'running':True,'done':0,'total':0,'message':'Kapak, logo ve ikonlar kontrol ediliyor.'}
+        self.store.status['media_job']={'running':True,'done':0,'total':0,'message':'Görsel kaynakları kontrol ediliyor.','platform':platform,'game_id':gid}
         def progress(done,total,name):self.store.status['media_job'].update(done=done,total=total,message=name)
         def worker():
             try:
-                report=media_sync.download(self.store,progress,stop=self.media_stop.is_set)
-                self.store.status['media_job'].update(report=report,cancelled=self.media_stop.is_set(),message=('İndirme durduruldu; tamamlanan görseller korundu. ' if self.media_stop.is_set() else '')+f"{report['downloaded']} görsel kaydedildi; {len(report['missing'])} görsel kaynakta bulunamadı. {'; '.join(report['errors'])}")
+                report=media_sync.download(self.store,progress,stop=self.media_stop.is_set,platform=platform,game_id=gid)
+                self.store.status['media_job'].update(report=report,cancelled=self.media_stop.is_set(),message=('İndirme durduruldu; tamamlanan görseller korundu. ' if self.media_stop.is_set() else '')+f"{report['downloaded']} indirildi; {report['cached']} önbellekte; {report['missing_source']} kaynaksız; {report['failed']} başarısız; {report['blocked']} engellendi. {'; '.join(report['errors'])}")
             except Exception as exc:self.store.status['media_job']['message']='Görsel indirmesi: '+type(exc).__name__
             finally:self.store.status['media_job']['running']=False;self.media_guard.release()
         threading.Thread(target=worker,daemon=True).start()
@@ -451,6 +456,28 @@ class Controller:
             suggestions.append({**item,'matches':[{'id':g['id'],'name':g['name']} for g in exact]})
         return {'titles':suggestions,'message':f'{len(found)} titles found; choose game mappings explicitly.'}
 
+    def preview_enrichment(self,data):
+        from copy import deepcopy
+        from . import enrichment
+        import secrets
+        with self.store.lock:
+            game=deepcopy(self.art_game(data))
+            if game.get('platform')!='xbox' or not game.get('title_id'):
+                raise ValueError('Önce Xbox erişimini kur ve keşfedilen oyun/edisyon kimliğini Hesap & Veri ekranında açıkça onayla.')
+            items=deepcopy([a for a in self.store.library['achievements'] if a['game_id']==game['id']])
+        records=asyncio.run(xbox.title_achievements(game['title_id'],game.get('platform_edition') or 'auto'))
+        pairs=enrichment.proposals(game,items,records);token=secrets.token_hex(16)
+        self.enrichment_batches={token:{'game':game,'pairs':pairs}}
+        return {'token':token,'game':game['name'],'platform':game['platform'],'edition':game.get('platform_edition'),'pairs':[{'local_id':p['local_id'],'name':p['remote']['name'],'provider_id':str(p['remote']['id'])} for p in pairs]}
+
+    def confirm_enrichment(self,data):
+        from . import enrichment
+        batch=self.enrichment_batches.get(data.get('token'))
+        if not batch or data.get('confirmed') is not True:raise ValueError('Önerilen her başarım kimliğini inceleyip açıkça onayla.')
+        selected=data.get('selected')
+        if not isinstance(selected,list) or not selected:raise ValueError('Onaylanacak başarım seç.')
+        result=enrichment.apply(self.store,batch,selected);self.enrichment_batches.clear();return result
+
     def xbox_map(self,data):
         gid=str(data.get('game_id','')); tid=str(data.get('title_id',''))
         game=next((g for g in self.store.library['games'] if g['id']==gid),None)
@@ -618,6 +645,8 @@ class Handler(BaseHTTPRequestHandler):
                '/api/game/notes':self.server.controller.save_notes,
                '/api/preferences':lambda d:self.server.controller.store.set_preferences(d),
                '/api/art/health':lambda d:media_sync.health(self.server.controller.store),
+               '/api/enrichment/preview':self.server.controller.preview_enrichment,
+               '/api/enrichment/confirm':self.server.controller.confirm_enrichment,
                '/api/art/key':self.server.controller.set_sgdb_key,
                '/api/art/search':self.server.controller.search_art,
                '/api/art/choices':self.server.controller.get_art_choices,
@@ -625,7 +654,7 @@ class Handler(BaseHTTPRequestHandler):
                '/api/art/upload':self.server.controller.upload_art,
                '/api/art/reset':self.server.controller.reset_art,
                '/api/art/theme':self.server.controller.theme_art,
-               '/api/media/download':lambda d:self.server.controller.download_media(),
+               '/api/media/download':self.server.controller.download_media,
                '/api/xbox/login':lambda d:self.server.controller.xbox_login(),
                '/api/xbox/reconnect':lambda d:self.server.controller.xbox_reconnect(),
                '/api/xbox/discover':lambda d:self.server.controller.sync_linked_profile(),

@@ -240,13 +240,13 @@ class Library:
             old_ach={a['id']:a for a in old['achievements']}
             for g in lib['games']:
                 prior=old_games.get(g['id']) or {}
-                for key in ('title_id','platform_edition','cover_url','hero_url','image_source','plan','notes','ownership','artwork_meta','artwork_download','art_theme','logo_url','banner_url','screenshot_url'):
+                for key in ('title_id','platform_edition','cover_url','hero_url','image_source','plan','notes','ownership','artwork_meta','artwork_download','art_theme','logo_url','banner_url','screenshot_url','artwork_match','art_candidates','devices'):
                     if prior.get(key):g[key]=prior[key]
             for a in lib['achievements']:
                 prior=old_ach.get(a['id']) or {}
-                for key in ('icon_url','description'):
+                for key in ('icon_url','description','icon_meta','provider_identity'):
                     if prior.get(key):a[key]=prior[key]
-                if prior.get('unlocked') and not a['unlocked']:
+                if prior.get('unlocked') and (not a['unlocked'] or not a.get('unlock_time')):
                     a['unlocked']=True;a['unlock_time']=prior.get('unlock_time','')
             # A TrueAchievements CSV is Xbox-only. Never delete an unrelated PSN/PC
             # collection when importing a new Xbox export into a mixed library.
@@ -316,7 +316,9 @@ class Library:
                 prior = old_items.get(a['id'], {})
                 if prior.get('unlocked'):
                     a['unlocked'] = True
-                    a['unlock_time'] = prior.get('unlock_time', '')
+                    a['unlock_time'] = prior.get('unlock_time') or a.get('unlock_time','')
+                for field in ('description','icon_url','icon_meta','provider_identity','unlock_time_raw'):
+                    if not a.get(field) and prior.get(field):a[field]=deepcopy(prior[field])
                 if prior.get('guide') and prior.get('description') == a.get('description') and prior.get('device_label','') == a.get('device_label','') and prior.get('platform_edition','') == a.get('platform_edition',''):
                     a['guide'] = prior['guide']
             new_games = deepcopy(snapshot['games'])
