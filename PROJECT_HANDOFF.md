@@ -1,6 +1,6 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
-**Tarih:** 3 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
+**Güncellendi:** 5 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
 
 ## Ürün ve tercihlerin değişmeyen temeli
 
@@ -17,7 +17,7 @@ Windows için local-first achievement/trophy companion. TrueAchievements CSV ve 
 ## Git dal/PR zinciri
 
 1. **main**: eski temel sürüm; şu anki geliştirmeleri otomatik üzerine alma.
-2. **codex/public-profile-trophies**: v0.14.1 Development Release tabanı; taslak PR #1, main dalına karşı.
+2. **codex/public-profile-trophies**: v0.15.0 Development Release tabanı; taslak PR #1, main dalına karşı.
 3. **feature/atlas-ultimate-v5-live-ui**: önceki taslak PR #2; güncel v5.1 zaten geliştirme dalında, eski dosyaları üzerine kopyalama.
 4. **feature/unified-native-themes**: PR #4; dört temayı tek native shell'e indirir, ayrı Console Mode ve Timeline.
 5. **feature/v015-foundation-onboarding-recovery**: PR #4 dalından türemiş v0.15 Foundation başlangıcı; beş ana menü, ilk açılış rehberi, kaynak durum şeridi, ayrıntılı update blockers ve iptal.
@@ -26,7 +26,7 @@ Windows için local-first achievement/trophy companion. TrueAchievements CSV ve 
 
 ## Yayın ve güven
 
-Son yayımlanan sürüm: **Achievement Atlas v0.14.1 Development**
+Son yayımlanan sürüm: **Achievement Atlas v0.15.0 Development**
 https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/tag/development
 
 GitHub/Sigstore build provenance, Windows Authenticode/SignPath yayıncı imzası değildir. SignPath Foundation başvurusunun onaylandığını iddia etme. Testli Setup; fakat gerçek kullanıcı ortamında eski sürüm yükseltme / veri kurtarma / tam rollback doğrulaması eksik.
@@ -125,3 +125,12 @@ Kullanıcı isteğiyle entegrasyon dalındaki son v0.15.0 Preview, final CI/Wind
 - Kaynaklar: `docs/V015_FOUNDATION_PLAN_TR.md`, `docs/V015_ARCHIVE_RECOVERY_TR.md`, `docs/V015_IDENTITY_STORAGE_MOTION_TR.md`. Sadece gerçek oyun artwork'ü kullanılmalı, kişisel CSV/token repoya girmez.
 
 **Bu paragraf önceki 'PR #6'yı merge etme' bekleme notunun daha güncel sonucudur.** Sonraki oturumlar commit/Actions/Release durumlarını yeniden sorgulamalıdır.
+
+
+## 5 Kasım 2026 — Canlı doğrulanmış yayın ve devam işi
+
+Bu bölüm önceki Preview/yayın bekleme notlarının güncel sonucudur. Kullanıcının açık isteğiyle PR #7 geliştirme dalına birleştirildi; commit `3346909d71b2459a845e003a5e09f77285b03979`. 0.15.0 Development Setup yayımlandı; `development-manifest.json` sürümü 0.15.0, run ID `41729972033`. EXE SHA256: `e016ac7532a77c690a1a6a5e0f4afb0cc24a4c0b4064a54ccf4a31a0205ced09`. GitHub Actions Windows ve unit koşuları başarılı. Yayınlanan dosya indirilerek Sigstore köken kanıtıyla doğrulandı. Windows Authenticode imzası yok; main değişmedi.
+
+Yayın akışı: Normal push yalnız aday derler ve push provenance oluşturur. Manuel `promote_run_id` başarılı özgün push artifact'ını doğrulayarak yayımlar. Ayrıca geliştirme dalında commit mesajında `[publish-development]` varsa başarılı build ardından açık yayın yapılır. **Bu işareti rutin geliştirme commitlerine koyma.** Ayrıntı: `docs/UPDATE_DELIVERY_FIX_TR.md`.
+
+Devam dalı: `fix/update-rollback-snapshot`. Kurulum hatasında yeni sürümün orphan dosyalarını temizleyen, yedeği ve geri alınmış dosya kümesini SHA256 ile doğrulayan düzeltme. `docs/UPDATE_ROLLBACK_SNAPSHOT_TR.md` test kapsamını ve güç kesintisi sınırlarını açıklar. Bu değişiklik henüz yayımlanmış 0.15 Setup'a dahil değildir. Canlı hesap/gerçek kullanıcı bilgisayarı/fiziksel gamepad testi yapılmış sayılmaz.

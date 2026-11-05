@@ -42,3 +42,17 @@ jobs:
           node tests/test_ui_model.cjs
           node --check atlas/web/art_transition.js
           node tests/test_art_transition.cjs
+  update-recovery:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise real updater recovery functions
+        shell: pwsh
+        run: ./tests/test_update_snapshot.ps1
+      - name: Verify Windows PowerShell compatibility
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./tests/test_update_snapshot.ps1

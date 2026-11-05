@@ -78,6 +78,9 @@ jobs:
           $tokens=$null; $errors=$null
           [Management.Automation.Language.Parser]::ParseFile((Resolve-Path scripts/apply_update.ps1),[ref]$tokens,[ref]$errors) | Out-Null
           if ($errors.Count) { $errors | Format-List; throw 'Update helper syntax error' }
+      - name: Verify failed-update snapshot recovery
+        shell: powershell
+        run: ./tests/test_update_snapshot.ps1
       - name: Build standalone application
         run: python -m PyInstaller --noconfirm packaging/windows.spec
       - name: Sign application when a trusted certificate is configured
