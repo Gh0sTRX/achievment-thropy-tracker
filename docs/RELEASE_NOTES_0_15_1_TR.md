@@ -2,6 +2,8 @@
 
 0.15.0 üzerine güncelleme güvenliği iyileştirmesi. Tek native arayüz ve gerçek platform/edisyon kayıtları korunur.
 
+Yeni kurtarma yardımcısı 0.15.1 kurulduktan sonra başlatılan güncellemelerde kullanılır. 0.15.0’dan bu sürüme ilk uygulama içi geçişi, zaten kurulu eski yardımcı yürütür; yeni kalıcı kurtarma özelliği o eski sürece geriye dönük eklenmez.
+
 - Hatalı kurulumda yeni eklenen dosyaları temizleyen, tüm eski dosya kümesini SHA256 ile doğrulayan geri alma.
 - Yeni yardımcıda özel veri klasörünün başarılı ve başarısız güncelleme sonrası korunması. Zaten dağıtılmış eski yardımcı bu bilgiyi içermiyorsa ilk geçişte aynı klasörü yeniden seçmek gerekebilir; arşiv silinmez.
 - Diske tamamlanan yedek, yardımcı/plan ve kalıcı recovery-state; kurulum yarıda kalırsa kullanıcı kapsamında RunOnce ile sonraki logon'da bir kez kurtarma denemesi.

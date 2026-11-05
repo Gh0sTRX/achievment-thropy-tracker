@@ -1,6 +1,6 @@
 # Yarıda kalan güncellemenin kurtarılması (kaynak dalı)
 
-Bu geliştirme `feature/update-crash-recovery` dalında, PR #8'in doğrulanmış kodu üzerine kurulur. Yayımlanmış 0.15.0 yardımcılarını geriye dönük değiştirmez; yeni Release yayımlanmadı.
+Bu belge 0.15.1 kurtarma uygulamasını açıklar; geliştirme PR #8/#9 üzerinden taşındı. Yeni yardımcı 0.15.1 kurulduktan sonraki güncellemelerde kullanılır. 0.15.0’dan ilk geçişi eski yardımcı yürütür; o sürece yeni kurtarma davranışı geriye dönük eklenmez.
 
 ## İşlem sırası
 
