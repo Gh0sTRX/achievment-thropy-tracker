@@ -131,7 +131,7 @@ class Controller:
     def sync_linked_profile(self):
         profile = self.store.state.get('linked_profile') or {}
         if not profile.get('gamertag'): raise ValueError('Önce Xbox oturumunu aç.')
-        return self.public_sync({'platform':'xbox', 'username':profile['gamertag']})
+        return self.public_sync({'platform':'xbox', 'username':self.store.state.get('public_profiles',{}).get('xbox',{}).get('username') or profile['gamertag']})
 
     def save_settings(self, data):
         if self.public_guard.locked() or self.guide_guard.locked() or (self.store.status.get('job') or {}).get('running') or self.store.status.get('login_running'):
@@ -468,7 +468,7 @@ class Controller:
                     async with Signed() as session:
                         manager=Manager(session,sdk[4],sdk[5],sdk[6]);await manager.request_tokens(response[1])
                         api=SDK(manager);profile=xbox.normalize_profile(xbox._dump(await api.profile.get_profile_by_xuid(str(api.xuid))),str(api.xuid))
-                        expected=store.library.get('gamertag','').strip()
+                        expected=accounts.xbox_archive_name(store).strip()
                         if expected and normalize(expected)!=normalize(profile['gamertag']):
                             raise ValueError(f"Imported profile ({expected}) does not match connected Xbox account ({profile['gamertag']}); data not mixed.")
                         p=sdk[-1];p.parent.mkdir(parents=True,exist_ok=True)
@@ -488,7 +488,7 @@ class Controller:
 
     def xbox_reconnect(self):
         profile=asyncio.run(xbox.account_info())
-        expected=self.store.library.get('gamertag','').strip()
+        expected=accounts.xbox_archive_name(self.store).strip()
         if expected and normalize(expected)!=normalize(profile['gamertag']):
             raise ValueError('Xbox account does not match the imported profile.')
         with self.store.lock:
@@ -521,7 +521,8 @@ class Controller:
         info=asyncio.run(xbox.account_info())
         profile=self.store.state.get('public_profiles',{}).get('xbox',{})
         if profile.get('id') and str(profile['id'])!=str(info['xuid']):raise ValueError('Bu Xbox arşivinin hesabı ile yetkili oturum farklı. Kazanılma tarihleri başka hesaptan alınmaz.')
-        if not profile.get('id') and self.store.library.get('gamertag') and normalize(info['gamertag'])!=normalize(self.store.library['gamertag']):raise ValueError('CSV oyuncusu ile Xbox oturumu eşleşmiyor.')
+        if not profile.get('id') and not accounts.xbox_archive_name(self.store):raise ValueError('Xbox arşivinin oyuncu adı bilinmiyor. Hesap & Veri ekranında Xbox kullanıcı adını doğrulayıp kaydet.')
+        if not profile.get('id') and accounts.xbox_archive_name(self.store) and normalize(info['gamertag'])!=normalize(accounts.xbox_archive_name(self.store)):raise ValueError('CSV oyuncusu ile Xbox oturumu eşleşmiyor.')
         records=asyncio.run(xbox.title_achievements(game['title_id'],game.get('platform_edition') or 'auto'))
         pairs=enrichment.proposals(game,items,records);token=secrets.token_hex(16)
         self.enrichment_batches={token:{'game':game,'pairs':pairs,'library_token':library_token}}

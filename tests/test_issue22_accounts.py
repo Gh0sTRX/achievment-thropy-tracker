@@ -81,3 +81,15 @@ class AccountsTests(unittest.TestCase):
     try:pc.fetch('SyntheticSteam')
     except ValueError as exc:self.assertEqual(accounts.failure(exc)[0],state)
     else:self.fail('Expected provider failure')
+ def test_xbox_reconnect_never_compares_psn_last_writer_name(self):
+  self.c.store.library.update(platform='mixed',gamertag='PsnLastWriter')
+  self.c.store.state['public_profiles']={'psn':{'username':'PsnLastWriter','id':'psn1'}}
+  with patch('atlas.xbox.account_info',return_value={'gamertag':'XboxPlayer','xuid':'123'}),patch.object(self.c,'public_sync',return_value={}) as sync:
+   self.c.xbox_reconnect()
+  self.assertEqual(sync.call_args.args[0]['username'],'XboxPlayer')
+ def test_xbox_sync_keeps_selected_xbox_target_after_other_platform_sync(self):
+  self.c.store.library.update(platform='mixed',gamertag='SteamLastWriter')
+  self.c.store.state['public_profiles']={'xbox':{'username':'XboxTarget','id':'target'},'pc':{'username':'SteamLastWriter','id':'steam'}}
+  self.c.store.state['linked_profile']={'gamertag':'XboxService','xuid':'service'}
+  with patch.object(self.c,'public_sync',return_value={}) as sync:self.c.sync_linked_profile()
+  self.assertEqual(sync.call_args.args[0]['username'],'XboxTarget')

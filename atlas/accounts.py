@@ -43,3 +43,11 @@ def remember(store,platform,state,**values):
         value={'state':state,'checked_at':datetime.now(timezone.utc).isoformat(),**values}
         store.state.setdefault('provider_access',{})[platform]=value;store.save()
         return value
+
+def xbox_archive_name(store):
+    """A mixed library's last writer is not an Xbox account identity."""
+    state=store.state
+    return (state.get('public_profiles',{}).get('xbox',{}).get('username') or
+            (state.get('linked_profile') or {}).get('gamertag') or
+            state.get('provider_inputs',{}).get('xbox') or
+            (store.library.get('gamertag','') if store.library.get('platform')=='xbox' else ''))

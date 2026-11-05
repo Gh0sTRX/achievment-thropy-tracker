@@ -263,7 +263,9 @@ class Library:
                 lib['schema'] = 2
                 lib['platform'] = 'mixed'
                 lib['complete_export'] = False
-            self.library=lib;self.save()
+            self.library=lib
+            if gamertag:self.state.setdefault('provider_inputs',{})['xbox']=gamertag
+            self.save()
         imported_items = [a for a in lib['achievements'] if a['game_id'] not in other_ids]
         return {'games':len(lib['games'])-len(other_games),
                 'achievements':len(imported_items),
@@ -352,6 +354,8 @@ class Library:
             retained_games = [g for g in self.library['games'] if not in_scope(g) and g.get('platform')!='demo']
             retained_ids = {g['id'] for g in retained_games}
             retained_items = [a for a in self.library['achievements'] if a['game_id'] in retained_ids]
+            if self.library.get('platform')=='xbox' and self.library.get('gamertag'):
+                self.state.setdefault('provider_inputs',{}).setdefault('xbox',self.library['gamertag'])
             self.library = {'schema': 2, 'platform': 'mixed', 'gamertag': snapshot['username'],
                 'created_at': self.library.get('created_at', ''), 'complete_export': False,
                 'games': retained_games+new_games, 'achievements': retained_items+new_items}
