@@ -3,12 +3,12 @@ const { chromium } = require(process.env.ATLAS_PLAYWRIGHT_MODULE);
 const fs = require('node:fs');
 (async () => {
   const port = process.argv[2], report = process.argv[3];
-  let browser;
+  let browser, lastError;
   for (let attempt=0; attempt<60; attempt++) {
     try { browser=await chromium.connectOverCDP(`http://127.0.0.1:${port}`); break; }
-    catch { await new Promise(r=>setTimeout(r,500)); }
+    catch (error) { lastError=error; await new Promise(r=>setTimeout(r,500)); }
   }
-  if (!browser) throw Error('Native WebView2 debugging endpoint unavailable');
+  if (!browser) throw Error('Native WebView2 debugging endpoint unavailable: '+lastError?.message);
   let page;
   for (let attempt=0; attempt<60; attempt++) {
     page=browser.contexts().flatMap(c=>c.pages()).find(p=>/^http:\/\/127\.0\.0\.1:/.test(p.url()));

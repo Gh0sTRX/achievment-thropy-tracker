@@ -2,8 +2,8 @@ param([string]$ReportPath='self-update-test-report.json')
 $ErrorActionPreference='Stop'
 $root=Join-Path $env:RUNNER_TEMP ('Atlas native self update '+[Guid]::NewGuid())
 New-Item -ItemType Directory -Path $root | Out-Null
-$oldLocal=$env:LOCALAPPDATA;$oldArgs=$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
-$active=$null;$install=Join-Path $root 'installed application'
+$oldArgs=$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
+$ownsData=$false;$active=$null;$install=Join-Path $root 'installed application'
 $reportFull=[IO.Path]::GetFullPath($ReportPath)
 # Reuse helpers without executing the separate installer matrix entry point.
 $tokens=$null;$errors=$null
@@ -13,9 +13,12 @@ foreach ($name in @('Install-Package','Start-Atlas','Stop-Atlas','Post','Get-Rec
     . ([ScriptBlock]::Create($definition.Extent.Text))
 }
 try {
-    # Environment isolation is inherited by the shipped updater and its restarted app.
-    $env:LOCALAPPDATA=Join-Path $root 'isolated local app data'
+    # Dedicated ephemeral GitHub Windows runner only: never overwrite existing default data.
+    if (!$env:GITHUB_ACTIONS -or !$env:RUNNER_TEMP) { throw 'Native self-update test requires an ephemeral GitHub Actions runner' }
     $data=Join-Path $env:LOCALAPPDATA 'AchievementAtlas'
+    if (Test-Path -LiteralPath $data) { throw 'Default data directory already exists; refusing to use or delete it' }
+    New-Item -ItemType Directory -Path $data | Out-Null
+    $ownsData=$true
     $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0);$listener.Start()
     $port=$listener.LocalEndpoint.Port;$listener.Stop()
     $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=$port"
@@ -72,11 +75,13 @@ try {
     @{ok=$true;from='0.14.1';to=$manifest.version;run_id=$manifest.run_id;sha256=$proof.sha256;scope='Unmodified shipped updater; real native WebView2 buttons, GitHub metadata/download/proof, helper, installer and native restart; isolated default data directory';buttons=(Get-Content -LiteralPath (Join-Path $root 'buttons.json') -Raw | ConvertFrom-Json);records_preserved=$true} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $reportFull -Encoding UTF8
     Write-Output ('Native self-update passed: 0.14.1 -> '+$manifest.version)
 } catch {
+    if ($active) { $active.Refresh();Write-Output ('Native window at failure: '+$active.MainWindowTitle) }
     @{ok=$false;error=$_.Exception.Message} | ConvertTo-Json | Set-Content -LiteralPath $reportFull -Encoding UTF8
     throw
 } finally {
     if ($active -and !$active.HasExited) { $active.Kill();$active.WaitForExit(10000) | Out-Null }
     if (Test-Path -LiteralPath (Join-Path $install 'unins000.exe')) { Start-Process (Join-Path $install 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait | Out-Null }
-    $env:LOCALAPPDATA=$oldLocal;$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=$oldArgs
+    $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=$oldArgs
+    if ($ownsData) { Remove-Item -LiteralPath $data -Recurse -Force }
     Remove-Item -LiteralPath $root -Recurse -Force
 }
