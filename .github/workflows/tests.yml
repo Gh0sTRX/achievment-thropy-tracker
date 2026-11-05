@@ -56,6 +56,7 @@ jobs:
           ./tests/test_update_snapshot.ps1
           ./tests/test_update_crash_recovery.ps1
           ./tests/test_windows_download.ps1
+          ./tests/test_native_ui_match.ps1
       - name: Verify Windows PowerShell compatibility
         if: runner.os == 'Windows'
         shell: powershell
@@ -63,6 +64,7 @@ jobs:
           ./tests/test_update_snapshot.ps1
           ./tests/test_update_crash_recovery.ps1
           ./tests/test_windows_download.ps1
+          ./tests/test_native_ui_match.ps1
 
   native-browser:
     runs-on: ubuntu-latest
