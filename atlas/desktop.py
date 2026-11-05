@@ -52,9 +52,27 @@ def open_window(url, smoke_report=None, shutdown_event=None):
                     raise RuntimeError('Ultimate screen failed: '+screen)
             if not window.evaluate_js("typeof AtlasModel === 'object' && AtlasModel.progress([]).ratio === 0"):
                 raise RuntimeError('Ultimate data projection failed')
+            # Explicit self-test only: synthetic in-memory UI records, never saved as a profile.
+            if not window.evaluate_js("""(() => {
+                ACTIVE_PLATFORM='all';ACTIVE_DEVICE='all';selectedGame=null;
+                DATA.library={...DATA.library,games:[{id:'native-smoke-game',name:'Native smoke fixture',platform:'xbox',devices:['xbox360'],platform_edition:'360'}],achievements:[{id:'native-smoke-ach',game_id:'native-smoke-game',game_name:'Native smoke fixture',name:'Native smoke achievement',platform:'xbox',points:10,unlocked:false}]};
+                navigate('games');const card=document.querySelector('#gameGrid [data-gid]');card.focus();card.click();
+                if(page!=='universe'||!location.hash.startsWith('#/game/'))return false;
+                document.querySelector('[data-tab=achievements]').click();
+                if(!document.querySelector('#universeContent [data-ach]'))return false;
+                AtlasSearch.open('Native smoke');
+                if(!document.querySelector('#atlasSearch[open]')||!document.querySelector('[data-search-result]'))return false;
+                document.querySelector('#atlasSearch').close();history.back();return true;
+            })()"""):
+                raise RuntimeError('Native game route, tabs or universal search failed')
+            deadline=time.monotonic()+8
+            while time.monotonic()<deadline:
+                if window.evaluate_js("page==='games' && Boolean(document.activeElement?.matches('#gameGrid [data-gid]'))"):break
+                time.sleep(.1)
+            else:raise RuntimeError('Native history/focus restoration failed')
             from pathlib import Path
             import json
-            Path(smoke_report).write_text(json.dumps({'ok':True,'renderer':'edgechromium','checks':['taskbar icon','Ultimate screens','honest empty metrics','native window','HTML loaded','JavaScript app ready','data status visible','11 artwork sources','platform switch','PC Steam provider entry (not live account verification)','simple account screen','update screen blocks unverified install']}), encoding='utf-8')
+            Path(smoke_report).write_text(json.dumps({'ok':True,'renderer':'edgechromium','checks':['taskbar icon','Ultimate screens','honest empty metrics','native window','HTML loaded','JavaScript app ready','data status visible','11 artwork sources','platform switch','PC Steam provider entry (not live account verification)','simple account screen','synthetic Game Universe route/tabs/search/back/focus','update screen blocks unverified install']}), encoding='utf-8')
         except Exception as exc:
             errors.append(str(exc))
         finally:

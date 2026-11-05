@@ -9,9 +9,10 @@
   if(gs===indexedGames&&as===indexedItems&&show===reveal)return;
   indexedGames=gs;indexedItems=as;reveal=show;const games=new Map(gs.map(g=>[g.id,g]));
   const labels=g=>[g.name,g.platform,g.platform==='psn'?'PlayStation PSN':g.platform==='xbox'?'Xbox':'PC Steam',deviceLabel(g),g.platform_edition,g.title_id].join(' ');
-  index=gs.map(g=>({kind:'game',id:g.id,game:g,title:g.name,text:norm(labels(g))}));
+  const labelIndex=new Map(gs.map(g=>[g.id,norm(labels(g))]));
+  index=gs.map(g=>({kind:'game',id:g.id,game:g,title:g.name,text:labelIndex.get(g.id)}));
   for(const a of as){const g=games.get(a.game_id);if(!g)continue;const title=AtlasModel.secret(a)&&!show?'Gizli başarım':a.name;
-   index.push({kind:'achievement',id:a.id,game:g,item:a,title,text:norm([labels(g),title,a.dlc,AtlasModel.secret(a)&&!show?'':a.provider_id].join(' '))});
+   index.push({kind:'achievement',id:a.id,game:g,item:a,title,text:labelIndex.get(g.id)+' '+norm([title,a.dlc,AtlasModel.secret(a)&&!show?'':a.provider_id].join(' '))});
   }
  }
  function draw(){

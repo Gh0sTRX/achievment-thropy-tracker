@@ -7,7 +7,7 @@ from atlas.server import LocalApp
 from atlas import artwork
 Path('work/audit').mkdir(parents=True,exist_ok=True)
 fixtures=[];urls={};metrics={}
-for count in (80,15000,40000):
+for count in (80,5000,15000,40000):
  root=TemporaryDirectory(prefix='atlas-audit-');fixtures.append(root);app=LocalApp(root.name)
  games=[];items=[];game_count=max(4,count//50)
  for i in range(game_count):

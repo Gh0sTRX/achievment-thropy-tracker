@@ -56,8 +56,18 @@ def cache_image(root:Path, category:str, ident:str, url:str)->str:
         raise ValueError('Görsel servisi bir görsel döndürmedi.')
     return store_bytes(root, category, ident, data)
 
+def cache_token(ident):
+    value=str(ident)
+    if value.startswith('steam:') and 2<=len(value)<=512 and not any(ord(c)<32 for c in value):
+        import hashlib
+        return 'steam_'+hashlib.sha256(value.encode('utf-8')).hexdigest()
+    if not re.fullmatch(r'[a-zA-Z0-9:_-]{2,120}',value):raise ValueError('Geçersiz görsel kimliği.')
+    return re.sub('[^a-zA-Z0-9_-]','_',value)
+
 def cached(root,category,ident):
-    clean=re.sub('[^a-zA-Z0-9_-]','_',str(ident))
+    try:clean=cache_token(ident)
+    except ValueError:return None
+    # Existing Xbox/PSN cache filenames remain compatible.
     for ext in ('.png','.jpg','.webp'):
         p=root/'artwork'/(category+'_'+clean+ext)
         if p.is_file() and p.stat().st_size<=MAX_BYTES:return p
@@ -76,7 +86,7 @@ def search_game(name,key):
     name=str(name).strip()[:160]
     if not name:raise ValueError('Game title missing')
     records=sgdb_json('search/autocomplete/'+urllib.parse.quote(name,safe=''),key)
-    return [{'id':int(x['id']),'name':str(x.get('name',''))[:160]} for x in records[:12] if str(x.get('id','')).isdigit()]
+    return [{'id':int(x['id']),'name':str(x.get('name',''))[:160]} for x in records[:5] if str(x.get('id','')).isdigit()]
 
 def candidates(sgdb_id,key):
     ident=int(sgdb_id)
@@ -100,8 +110,9 @@ def store_bytes(root, category, ident, data):
     import io
     import warnings
     from PIL import Image, ImageOps, UnidentifiedImageError
-    if category not in CATEGORIES or not re.fullmatch(r'[a-zA-Z0-9:_-]{2,120}', str(ident)):
+    if category not in CATEGORIES:
         raise ValueError('Geçersiz görsel kategorisi veya oyun kimliği.')
+    clean=cache_token(ident)
     if not data or len(data) > MAX_BYTES:
         raise ValueError('Görsel en fazla 8 MB olabilir.')
     if not suffix(data):
@@ -130,7 +141,6 @@ def store_bytes(root, category, ident, data):
         raise ValueError('Görsel bozuk veya güvenli boyut sınırını aşıyor.') from None
     directory = Path(root)/'artwork'
     directory.mkdir(parents=True, exist_ok=True)
-    clean = re.sub('[^a-zA-Z0-9_-]', '_', str(ident))
     path = directory/(category+'_'+clean+'.webp')
     temporary = path.with_suffix('.pending')
     temporary.write_bytes(output.getvalue())
@@ -142,9 +152,9 @@ def store_bytes(root, category, ident, data):
 
 
 def remove_cached(root, category, ident):
-    if category not in CATEGORIES or not re.fullmatch(r'[a-zA-Z0-9:_-]{2,120}', str(ident)):
+    clean=cache_token(ident)
+    if category not in CATEGORIES:
         raise ValueError('Geçersiz görsel kimliği.')
-    clean = re.sub('[^a-zA-Z0-9_-]', '_', str(ident))
     for ext in ('.png', '.jpg', '.webp'):
         (Path(root)/'artwork'/(category+'_'+clean+ext)).unlink(missing_ok=True)
 

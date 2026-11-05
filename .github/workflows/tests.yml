@@ -63,3 +63,44 @@ jobs:
           ./tests/test_update_snapshot.ps1
           ./tests/test_update_crash_recovery.ps1
           ./tests/test_windows_download.ps1
+
+  native-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser test tools
+        run: |
+          python -m pip install "Pillow>=11,<13"
+          npm install --prefix "$RUNNER_TEMP/atlas-browser" --no-save playwright@1.62.1
+          "$RUNNER_TEMP/atlas-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Native routes, search, themes, controller and large libraries
+        shell: bash
+        run: |
+          export NODE_PATH="$RUNNER_TEMP/atlas-browser/node_modules"
+          export ATLAS_CHROMIUM="$(node -p "require('playwright').chromium.executablePath()")"
+          python tests/audit_fixture_server.py > "$RUNNER_TEMP/atlas-fixture.log" 2>&1 &
+          atlas_fixture_pid=$!
+          trap 'kill "$atlas_fixture_pid" 2>/dev/null || true' EXIT
+          python -c "import pathlib,time; p=pathlib.Path('work/audit/fixture-urls.json'); deadline=time.monotonic()+30; exec('while not p.exists() and time.monotonic()<deadline: time.sleep(.2)'); assert p.exists(), 'Fixture startup timed out'"
+          node tests/test_game_universe.cjs
+          node tests/test_native_search.cjs
+          node tests/test_native_themes.cjs
+          node tests/browser_audit.cjs
+      - name: Preserve synthetic browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-browser-audit
+          if-no-files-found: warn
+          path: |
+            work/audit/browser-results.json
+            work/audit/game-universe-results.json
+            work/audit/server-performance.json
+            work/audit/native-*.png

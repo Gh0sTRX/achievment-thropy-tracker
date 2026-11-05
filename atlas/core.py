@@ -226,7 +226,7 @@ class Library:
             old_ach={a['id']:a for a in old['achievements']}
             for g in lib['games']:
                 prior=old_games.get(g['id']) or {}
-                for key in ('title_id','platform_edition','cover_url','hero_url','image_source','plan','notes','ownership','artwork_meta','art_theme','logo_url','banner_url','screenshot_url'):
+                for key in ('title_id','platform_edition','cover_url','hero_url','image_source','plan','notes','ownership','artwork_meta','artwork_download','art_theme','logo_url','banner_url','screenshot_url'):
                     if prior.get(key):g[key]=prior[key]
             for a in lib['achievements']:
                 prior=old_ach.get(a['id']) or {}
@@ -313,8 +313,12 @@ class Library:
             new_items.extend(deepcopy(a) for a in old_items.values() if a['game_id'] in retained_failed_ids)
             for g in new_games:
                 prior = prior_games.get(g['id'], {})
-                for field in ('hero_url', 'plan', 'notes', 'artwork_meta','art_theme','logo_url','banner_url','screenshot_url'):
+                for field in ('hero_url', 'plan', 'notes', 'artwork_meta','artwork_download','art_theme','logo_url','banner_url','screenshot_url'):
                     if prior.get(field): g[field] = prior[field]
+                match=prior.get('artwork_match',{})
+                if match.get('confirmed') is True and match.get('game_id')==g['id'] and all(match.get(k)==g.get(k) for k in ('platform','title_id','platform_edition')) and match.get('devices',[])==(g.get('devices') or[]):
+                    g['artwork_match']=deepcopy(match)
+                    g['art_candidates']=g.get('art_candidates',[])+[c for c in prior.get('art_candidates',[]) if c.get('provider')=='SteamGridDB' and c.get('confirmed_game_id')==g['id']]
                 if prior.get('cover_url') == 'local': g['cover_url'] = 'local'
             atomic_write(archive, {**snapshot, 'games': new_games, 'achievements': new_items})
             retained_games = [g for g in self.library['games'] if not in_scope(g) and g.get('platform')!='demo']

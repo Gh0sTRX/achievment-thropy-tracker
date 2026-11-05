@@ -15,7 +15,7 @@ import webbrowser
 from datetime import datetime,timezone
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer,HTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlencode, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit, unquote
 from .core import Library,normalize
 from . import recommendations,artwork
 from . import xbox, public_profiles, guides, settings, media_sync, updater, sync_control
@@ -42,18 +42,24 @@ class Controller:
         self.updates=updater.Updater(self.store.root)
         self.allow_update_install=False
         self.action_guard=threading.RLock()
+        self._report_cache=None
 
     def status(self):
         with self.store.lock:
             payload=self.store.payload();revision=self.store.revision
         library=payload['library'];pins=payload['state']['pins']
-        reports={}
-        for platform in ('xbox','psn','pc'):
-            games=[g for g in library['games'] if g.get('platform')==platform]
-            ids={g['id'] for g in games}
-            scoped={**library,'games':games,'achievements':[a for a in library['achievements'] if a['game_id'] in ids]}
-            reports[platform]={'recommendations':recommendations.rank(scoped,pins),'insights':recommendations.insights(scoped)}
-        reports['all']={'recommendations':recommendations.rank(library,pins),'insights':recommendations.insights(library)}
+        cache_key=(revision,id(self.store.library),tuple(pins))
+        if self._report_cache and self._report_cache[0]==cache_key:
+            reports=self._report_cache[1]
+        else:
+            reports={}
+            for platform in ('xbox','psn','pc'):
+                games=[g for g in library['games'] if g.get('platform')==platform]
+                ids={g['id'] for g in games}
+                scoped={**library,'games':games,'achievements':[a for a in library['achievements'] if a['game_id'] in ids]}
+                reports[platform]={'recommendations':recommendations.rank(scoped,pins),'insights':recommendations.insights(scoped)}
+            reports['all']={'recommendations':recommendations.rank(library,pins),'insights':recommendations.insights(library)}
+            self._report_cache=(cache_key,reports)
         return {'revision':revision,'library':payload, 'recommendations':reports['all']['recommendations'],
                 'insights':reports['all']['insights'],'platform_reports':reports,
                 'providers':public_profiles.readiness(), 'guides_ready':guides.configured(),
@@ -336,7 +342,18 @@ class Controller:
         if not game:raise ValueError('Game unknown')
         if data.get('confirmed') is not True:raise ValueError('Oyun ve sürüm eşleşmesini onayla; diğer platform kimlikleri otomatik eşleştirilmez.')
         choices=artwork.candidates(data.get('sgdb_id'),self.store.steamgriddb_key)
-        self.store.live_artwork[gid]=choices
+        with self.store.lock:
+            current=next((g for g in self.store.library['games'] if g['id']==gid),None)
+            fields=('platform','title_id','platform_edition','devices')
+            if not current or any(current.get(k)!=game.get(k) for k in fields):
+                raise ValueError('Oyun kaydı değişti; sürüm eşleşmesini yeniden onayla.')
+            self.store.live_artwork[gid]=choices
+            current['artwork_match']={'provider':'SteamGridDB','provider_id':str(int(data['sgdb_id'])),'game_id':gid,
+                'platform':current.get('platform'),'title_id':current.get('title_id'),'platform_edition':current.get('platform_edition'),
+                'devices':list(current.get('devices',[])),'confirmed':True}
+            official=[c for c in current.get('art_candidates',[]) if c.get('provider')!='SteamGridDB']
+            current['art_candidates']=official+[{**c,'provider':'SteamGridDB','confirmed_game_id':gid} for c in choices]
+            self.store.save()
         return {'choices':choices}
 
     def xbox_login(self):
@@ -545,7 +562,7 @@ class Handler(BaseHTTPRequestHandler):
         if path=='/api/art/sources':return self.reply(artwork.sources())
         seg=path.split('/')
         if len(seg)==5 and seg[1]=='art' and seg[2] in artwork.CATEGORIES:
-            category=seg[2];ident=seg[3]
+            category=seg[2];ident=unquote(seg[3])
             # /art/{kind}/{id}/file; no arbitrary filesystem traversal.
             if seg[4]=='file' and re_id(ident):
                 p=artwork.cached(self.server.controller.store.root,category,ident)

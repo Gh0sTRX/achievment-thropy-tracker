@@ -8,8 +8,8 @@ function closeInline(){const el=document.querySelector('.inline-achievement');if
 function expandInline(id,anchor){
  const a=(DATA.library.achievements||[]).find(a=>a.id===id);if(!a)return;
  let trigger=anchor||document.activeElement;
- let host=trigger?.closest?.('.achievement-row,.suggest,.au-ach-row,.au-quest,.au-goal,.timeline li');
- if(!host){if(window.AtlasUltimate?.isOpen?.()){window.AtlasUltimate.showAchievement(id);return}navigate('achievements');$('achStatus').value='all';$('achGame').value=a.game_id;$('achSearch').value='';achPage=Math.floor(achForGame(a.game_id).findIndex(x=>x.id===id)/SIZE);renderAchievements();trigger=[...$('achievementList').querySelectorAll('[data-ach]')].find(b=>b.dataset.ach===id);host=trigger?.closest('.achievement-row')}
+ let host=trigger?.closest?.('.achievement-row,.suggest,.timeline li');
+ if(!host){navigate('achievements');$('achStatus').value='all';$('achGame').value=a.game_id;$('achSearch').value='';achPage=Math.floor(achForGame(a.game_id).findIndex(x=>x.id===id)/SIZE);renderAchievements();trigger=[...$('achievementList').querySelectorAll('[data-ach]')].find(b=>b.dataset.ach===id);host=trigger?.closest('.achievement-row')}
  if(!host)return;
  if(inlineSelection?.id===id&&document.querySelector('.inline-achievement')?.previousElementSibling===host){closeInline();return}
  closeInline();inlineSelection={id,trigger,revealed:false};
@@ -18,8 +18,10 @@ function expandInline(id,anchor){
 }
 jumpAch=id=>expandInline(id);
 document.addEventListener('click',e=>{if(e.target.closest('[data-inline-close]')){closeInline();return}if(e.target.closest('[data-inline-reveal]')&&inlineSelection){const a=(DATA.library.achievements||[]).find(a=>a.id===inlineSelection.id);inlineSelection.revealed=true;document.querySelector('.inline-achievement').innerHTML=detailMarkup(a,true)}});
-const renderBeforeInline=render;
-render=function(){const old=inlineSelection;inlineSelection=null;renderBeforeInline();if(old){const trigger=[...document.querySelectorAll('[data-ach]')].find(b=>b.dataset.ach===old.id&&b.getClientRects().length);if(trigger)expandInline(old.id,trigger)}};
+let inlineBeforeRender=null;
+window.addEventListener('atlas:before-render',()=>{inlineBeforeRender=inlineSelection;inlineSelection=null});
+window.addEventListener('atlas:render',()=>{const old=inlineBeforeRender;inlineBeforeRender=null;if(old){const trigger=[...document.querySelectorAll('.page:not(.hidden) [data-ach]')].find(b=>b.dataset.ach===old.id&&b.getClientRects().length);if(trigger)expandInline(old.id,trigger)}});
+
 
 function renderTransfers(){
  const jobs=DATA.status||{},active=[['public_job','Profil'],['media_job','Görseller'],['guide_job','Rehberler'],['job','Xbox'],['art_job','İkonlar']].filter(([key])=>jobs[key]?.running);
@@ -28,7 +30,7 @@ function renderTransfers(){
 }
 document.addEventListener('click',async e=>{const button=e.target.closest('[data-stop]');if(!button)return;button.disabled=true;try{const r=await api('/api/downloads/stop',{kind:button.dataset.stop});toast(r.message)}catch(e){toast(e.message,true)}finally{button.disabled=false}});
 
-window.addEventListener('atlas:ultimate-render',()=>{if(!inlineSelection)return;const id=inlineSelection.id;const button=[...document.querySelectorAll('#au-content [data-ach]')].find(b=>b.dataset.ach===id);if(button){document.querySelector('.inline-achievement')?.remove();expandInline(id,button)}});
+
 
 function liftFeedback(){for(const id of ['transferDock','notification']){const el=$(id);if(el)document.body.appendChild(el)}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',liftFeedback,{once:true});else liftFeedback();
