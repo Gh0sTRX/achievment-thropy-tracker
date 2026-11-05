@@ -37,7 +37,7 @@ on:
         required: false
         type: string
 concurrency:
-  group: atlas-${{ github.workflow }}-${{ github.ref }}-${{ inputs.promote_run_id != '' && 'promotion' || 'build' }}
+  group: atlas-${{ github.workflow }}-${{ github.ref }}-${{ inputs.promote_run_id != '' && 'promotion' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[publish-development]') && 'release' || 'build') }}
   # Superseded PR checks may stop; never interrupt an authorized push publication.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
@@ -46,6 +46,7 @@ jobs:
   build:
     if: github.event_name != 'workflow_dispatch' || inputs.promote_run_id == ''
     runs-on: windows-latest
+    timeout-minutes: 25
     timeout-minutes: 20
     permissions:
       contents: read
@@ -147,7 +148,7 @@ jobs:
           $setup = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
           $test = Start-Process powershell.exe -ArgumentList '-NoProfile','-NonInteractive','-MTA','-File','tests/test_windows_upgrade.ps1','-SetupPath',('"'+$setup.FullName+'"'),'-ReportPath','upgrade-test-report.json' -PassThru -NoNewWindow
           $null = $test.Handle
-          if (!$test.WaitForExit(360000)) { $test.Kill(); throw 'Native upgrade matrix timed out' }
+          if (!$test.WaitForExit(360000)) { & taskkill.exe /PID $test.Id /T /F | Out-Null; throw 'Native upgrade matrix timed out; test process tree terminated' }
           $test.WaitForExit()
           if ($test.ExitCode -ne 0) { throw 'Native upgrade matrix failed' }
       - name: Preserve upgrade diagnostics on failure
