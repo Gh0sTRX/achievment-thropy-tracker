@@ -37,6 +37,7 @@ class SteamTests(unittest.TestCase):
         with patch.object(steam,'request',side_effect=responses):old=public_profiles.fetch('pc',SID)
         with TemporaryDirectory() as root:
             store=Library(root);store.apply_public_profile(old)
+            store.library['games'].append({'id':'xbox:10','title_id':'10','platform':'xbox','name':'Same Name'})
             store.library['games'].append({'id':'gog:10','platform':'pc','provider':'gog','name':'Same Name'})
             def request(*args,**kwargs):
                 if args[1]=='GetOwnedGames':return {'response':{'game_count':2,'games':[{'appid':10,'name':'Same Name'},{'appid':20,'name':'No Trophies'}]}}
@@ -45,7 +46,8 @@ class SteamTests(unittest.TestCase):
                 return responses(*args,**kwargs)
             with patch.object(steam,'request',side_effect=request):new=public_profiles.fetch('pc',SID)
             store.apply_public_profile(new)
-            self.assertEqual({g['id'] for g in store.library['games']},{'steam:10','steam:20','gog:10'})
+            self.assertEqual({g['id'] for g in store.library['games']},{'steam:10','steam:20','gog:10','xbox:10'})
+            self.assertEqual(len(store.library['games']),4,'same numeric title ID must not duplicate another platform')
             self.assertTrue(store.library['achievements'][0]['unlocked'])
     def test_cancel_between_requests(self):
         stopped=False
