@@ -55,7 +55,10 @@ if ([Environment]::OSVersion.Platform -eq 'Win32NT') {
         if ($PSBoundParameters.ContainsKey('ItemType')) { Microsoft.PowerShell.Management\New-Item -Path (Map-TestRegistry $Path) -ItemType $ItemType -Force:$Force }
         else { Microsoft.PowerShell.Management\New-Item -Path (Map-TestRegistry $Path) -Force:$Force }
     }
-    function Get-Item { param($LiteralPath,[switch]$Force) Microsoft.PowerShell.Management\Get-Item -LiteralPath (Map-TestRegistry $LiteralPath) -Force:$Force }
+    function Get-Item { param($LiteralPath,$Path,[switch]$Force)
+        if ($PSBoundParameters.ContainsKey('LiteralPath')) { return Microsoft.PowerShell.Management\Get-Item -LiteralPath (Map-TestRegistry $LiteralPath) -Force:$Force }
+        Microsoft.PowerShell.Management\Get-Item -Path (Map-TestRegistry $Path) -Force:$Force
+    }
     function New-ItemProperty { param($Path,$Name,$Value,$PropertyType,[switch]$Force) Microsoft.PowerShell.Management\New-ItemProperty -Path (Map-TestRegistry $Path) -Name $Name -Value $Value -PropertyType $PropertyType -Force:$Force }
     function Get-ItemPropertyValue { param($Path,$Name) Microsoft.PowerShell.Management\Get-ItemPropertyValue -Path (Map-TestRegistry $Path) -Name $Name }
     function Remove-ItemProperty { param($Path,$Name,$ErrorAction) Microsoft.PowerShell.Management\Remove-ItemProperty -Path (Map-TestRegistry $Path) -Name $Name -ErrorAction $ErrorAction }
