@@ -3,6 +3,9 @@ from datetime import datetime, timezone
 import json
 import re
 import time
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
@@ -55,6 +58,7 @@ def request(interface,method,version='v1',**params):
 
 
 SCHEMA_TTL=6*60*60
+MAX_TITLE_WORKERS=3
 
 def clean_schema(schema):
     if not isinstance(schema,dict) or not isinstance(schema.get('gameName'),str) or not schema['gameName']:
@@ -96,6 +100,47 @@ def schema_for(appid,refresh=False):
     return schema
 
 
+
+def fetch_game(row,sid,known_games):
+    appid=str(row['appid'])
+    schema=schema_for(appid)
+    sync_control.check()
+    definitions=schema['availableGameStats']['achievements']
+    if not definitions and 'steam:'+appid in known_games:
+        raise SteamError('Steam boş şema döndürdü; önceki başarım listesi korunur.')
+    player={}
+    if definitions:
+        stats=request('ISteamUserStats','GetPlayerAchievements',steamid=sid,appid=appid,l='english').get('playerstats',{})
+        if stats.get('success') is not True or str(stats.get('steamID',''))!=sid:raise SteamError('Steam başarım görünürlüğü veya hesap kimliği doğrulanamadı.')
+        entries=stats.get('achievements',[])
+        if not isinstance(entries,list):raise SteamError('Steam kazanım listesi geçersiz.')
+        player={a.get('apiname'):a for a in entries}
+        if len(player)!=len(entries):raise SteamError('Tekrarlanan Steam başarım kimliği.')
+        if set(player)!={row['name'] for row in definitions}:
+            schema=schema_for(appid,refresh=True)
+            definitions=schema['availableGameStats']['achievements']
+            if set(player)!={row['name'] for row in definitions}:raise SteamError('Steam şeması ve kazanım listesi uyuşmuyor; önceki kayıt korundu.')
+    gid='steam:'+appid;name=str(row.get('name') or schema['gameName'])
+    g={'id':gid,'title_id':appid,'steam_appid':appid,'provider':'steam','platform':'pc','name':name,'platform_edition':'steam','devices':['pc'],'device_label':'PC · Steam','ownership':'unknown','art_candidates':[]}
+    # AppID comes from this account's official list, never a title match.
+    for kind,filename in (('cover','library_600x900.jpg'),('hero','library_hero.jpg'),('logo','logo.png'),('banner','header.jpg')):
+        url='https://cdn.akamai.steamstatic.com/steam/apps/'+appid+'/'+filename
+        g['art_candidates'].append({'kind':kind,'url':url,'provider':'Steam AppID','provider_id':appid})
+    current=[];keys=set()
+    for definition in definitions:
+        api=definition.get('name')
+        if not isinstance(api,str) or not api or api in keys or api not in player:raise SteamError('Steam başarım kimlikleri eksik veya tekrarlı.')
+        keys.add(api);entry=player[api]
+        if type(entry.get('achieved')) is not int or entry['achieved'] not in (0,1):raise SteamError('Steam kazanılma bilgisi eksik.')
+        unlocked=bool(entry['achieved']);stamp='';epoch=entry.get('unlocktime')
+        if unlocked and type(epoch) is int and epoch>0:
+            try:stamp=datetime.fromtimestamp(epoch,timezone.utc).isoformat()
+            except (OverflowError,OSError,ValueError):pass
+        icon=definition.get('icon' if unlocked else 'icongray','')
+        current.append({'id':gid+':'+api,'provider_id':api,'provider':'steam','game_id':gid,'title_id':appid,'game_name':name,'platform':'pc','devices':['pc'],'device_label':'PC · Steam','platform_edition':'steam','name':str(definition.get('displayName') or api),'description':str(definition.get('description') or ''),'is_secret':definition.get('hidden') in (1,True),'unlocked':unlocked,'unlock_time':stamp,'points':0,'trophy_type':'','dlc':'','icon_url':icon if artwork.safe_url(icon) else '', 'source':'steam_web_api'})
+    return g,current
+
+
 def fetch(username,progress=lambda *args:None):
     value=validate(username)
     if value.isdigit():sid=value
@@ -111,50 +156,51 @@ def fetch(username,progress=lambda *args:None):
     context=sync_control.context.get() or{}
     known_games={a.get('game_id') for a in (context.get('cache') or{}).get('achievements',[])}
     games=[];items=[];warnings=[];failed=[];seen=set()
-    for row in owned.get('games',[]):
-        sync_control.check();appid=str(row.get('appid',''))
-        if not appid.isdigit() or int(appid)<=0 or appid in seen:raise SteamError('Steam AppID listesi geçersiz.')
+    rows=owned.get('games',[])
+    for row in rows:
+        if not isinstance(row,dict):raise SteamError('Steam oyun listesi geçersiz.')
+        appid=str(row.get('appid',''))
+        if not appid.isdigit() or not 0<int(appid)<=4294967295 or appid in seen:raise SteamError('Steam AppID listesi geçersiz.')
         seen.add(appid)
+    halted=threading.Event()
+    parent_stop=context.get('stop',lambda:False)
+    def worker(row):
+        token=sync_control.context.set({**context,'stop':lambda:halted.is_set() or parent_stop()})
         try:
-            schema=schema_for(appid)
-            definitions=schema['availableGameStats']['achievements']
-            if not definitions and 'steam:'+appid in known_games:
-                raise SteamError('Steam boş şema döndürdü; önceki başarım listesi korunur.')
-            player={}
-            if definitions:
-                stats=request('ISteamUserStats','GetPlayerAchievements',steamid=sid,appid=appid,l='english').get('playerstats',{})
-                if stats.get('success') is not True or str(stats.get('steamID',''))!=sid:raise SteamError('Steam başarım görünürlüğü veya hesap kimliği doğrulanamadı.')
-                entries=stats.get('achievements',[])
-                if not isinstance(entries,list):raise SteamError('Steam kazanım listesi geçersiz.')
-                player={a.get('apiname'):a for a in entries}
-                if len(player)!=len(entries):raise SteamError('Tekrarlanan Steam başarım kimliği.')
-                if set(player)!={row['name'] for row in definitions}:
-                    schema=schema_for(appid,refresh=True)
-                    definitions=schema['availableGameStats']['achievements']
-                    if set(player)!={row['name'] for row in definitions}:raise SteamError('Steam şeması ve kazanım listesi uyuşmuyor; önceki kayıt korundu.')
-            gid='steam:'+appid;name=str(row.get('name') or schema['gameName'])
-            g={'id':gid,'title_id':appid,'steam_appid':appid,'provider':'steam','platform':'pc','name':name,'platform_edition':'steam','devices':['pc'],'device_label':'PC · Steam','ownership':'unknown','art_candidates':[]}
-            # AppID comes from this account's official list, never a title match.
-            for kind,filename in (('cover','library_600x900.jpg'),('hero','library_hero.jpg'),('logo','logo.png'),('banner','header.jpg')):
-                url='https://cdn.akamai.steamstatic.com/steam/apps/'+appid+'/'+filename
-                g['art_candidates'].append({'kind':kind,'url':url,'provider':'Steam AppID','provider_id':appid})
-            current=[];keys=set()
-            for definition in definitions:
-                api=definition.get('name')
-                if not isinstance(api,str) or not api or api in keys or api not in player:raise SteamError('Steam başarım kimlikleri eksik veya tekrarlı.')
-                keys.add(api);entry=player[api]
-                if type(entry.get('achieved')) is not int or entry['achieved'] not in (0,1):raise SteamError('Steam kazanılma bilgisi eksik.')
-                unlocked=bool(entry['achieved']);stamp='';epoch=entry.get('unlocktime')
-                if unlocked and type(epoch) is int and epoch>0:
-                    try:stamp=datetime.fromtimestamp(epoch,timezone.utc).isoformat()
-                    except (OverflowError,OSError,ValueError):pass
-                icon=definition.get('icon' if unlocked else 'icongray','')
-                current.append({'id':gid+':'+api,'provider_id':api,'provider':'steam','game_id':gid,'title_id':appid,'game_name':name,'platform':'pc','devices':['pc'],'device_label':'PC · Steam','platform_edition':'steam','name':str(definition.get('displayName') or api),'description':str(definition.get('description') or ''),'is_secret':definition.get('hidden') in (1,True),'unlocked':unlocked,'unlock_time':stamp,'points':0,'trophy_type':'','dlc':'','icon_url':icon if artwork.safe_url(icon) else '', 'source':'steam_web_api'})
-            games.append(g);items.extend(current)
-        except sync_control.Cancelled:raise
+            sync_control.check()
+            result=fetch_game(row,sid,known_games)
+            sync_control.check()
+            return result
         except SteamError as exc:
-            if exc.code in (401,403,429):raise
-            failed.append(appid);warnings.append({'game':str(row.get('name') or appid),'reason':str(exc)})
-        progress(len(games)+len(failed),len(owned.get('games',[])),str(row.get('name') or appid))
+            if exc.code in (401,403,429):halted.set()
+            raise
+        except BaseException:
+            halted.set()
+            raise
+        finally:sync_control.context.reset(token)
+    # A batch holds at most three titles. No full-library task queue survives stop/429.
+    with ThreadPoolExecutor(max_workers=MAX_TITLE_WORKERS,thread_name_prefix='atlas-steam') as pool:
+        for offset in range(0,len(rows),MAX_TITLE_WORKERS):
+            sync_control.check()
+            batch=rows[offset:offset+MAX_TITLE_WORKERS]
+            futures=[pool.submit(copy_context().run,worker,row) for row in batch]
+            outcomes=[];fatal=[]
+            for row,future in zip(batch,futures):
+                try:outcomes.append((row,future.result(),None))
+                except SteamError as exc:
+                    if exc.code in (401,403,429):fatal.append(exc)
+                    else:outcomes.append((row,None,exc))
+                except BaseException as exc:fatal.append(exc)
+            if parent_stop():raise sync_control.Cancelled()
+            if fatal:
+                # The originating auth/rate/transport bug wins over peer cancellation.
+                error=next((e for e in fatal if not isinstance(e,sync_control.Cancelled)),fatal[0])
+                raise error
+            for row,result,error in outcomes:
+                if error:
+                    failed.append(str(row['appid']));warnings.append({'game':str(row.get('name') or row['appid']),'reason':str(error)})
+                else:
+                    g,current=result;games.append(g);items.extend(current)
+                progress(len(games)+len(failed),len(rows),str(row.get('name') or row['appid']))
     if not games and owned['game_count']:raise SteamError('Steam oyunları alınamadı; önceki arşiv korundu.')
     return {'id':sid,'username':value,'provider':'steam','warnings':warnings,'failed_title_ids':failed},games,items

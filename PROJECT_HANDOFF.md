@@ -2,6 +2,10 @@
 
 **Güncellendi:** 5 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
 
+## Son devam — Steam sınırlı paralellik (yayımlanmamış)
+
+Yeni dal `feature/steam-bounded-sync`, PR #16 üzerine. En fazla üç oyunluk bounded batch, kopyalanan cache/force/stop bağlamı, auth/429 sonrasında yeni grupları engelleme ve kararlı sonuç sırası eklendi. 175 test yerelde geçti; sentetik 30 oyun benchmark medyanı 312,44→106,44 ms. Gerçek Steam hesabı test edilmedi. docs/STEAM_BOUNDED_SYNC_TR.md ayrıntıları içerir. PR/CI sonuçlarını GitHub'dan yeniden sorgula; main merge/yeni release yok.
+
 ## Devam görevi — Steam metadata cache (yayımlanmamış)
 
 Kullanıcı “devam et” dedi. PR #15'in son a7065a4 kaynağı Unit/Windows 42072993663/42072993224 başarılıydı. Yeni dal `feature/steam-schema-cache`, #15 üzerine; yeni release/main merge yok. Steam public schema metadata'sı 6 saat yerel ayrı dosyada; earned/oyuncu listesi her seferinde canlı sorgu sınırından geçer. Force/TTL/bozuk dosya/yeni kimlik invalidation testleri eklendi. 100 oyunlu mock bütçe 201→101 çağrı; canlı hesap hızı ölçülmedi. Ayrıntı docs/STEAM_SCHEMA_CACHE_TR.md. Yeni PR/CI sonuçlarını GitHub'dan yeniden kontrol et.
