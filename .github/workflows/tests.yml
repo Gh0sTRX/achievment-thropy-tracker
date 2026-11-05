@@ -54,9 +54,11 @@ jobs:
         run: |
           ./tests/test_update_snapshot.ps1
           ./tests/test_update_crash_recovery.ps1
+          ./tests/test_windows_download.ps1
       - name: Verify Windows PowerShell compatibility
         if: runner.os == 'Windows'
         shell: powershell
         run: |
           ./tests/test_update_snapshot.ps1
           ./tests/test_update_crash_recovery.ps1
+          ./tests/test_windows_download.ps1

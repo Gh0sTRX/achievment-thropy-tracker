@@ -4,7 +4,9 @@ $root=Join-Path ([IO.Path]::GetTempPath()) ('atlas-crash-'+[Guid]::NewGuid())
 New-Item -ItemType Directory -Path $root | Out-Null
 $windows=[Environment]::OSVersion.Platform -eq 'Win32NT'
 $shell=(Get-Process -Id $PID).Path
-$registry='HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
+# Use the real registry provider in an isolated key: Windows consumes real RunOnce values at sign-in.
+$registryRoot='HKCU:\Software\AchievementAtlas\Tests\Recovery-'+[Guid]::NewGuid()
+$registry=$registryRoot+'\RunOnce'
 $sentinel='AtlasRecoveryTest-'+[Guid]::NewGuid()
 $child=$null;$hookNames=@();$passed=0
 function Assert($Condition,[string]$Message) { if (!$Condition) { throw $Message } }
@@ -14,7 +16,7 @@ function Wait-Exit($Process) {
 }
 try {
     if ($windows) {
-        if (!(Test-Path -LiteralPath $registry)) { New-Item -Path $registry | Out-Null }
+        if (!(Test-Path -LiteralPath $registry)) { New-Item -Path $registry -Force | Out-Null }
         New-ItemProperty -Path $registry -Name $sentinel -Value 'preserve unrelated value' -PropertyType String | Out-Null
     }
     foreach ($scenario in @('pending','missing-install','damaged-backup','running-app','corrupt-state','path-mismatch','missing-backup','completed')) {
@@ -29,10 +31,14 @@ try {
         $sha=[Security.Cryptography.SHA256]::Create()
         $hook='!AchievementAtlasRecovery-'+([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes([IO.Path]::GetFullPath($planPath))))).Replace('-','').Substring(0,16);$sha.Dispose()
         $hookNames+=$hook
-        $copied=Join-Path $case 'apply-update.ps1';Copy-Item -LiteralPath $helper -Destination $copied
+        $copied=Join-Path $case 'apply-update.ps1'
+        # Test-only diagnostic context; production helper and failure semantics are unchanged.
+        $diagnosticHelper=(Get-Content -LiteralPath $helper -Raw).Replace('$updateFailure=$_.Exception.Message','$updateFailure=$_.Exception.Message+"; trace: "+$_.ScriptStackTrace')
+        if ($windows) { $diagnosticHelper=$diagnosticHelper.Replace('HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce',$registry) }
+        Set-Content -LiteralPath $copied -Value $diagnosticHelper -Encoding UTF8
         $wrapper=Join-Path $case 'driver.ps1'
         @'
-param([string]$Helper,[string]$Plan,[switch]$Recover)
+param([string]$Helper,[string]$Plan,[string]$RegistryPath,[switch]$Recover)
 $ErrorActionPreference='Stop'
 $global:testPlan=Get-Content -LiteralPath $Plan -Raw -Encoding UTF8 | ConvertFrom-Json
 $global:testRoot=Split-Path -Parent $Plan
@@ -70,7 +76,7 @@ function Start-Process {
 }
 & $Helper -PlanPath $Plan -Recover:$Recover
 '@ | Set-Content -LiteralPath $wrapper -Encoding UTF8
-        $args=@('-NoProfile','-NonInteractive','-File',('"'+$wrapper+'"'),'-Helper',('"'+$copied+'"'),'-Plan',('"'+$planPath+'"'))
+        $args=@('-NoProfile','-NonInteractive','-File',('"'+$wrapper+'"'),'-Helper',('"'+$copied+'"'),'-Plan',('"'+$planPath+'"'),'-RegistryPath',('"'+$registry+'"'))
         if ($scenario -eq 'completed') { Set-Content -LiteralPath (Join-Path $case 'complete') -Value 'complete' }
         $child=Start-Process -FilePath $shell -ArgumentList $args -PassThru -RedirectStandardOutput (Join-Path $case 'normal.out') -RedirectStandardError (Join-Path $case 'normal.err')
         # Cache the native handle before exit; Windows PowerShell 5.1 otherwise loses ExitCode.
@@ -81,7 +87,7 @@ function Start-Process {
         } else {
             $deadline=[DateTime]::UtcNow.AddSeconds(30)
             while (!(Test-Path -LiteralPath (Join-Path $case 'crash-barrier'))) {
-                if ($child.HasExited) { throw ('Helper exited before crash barrier: '+(Get-Content (Join-Path $case 'normal.err') -Raw)) }
+                if ($child.HasExited) { throw ('Helper exited before crash barrier: '+(Get-Content (Join-Path $case 'normal.err') -Raw)+'; helper log: '+$(if(Test-Path -LiteralPath $plan.log){Get-Content -LiteralPath $plan.log -Raw}else{'not written'})) }
                 if ([DateTime]::UtcNow -gt $deadline) { throw 'Crash barrier timed out' }
                 Start-Sleep -Milliseconds 100
             }
@@ -133,7 +139,7 @@ function Start-Process {
         }
         # A second independent process must treat the terminal state as a no-op.
         Remove-Item -LiteralPath (Join-Path $case 'restarted') -ErrorAction SilentlyContinue
-        $repeat=@('-NoProfile','-NonInteractive','-File',('"'+$copied+'"'),'-Recover')
+        $repeat=$args+@('-Recover')
         $child=Start-Process -FilePath $shell -ArgumentList $repeat -PassThru -RedirectStandardOutput (Join-Path $case 'again.out') -RedirectStandardError (Join-Path $case 'again.err')
         # Cache the native handle before exit; Windows PowerShell 5.1 otherwise loses ExitCode.
         $null=$child.Handle
@@ -146,7 +152,7 @@ function Start-Process {
 } finally {
     if ($child -and !$child.HasExited) { $child.Kill();$child.WaitForExit(10000) | Out-Null }
     if ($windows) {
-        foreach ($name in @($hookNames)+@($sentinel)) { Remove-ItemProperty -Path $registry -Name $name -ErrorAction SilentlyContinue }
+        Remove-Item -LiteralPath $registryRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
     Remove-Item -LiteralPath $root -Recurse -Force
 }

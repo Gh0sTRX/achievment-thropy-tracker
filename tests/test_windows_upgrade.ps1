@@ -1,6 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$SetupPath,[string]$ReportPath='upgrade-test-report.json')
 $ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'
+. "$PSScriptRoot/windows_download.ps1"
 if ([Environment]::OSVersion.Platform -ne 'Win32NT') { throw 'Real installer upgrade tests require Windows' }
 $SetupPath=(Resolve-Path -LiteralPath $SetupPath).Path
 $candidateManifest=Get-Content -LiteralPath (Join-Path (Split-Path -Parent $SetupPath) 'update-manifest.json') -Raw | ConvertFrom-Json
@@ -82,8 +83,7 @@ try {
         New-Item -ItemType Directory -Path $case | Out-Null
         $old=Join-Path $case 'baseline-setup.exe'
         $url='https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/download/development/AchievementAtlas-'+$baseline.version+'-Windows-x64-Setup.exe'
-        Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $old
-        if ((Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash.ToLower() -ne $baseline.sha) { throw 'Published baseline installer checksum mismatch' }
+        Get-VerifiedTestInstaller $url $old $baseline.sha
         $install=Join-Path $case 'installed application';$data=Join-Path $case 'separate user data'
         Install-Package $old $install
         $session=Start-Atlas $install $data

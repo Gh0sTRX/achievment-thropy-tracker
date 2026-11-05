@@ -1,6 +1,7 @@
 ﻿param([string]$ReportPath='self-update-test-report.json')
 $ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'
+. "$PSScriptRoot/windows_download.ps1"
 $root=Join-Path $env:RUNNER_TEMP ('Atlas native self update '+[Guid]::NewGuid())
 New-Item -ItemType Directory -Path $root | Out-Null
 $ownsData=$false;$active=$null;$install=Join-Path $root 'installed application'
@@ -38,8 +39,7 @@ try {
         $baselineVersion='0.14.1';$baselineHash='c0169c3f10bcf2b1dd2303f8f03aa081d3d04b3456d395a3e453b13ae727be7d'
     }
     $old=Join-Path $root 'published-baseline-setup.exe'
-    Invoke-WebRequest -UseBasicParsing -Uri ('https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/download/development/AchievementAtlas-'+$baselineVersion+'-Windows-x64-Setup.exe') -OutFile $old
-    if ((Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash.ToLower() -ne $baselineHash) { throw 'Old installer checksum mismatch' }
+    Get-VerifiedTestInstaller ('https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/download/development/AchievementAtlas-'+$baselineVersion+'-Windows-x64-Setup.exe') $old $baselineHash
     Install-Package $old $install
     $session=Start-Atlas $install $data
     $earned="GameName,AchievementName,AchievementPageURL,Gamerscore,TAScore,TARatio,DLCName,UnlockDate`nSelf Update Fixture,First,https://www.trueachievements.com/a456/first-achievement,20,25,1.25,,2026-01-01`n"
