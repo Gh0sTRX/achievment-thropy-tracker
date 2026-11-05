@@ -12,16 +12,16 @@ const nav = html.match(/<nav class="nav" aria-label="Ana gezinme">([\s\S]*?)<\/n
 assert.ok(nav, 'native primary navigation');
 const primary = nav[1].split('<details')[0];
 assert.deepEqual([...primary.matchAll(/data-page="([^"]+)"/g)].map(m => m[1]), [
-  'home','games','quests','hall','profile'
+  'home','games','achievements','quests','profile'
 ], 'five primary screens');
 const secondary = nav[1].split('<details')[1];
-for (const name of ['achievements','timeline','artwork','account','updates']) {
+for (const name of ['hall','timeline','artwork','account','updates']) {
   assert.match(secondary, new RegExp('data-page="'+name+'"'), 'secondary route: '+name);
   assert.match(html, new RegExp('id="'+name+'"'), 'page remains reachable: '+name);
 }
 assert.match(html, /id="atlasMoreNav"/);
 assert.equal((html.match(/id="atlasWelcome"/g) || []).length, 1);
-for (const kind of ['xbox','psn','csv']) {
+for (const kind of ['xbox','psn','pc','csv']) {
   assert.match(html, new RegExp('data-atlas-onboard="'+kind+'"'));
 }
 assert.match(html, /id="atlasCsvImport"/);

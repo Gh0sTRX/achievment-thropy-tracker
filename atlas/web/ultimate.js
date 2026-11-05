@@ -108,7 +108,7 @@ init=function(){baseInit();
  const menuViewport=matchMedia('(max-width:768px)');menuViewport.addEventListener('change',()=>setMenu(false));setMenu(false);
  document.querySelectorAll('.nav-link').forEach(b=>b.title=b.textContent.trim());
  document.querySelector('.profile-chip').tabIndex=0;document.querySelector('.profile-chip').setAttribute('role','button');document.querySelector('.profile-chip').onclick=()=>navigate('profile');document.querySelector('.profile-chip').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();navigate('profile')}};
- $('globalSearchForm').onsubmit=e=>{e.preventDefault();const q=$('globalSearch').value;if(!q.trim())return;const matched=games().some(g=>norm(g.name).includes(norm(q)));navigate(matched?'games':'achievements');if(matched){$('gameSearch').value=q;libraryPage=0;renderGames()}else{$('achSearch').value=q;$('achStatus').value='all';$('achGame').value='all';achPage=0;renderAchievements()}};
+ $('globalSearchForm').onsubmit=e=>{e.preventDefault();const q=$('globalSearch').value;if(window.AtlasSearch){window.AtlasSearch.open(q);return}if(!q.trim())return;const matched=games().some(g=>norm(g.name).includes(norm(q)));navigate(matched?'games':'achievements');if(matched){$('gameSearch').value=q;libraryPage=0;renderGames()}else{$('achSearch').value=q;$('achStatus').value='all';$('achGame').value='all';achPage=0;renderAchievements()}};
  for(const [id,key] of [['themeMode','theme_mode'],['fontScale','font_scale'],['reducedMotion','reduced_motion'],['denseMode','dense_mode'],['highContrast','high_contrast']])$(id).onchange=async()=>{await savePreferences({[key]:$(id).type==='checkbox'?$(id).checked:id==='fontScale'?Number($(id).value):$(id).value});render()};
  document.querySelectorAll('[data-layout]').forEach(b=>b.onclick=async()=>{await savePreferences({library_layout:b.dataset.layout});renderGames()});
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{universeTab=b.dataset.tab;renderUniverse()});
@@ -127,6 +127,11 @@ init=function(){baseInit();
  document.addEventListener('keydown',e=>{if(e.key==='Escape'){setMenu(false);if(!$('achievementDrawer').open&&selectedGame&&page==='universe')$('detailClose').click()}if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!$('achievementDrawer').open){e.preventDefault();$('globalSearch').focus()}});
  window.addEventListener('popstate',e=>restoreGameRoute(location.hash,e.state));
 };
+window.AtlasGameRoute={open:gid=>openGame(gid),back:leaveUniverse,showAchievement(id){
+ const a=DATA.library.achievements.find(x=>x.id===id);if(!a||!openGame(a.game_id))return;
+ universeTab='achievements';universeStatus='all';const rows=achForGame(a.game_id);universeOffset=Math.floor(rows.findIndex(x=>x.id===id)/48)*48;renderUniverse();
+ const trigger=[...$('universeContent').querySelectorAll('[data-ach]')].find(n=>n.dataset.ach===id);trigger?.focus();jumpAch(id);
+}};
 const initialRoute=location.hash.slice(1);
 function bootAtlas(){start().then(()=>{const target=initialRoute;if(target&&target!=='home')restoreGameRoute('#'+target,history.state)})}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootAtlas,{once:true});else bootAtlas();
