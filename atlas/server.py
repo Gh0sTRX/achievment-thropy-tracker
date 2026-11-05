@@ -525,7 +525,7 @@ class Controller:
         records=asyncio.run(xbox.title_achievements(game['title_id'],game.get('platform_edition') or 'auto'))
         pairs=enrichment.proposals(game,items,records);token=secrets.token_hex(16)
         self.enrichment_batches={token:{'game':game,'pairs':pairs,'library_token':library_token}}
-        return {'token':token,'game':game['name'],'platform':game['platform'],'edition':game.get('platform_edition'),'pairs':[{'local_id':p['local_id'],'name':p['remote']['name'],'provider_id':str(p['remote']['id'])} for p in pairs]}
+        return {'token':token,'game':game['name'],'platform':game['platform'],'edition':game.get('platform_edition'),'title_id':game['title_id'],'pairs':[{'local_id':p['local_id'],'name':p['remote']['name'],'provider_id':str(p['remote']['id'])} for p in pairs]}
 
     def confirm_enrichment(self,data):
         from . import enrichment
