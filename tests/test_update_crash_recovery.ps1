@@ -4,7 +4,9 @@ $root=Join-Path ([IO.Path]::GetTempPath()) ('atlas-crash-'+[Guid]::NewGuid())
 New-Item -ItemType Directory -Path $root | Out-Null
 $windows=[Environment]::OSVersion.Platform -eq 'Win32NT'
 $shell=(Get-Process -Id $PID).Path
-$registry='HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
+# Use the real registry provider in an isolated key: Windows consumes real RunOnce values at sign-in.
+$registryRoot='HKCU:\Software\AchievementAtlas\Tests\Recovery-'+[Guid]::NewGuid()
+$registry=$registryRoot+'\RunOnce'
 $sentinel='AtlasRecoveryTest-'+[Guid]::NewGuid()
 $child=$null;$hookNames=@();$passed=0
 function Assert($Condition,[string]$Message) { if (!$Condition) { throw $Message } }
@@ -14,7 +16,7 @@ function Wait-Exit($Process) {
 }
 try {
     if ($windows) {
-        if (!(Test-Path -LiteralPath $registry)) { New-Item -Path $registry | Out-Null }
+        if (!(Test-Path -LiteralPath $registry)) { New-Item -Path $registry -Force | Out-Null }
         New-ItemProperty -Path $registry -Name $sentinel -Value 'preserve unrelated value' -PropertyType String | Out-Null
     }
     foreach ($scenario in @('pending','missing-install','damaged-backup','running-app','corrupt-state','path-mismatch','missing-backup','completed')) {
@@ -32,11 +34,29 @@ try {
         $copied=Join-Path $case 'apply-update.ps1';Copy-Item -LiteralPath $helper -Destination $copied
         $wrapper=Join-Path $case 'driver.ps1'
         @'
-param([string]$Helper,[string]$Plan,[switch]$Recover)
+param([string]$Helper,[string]$Plan,[string]$RegistryPath,[switch]$Recover)
 $ErrorActionPreference='Stop'
 $global:testPlan=Get-Content -LiteralPath $Plan -Raw -Encoding UTF8 | ConvertFrom-Json
 $global:testRoot=Split-Path -Parent $Plan
-if ([Environment]::OSVersion.Platform -ne 'Win32NT') {
+if ([Environment]::OSVersion.Platform -eq 'Win32NT') {
+    $global:testRegistry=$RegistryPath
+    function Map-TestRegistry($Path) {
+        if ($Path -eq 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce') { return $global:testRegistry }
+        return $Path
+    }
+    function Test-Path { param($LiteralPath,$Path)
+        if ($PSBoundParameters.ContainsKey('LiteralPath')) { return Microsoft.PowerShell.Management\Test-Path -LiteralPath (Map-TestRegistry $LiteralPath) }
+        Microsoft.PowerShell.Management\Test-Path -Path (Map-TestRegistry $Path)
+    }
+    function New-Item { param($Path,$ItemType,[switch]$Force)
+        if ($PSBoundParameters.ContainsKey('ItemType')) { Microsoft.PowerShell.Management\New-Item -Path (Map-TestRegistry $Path) -ItemType $ItemType -Force:$Force }
+        else { Microsoft.PowerShell.Management\New-Item -Path (Map-TestRegistry $Path) -Force:$Force }
+    }
+    function Get-Item { param($LiteralPath,[switch]$Force) Microsoft.PowerShell.Management\Get-Item -LiteralPath (Map-TestRegistry $LiteralPath) -Force:$Force }
+    function New-ItemProperty { param($Path,$Name,$Value,$PropertyType,[switch]$Force) Microsoft.PowerShell.Management\New-ItemProperty -Path (Map-TestRegistry $Path) -Name $Name -Value $Value -PropertyType $PropertyType -Force:$Force }
+    function Get-ItemPropertyValue { param($Path,$Name) Microsoft.PowerShell.Management\Get-ItemPropertyValue -Path (Map-TestRegistry $Path) -Name $Name }
+    function Remove-ItemProperty { param($Path,$Name,$ErrorAction) Microsoft.PowerShell.Management\Remove-ItemProperty -Path (Map-TestRegistry $Path) -Name $Name -ErrorAction $ErrorAction }
+} else {
     $global:testHooks=@{}
     function New-Item { param($Path,$ItemType,[switch]$Force) if ($Path -like 'HKCU:*') { return };Microsoft.PowerShell.Management\New-Item @PSBoundParameters }
     function Get-Item { param($LiteralPath,[switch]$Force)
@@ -70,7 +90,7 @@ function Start-Process {
 }
 & $Helper -PlanPath $Plan -Recover:$Recover
 '@ | Set-Content -LiteralPath $wrapper -Encoding UTF8
-        $args=@('-NoProfile','-NonInteractive','-File',('"'+$wrapper+'"'),'-Helper',('"'+$copied+'"'),'-Plan',('"'+$planPath+'"'))
+        $args=@('-NoProfile','-NonInteractive','-File',('"'+$wrapper+'"'),'-Helper',('"'+$copied+'"'),'-Plan',('"'+$planPath+'"'),'-RegistryPath',('"'+$registry+'"'))
         if ($scenario -eq 'completed') { Set-Content -LiteralPath (Join-Path $case 'complete') -Value 'complete' }
         $child=Start-Process -FilePath $shell -ArgumentList $args -PassThru -RedirectStandardOutput (Join-Path $case 'normal.out') -RedirectStandardError (Join-Path $case 'normal.err')
         # Cache the native handle before exit; Windows PowerShell 5.1 otherwise loses ExitCode.
@@ -133,7 +153,7 @@ function Start-Process {
         }
         # A second independent process must treat the terminal state as a no-op.
         Remove-Item -LiteralPath (Join-Path $case 'restarted') -ErrorAction SilentlyContinue
-        $repeat=@('-NoProfile','-NonInteractive','-File',('"'+$copied+'"'),'-Recover')
+        $repeat=$args+@('-Recover')
         $child=Start-Process -FilePath $shell -ArgumentList $repeat -PassThru -RedirectStandardOutput (Join-Path $case 'again.out') -RedirectStandardError (Join-Path $case 'again.err')
         # Cache the native handle before exit; Windows PowerShell 5.1 otherwise loses ExitCode.
         $null=$child.Handle
@@ -146,7 +166,7 @@ function Start-Process {
 } finally {
     if ($child -and !$child.HasExited) { $child.Kill();$child.WaitForExit(10000) | Out-Null }
     if ($windows) {
-        foreach ($name in @($hookNames)+@($sentinel)) { Remove-ItemProperty -Path $registry -Name $name -ErrorAction SilentlyContinue }
+        Remove-Item -LiteralPath $registryRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
     Remove-Item -LiteralPath $root -Recurse -Force
 }
