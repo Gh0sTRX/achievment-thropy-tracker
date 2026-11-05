@@ -2,6 +2,8 @@ param([Parameter(Mandatory=$true)][string]$SetupPath,[string]$ReportPath='upgrad
 $ErrorActionPreference='Stop'
 if ([Environment]::OSVersion.Platform -ne 'Win32NT') { throw 'Real installer upgrade tests require Windows' }
 $SetupPath=(Resolve-Path -LiteralPath $SetupPath).Path
+$candidateManifest=Get-Content -LiteralPath (Join-Path (Split-Path -Parent $SetupPath) 'update-manifest.json') -Raw | ConvertFrom-Json
+$expectedVersion=$candidateManifest.version
 $reportFull=[IO.Path]::GetFullPath($ReportPath)
 $root=Join-Path $env:RUNNER_TEMP ('Atlas upgrade matrix '+[Guid]::NewGuid())
 New-Item -ItemType Directory -Path $root | Out-Null
@@ -71,7 +73,8 @@ function Assert-Records($Payload,[string]$GameId) {
 try {
     foreach ($baseline in @(
         @{version='0.13.0';sha='6e459970d45f04334f5d65300a8ce98261736d712e8996e01108b2dfef85e5d2'},
-        @{version='0.14.1';sha='c0169c3f10bcf2b1dd2303f8f03aa081d3d04b3456d395a3e453b13ae727be7d'}
+        @{version='0.14.1';sha='c0169c3f10bcf2b1dd2303f8f03aa081d3d04b3456d395a3e453b13ae727be7d'},
+        @{version='0.15.0';sha='e016ac7532a77c690a1a6a5e0f4afb0cc24a4c0b4064a54ccf4a31a0205ced09'}
     )) {
         Write-Output ('Upgrade matrix baseline '+$baseline.version)
         $case=Join-Path $root $baseline.version
@@ -112,7 +115,7 @@ try {
         Install-Package $SetupPath $install
         $newReport=Join-Path $case 'upgraded-self-test.json'
         $p=Start-Process -FilePath (Join-Path $install 'AchievementAtlas.exe') -ArgumentList '--self-test','--report',"`"$newReport`"" -Wait -PassThru
-        if ($p.ExitCode -ne 0 -or (Get-Content -LiteralPath $newReport -Raw | ConvertFrom-Json).version -ne '0.15.0') { throw 'Upgraded executable self-test/version failed' }
+        if ($p.ExitCode -ne 0 -or (Get-Content -LiteralPath $newReport -Raw | ConvertFrom-Json).version -ne $expectedVersion) { throw 'Upgraded executable self-test/version failed' }
         $session=Start-Atlas $install $data
         Assert-Records (Get-Records $session) $gid
         # A real write through the new installed application followed by a restart.

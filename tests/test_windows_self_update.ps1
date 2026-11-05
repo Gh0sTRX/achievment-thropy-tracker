@@ -18,10 +18,17 @@ try {
     if (Test-Path -LiteralPath $data) { throw 'Default data directory already exists; refusing to use or delete it' }
     New-Item -ItemType Directory -Path $data | Out-Null
     $ownsData=$true
-    $old=Join-Path $root 'published-0.14.1-setup.exe'
-    Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/download/development/AchievementAtlas-0.14.1-Windows-x64-Setup.exe' -OutFile $old
-    if ((Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash.ToLower() -ne 'c0169c3f10bcf2b1dd2303f8f03aa081d3d04b3456d395a3e453b13ae727be7d') { throw 'Old installer checksum mismatch' }
     $manifest=Invoke-RestMethod 'https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/download/development/development-manifest.json'
+    # Before 0.15.1 promotion test the shipped 0.14.1 -> 0.15.0 chain;
+    # after promotion the same job verifies real 0.15.0 -> 0.15.1 delivery.
+    if ([Version]$manifest.version -gt [Version]'0.15.0') {
+        $baselineVersion='0.15.0';$baselineHash='e016ac7532a77c690a1a6a5e0f4afb0cc24a4c0b4064a54ccf4a31a0205ced09'
+    } else {
+        $baselineVersion='0.14.1';$baselineHash='c0169c3f10bcf2b1dd2303f8f03aa081d3d04b3456d395a3e453b13ae727be7d'
+    }
+    $old=Join-Path $root 'published-baseline-setup.exe'
+    Invoke-WebRequest -UseBasicParsing -Uri ('https://github.com/Gh0sTRX/achievment-thropy-tracker/releases/download/development/AchievementAtlas-'+$baselineVersion+'-Windows-x64-Setup.exe') -OutFile $old
+    if ((Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash.ToLower() -ne $baselineHash) { throw 'Old installer checksum mismatch' }
     Install-Package $old $install
     $session=Start-Atlas $install $data
     $earned="GameName,AchievementName,AchievementPageURL,Gamerscore,TAScore,TARatio,DLCName,UnlockDate`nSelf Update Fixture,First,https://www.trueachievements.com/a456/first-achievement,20,25,1.25,,2026-01-01`n"
@@ -131,8 +138,8 @@ try {
     if (!$log.Contains('Update installed: '+$manifest.version)) { throw 'Helper did not report successful installation' }
     $proof=Get-Content -LiteralPath $plan.verify_report -Raw | ConvertFrom-Json
     if (!$proof.verified -or $proof.sha256 -ne $manifest.sha256) { throw 'Published installer provenance did not verify' }
-    @{ok=$true;from='0.14.1';to=$manifest.version;run_id=$manifest.run_id;sha256=$proof.sha256;scope='Unmodified shipped updater; real native UI Automation buttons, GitHub metadata/download/proof, helper, installer and native restart; isolated default data directory';buttons=(Get-Content -LiteralPath (Join-Path $root 'buttons.json') -Raw | ConvertFrom-Json);records_preserved=$true} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $reportFull -Encoding UTF8
-    Write-Output ('Native self-update passed: 0.14.1 -> '+$manifest.version)
+    @{ok=$true;from=$baselineVersion;to=$manifest.version;run_id=$manifest.run_id;sha256=$proof.sha256;scope='Unmodified shipped updater; real native UI Automation buttons, GitHub metadata/download/proof, helper, installer and native restart; isolated default data directory';buttons=(Get-Content -LiteralPath (Join-Path $root 'buttons.json') -Raw | ConvertFrom-Json);records_preserved=$true} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $reportFull -Encoding UTF8
+    Write-Output ('Native self-update passed: '+$baselineVersion+' -> '+$manifest.version)
 } catch {
     if ($active) { $active.Refresh();Write-Output ('Native window at failure: '+$active.MainWindowTitle) }
     @{ok=$false;error=$_.Exception.Message} | ConvertTo-Json | Set-Content -LiteralPath $reportFull -Encoding UTF8
