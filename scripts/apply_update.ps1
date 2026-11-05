@@ -73,6 +73,8 @@ function Write-RecoveryState($State) {
         try { $stream.Write($bytes,0,$bytes.Length);$stream.Flush($true) } finally { $stream.Dispose() }
         if ([IO.File]::Exists($script:journalPath)) { [IO.File]::Replace($temporary,$script:journalPath,$previous) }
         else { [IO.File]::Move($temporary,$script:journalPath) }
+        $committed=[IO.File]::Open($script:journalPath,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read)
+        try { $committed.Flush($true) } finally { $committed.Dispose() }
     } finally {
         if ([IO.File]::Exists($temporary)) { [IO.File]::Delete($temporary) }
         if ([IO.File]::Exists($previous)) { [IO.File]::Delete($previous) }
