@@ -573,7 +573,7 @@ class Handler(BaseHTTPRequestHandler):
         if path in ('/','/index.html'):
             body=(BASE/'web'/'index.html').read_text(encoding='utf-8').replace('__TOKEN__',self.server.token).encode('utf-8')
             return self.blob(body,'text/html; charset=utf-8')
-        if path in ('/ui/search.js','/ui/foundation.js','/ui/foundation.css','/ui/motion.js','/ui/motion.css','/ui/shell.js','/ui/shell.css','/ui/ultimate.js','/ui/ultimate.css','/app.js','/visuals.js','/ultimate.js','/model.js','/inline.js','/art_transition.js','/style.css','/ultimate.css'):
+        if path in ('/ui/search.js','/ui/foundation.js','/ui/foundation.css','/ui/motion.js','/ui/motion.css','/ui/shell.js','/ui/shell.css','/ui/ultimate.js','/ui/ultimate.css','/app.js','/visuals.js','/ultimate.js','/model.js','/achievement_row.js','/inline.js','/art_transition.js','/style.css','/ultimate.css'):
             return self.blob((BASE/'web'/path[1:]).read_bytes(), 'text/javascript' if path.endswith('.js') else 'text/css')
         if path=='/brand/atlas-mark.svg':return self.blob((BASE.parent/'assets'/'atlas-mark.svg').read_bytes(),'image/svg+xml')
         if path=='/api/status':

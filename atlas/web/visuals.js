@@ -16,7 +16,7 @@ function visualStyle(game,kind='cover'){
  return `background-image:${cssUrl(url)};background-position:${Number(theme.x??50)}% ${Number(theme.y??38)}%`;
 }
 function applyAtmosphere(game){
- const hero=visualUrl(game,'hero')||visualUrl(game,'banner')||visualUrl(game,'screenshot');
+ const hero=visualUrl(game,'hero')||visualUrl(game,'banner')||visualUrl(game,'screenshot')||visualUrl(game,'cover');
  const theme=game?.art_theme||{};
  const accent=visualThemes[theme.preset]||game?.artwork_meta?.hero?.accent||game?.artwork_meta?.cover?.accent||({xbox:'#b8e5a2',psn:'#99cff1',pc:'#c8b2eb'})[ACTIVE_PLATFORM];
  document.documentElement.style.setProperty('--game-accent',accent||'#7087a6');
