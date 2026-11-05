@@ -1,4 +1,4 @@
-param([string]$ReportPath='self-update-test-report.json')
+﻿param([string]$ReportPath='self-update-test-report.json')
 $ErrorActionPreference='Stop'
 $root=Join-Path $env:RUNNER_TEMP ('Atlas native self update '+[Guid]::NewGuid())
 New-Item -ItemType Directory -Path $root | Out-Null
