@@ -1,5 +1,12 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+Görsel devamı: custom reset öncesi provider URL kaybı ve manuel SGDB seçiminin
+site ana sayfasını dosya kaynağı gibi saklaması düzeltildi. Yeni kayıtlar gerçek
+image source_url + ayrı page_url ve oyun/edisyon kimlikleri taşır. Farklı edisyon
+kaynağı reset ile geri getirilmez. docs/ISSUE_37_CUSTOM_ART_RECOVERY_TR.md.
+Yeni HEAD CI ayrıca izlenmeli; be22f1e Unit/Windows işleri başarılıydı. PR yok,
+merge/release yok. Canlı artwork kapsamı hâlâ ölçülmedi.
+
 PSN devamı: reuse platform/title/edisyon/cihaz eşitliği ve trophy_groups deep copy
 koruması; PSN 401/403/429/TooManyRequests kod/sınıfının güvenli hata mesajında
 korunması. docs/ISSUE_37_PSN_REUSE_TR.md. Bu canlı PSN hızı/kabulü değildir.

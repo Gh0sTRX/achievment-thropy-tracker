@@ -13,6 +13,47 @@ class ArtTests(unittest.TestCase):
         self.assertEqual(suffix(b'NOT IMAGE'),None)
 if __name__=='__main__':unittest.main()
 class LocalArtTests(unittest.TestCase):
+    def test_custom_reset_does_not_restore_another_edition_source(self):
+        import base64
+        from tempfile import TemporaryDirectory
+        from atlas.server import Controller
+        with TemporaryDirectory() as root:
+            c=Controller(root)
+            g={'id':'xbox:12','platform':'xbox','platform_edition':'windows','cover_url':'local','artwork_meta':{'cover':{'game_id':'xbox:12','platform':'xbox','platform_edition':'360','provider':'xbox','source_url':'https://xboxlive.com/old-edition'}}}
+            c.store.library['games']=[g]
+            c.upload_art({'game_id':g['id'],'kind':'cover','image':base64.b64encode(self.image_bytes()).decode()})
+            c.reset_art({'game_id':g['id'],'kind':'cover'})
+            self.assertEqual(g['cover_url'],'')
+
+    def test_reset_after_custom_file_restores_cached_provider_source(self):
+        import base64
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from atlas.server import Controller
+        from atlas import artwork,media_sync
+        with TemporaryDirectory() as root:
+            c=Controller(root);g={'id':'xbox:12','platform':'xbox','platform_edition':'360','cover_url':'https://xboxlive.com/cover'}
+            c.store.library['games']=[g]
+            with patch.object(artwork,'fetch',return_value=(self.image_bytes(),'image/png')):media_sync.download(c.store)
+            c.upload_art({'game_id':g['id'],'kind':'cover','image':base64.b64encode(self.image_bytes()).decode()})
+            c.reset_art({'game_id':g['id'],'kind':'cover'})
+            self.assertEqual(g['cover_url'],'https://xboxlive.com/cover')
+
+    def test_manual_provider_selection_recovers_exact_image_after_cache_loss(self):
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from atlas.server import Controller
+        from atlas import artwork,media_sync
+        with TemporaryDirectory() as root:
+            c=Controller(root);g={'id':'xbox:12','platform':'xbox','platform_edition':'360','title_id':'12'}
+            c.store.library['games']=[g]
+            url='https://cdn2.steamgriddb.com/selected.png'
+            c.store.live_artwork[g['id']]=[{'kind':'cover','url':url,'source_url':'https://www.steamgriddb.com/','provider_id':'1'}]
+            with patch.object(artwork,'fetch',return_value=(self.image_bytes(),'image/png')):c.select_art({'game_id':g['id'],'kind':'cover','url':url})
+            artwork.cached(c.store.root,'cover',g['id']).unlink()
+            with patch.object(artwork,'fetch',return_value=(self.image_bytes(),'image/png')) as request:r=media_sync.download(c.store)
+            self.assertEqual(r['downloaded'],1);request.assert_called_once_with(url)
+
     def image_bytes(self):
         import io
         from PIL import Image
