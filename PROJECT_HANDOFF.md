@@ -1,5 +1,12 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+Xbox refresh devamı: kilitsiz eski token okuması üç-thread mock ile yeniden
+üretildi; süreç içi read/refresh/write guard eklendi, API sorguları kilit dışında.
+Dört yeni test ve sınırlar docs/ISSUE_37_XBOX_REFRESH_RACE_TR.md. Bu canlı
+offline→online hatasının kesin kök nedeni kabulü değildir. Son kaynak için
+Windows/Unit CI yeniden tamamlanmalı; ea00c20'ın iki CI işi yeşildir ama yeni
+kodun kanıtı olarak kullanılamaz. Yeni PR/merge/release yok.
+
 Yeni ana emir: docs/POST_0161_MASTER_ACCEPTANCE_TR.md. Başlangıç 955f236,
 228 Python ve dört Node suite başarılı. Artwork Health/indirme kaynak uygunluğu
 ortaklaştırıldı; edisyon/user-file ve retained app sayımı düzeltildi. Aktif kaynak

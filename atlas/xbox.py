@@ -13,6 +13,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 import json
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -150,29 +151,45 @@ def normalize_achievements(raw: dict, xbox360=False):
     return result
 
 
+_refresh_lock=threading.Lock()
+
+@asynccontextmanager
+async def _refresh_guard():
+    # Controllers use separate asyncio.run loops on different HTTP threads.
+    # An asyncio.Lock cannot safely serialize these callers.
+    from . import sync_control
+    while not _refresh_lock.acquire(blocking=False):
+        sync_control.check()
+        await asyncio.sleep(.05)
+    try:
+        sync_control.check()
+        yield
+    finally:_refresh_lock.release()
+
 @asynccontextmanager
 async def authenticated_client(token_file=None):
     SDK,Manager,Token,Signed,client_id,secret,redirect,default_path = _sdk()
     path = Path(token_file) if token_file else default_path
-    if not path.is_file(): raise DirectError('Microsoft oturumu bulunamadı. Önce Microsoft ile giriş yap.')
-    try: token_text=path.read_text(encoding='utf-8')
-    except OSError as e: raise DirectError('OpenXbox token dosyası okunamıyor.') from e
     async with Signed() as session:
         manager=Manager(session,client_id,secret,redirect)
-        try:
-            manager.oauth=Token.model_validate_json(token_text)
-            await manager.refresh_tokens()
-        except Exception as e:
-            raise DirectError('Microsoft Xbox oturumu yenilenemedi. Yeniden giriş yap. ('+type(e).__name__+')') from e
-        if not str(manager.xsts_token.xuid).isdigit():
-            raise DirectError('Xbox XUID doğrulanamadı.')
-        # Atomic token refresh to keep the OpenXbox default store in sync.
-        try:
-            path.parent.mkdir(parents=True,exist_ok=True)
-            tmp=path.with_suffix('.pending')
-            tmp.write_text(manager.oauth.model_dump_json(),encoding='utf-8')
-            tmp.replace(path)
-        except OSError as e: raise DirectError('Yenilenen Microsoft oturumu kaydedilemedi.') from e
+        async with _refresh_guard():
+            if not path.is_file(): raise DirectError('Microsoft oturumu bulunamadı. Önce Microsoft ile giriş yap.')
+            try: token_text=path.read_text(encoding='utf-8')
+            except OSError as e: raise DirectError('OpenXbox token dosyası okunamıyor.') from e
+            try:
+                manager.oauth=Token.model_validate_json(token_text)
+                await manager.refresh_tokens()
+            except Exception as e:
+                raise DirectError('Microsoft Xbox oturumu yenilenemedi. Yeniden giriş yap. ('+type(e).__name__+')') from e
+            if not str(manager.xsts_token.xuid).isdigit():
+                raise DirectError('Xbox XUID doğrulanamadı.')
+            try:
+                path.parent.mkdir(parents=True,exist_ok=True)
+                tmp=path.with_suffix('.pending')
+                tmp.write_text(manager.oauth.model_dump_json(),encoding='utf-8')
+                tmp.replace(path)
+            except OSError as e: raise DirectError('Yenilenen Microsoft oturumu kaydedilemedi.') from e
+        # Serialize only authentication, not subsequent title/achievement queries.
         yield SDK(manager), str(manager.xsts_token.xuid)
 
 
