@@ -53,3 +53,8 @@ html,body{min-width:0}.content,.top-right{min-width:0}body{overflow-wrap:anywher
 #sourceStatus.hidden{display:none!important}#notification{top:auto;bottom:22px;right:22px;left:auto;max-width:min(440px,calc(100vw - 32px));padding:12px 16px;font-size:12px}#providerWizard input[type=password]{width:100%}#providerWizard li{margin:14px 0;line-height:1.6}#providerConsentLabel,.enrich-pair{display:block;margin:14px 0}#providerWizard input[type=checkbox],.enrich-pair input{width:auto;min-width:0}#syncHistory details{margin:14px 0}#syncHistory ul{overflow-wrap:anywhere;max-height:300px;overflow:auto}
 
 #notification{pointer-events:none}.transfer-dock{bottom:84px}
+/* One native button owns the full row hit area; the independent pin stays above it. */
+.achievement-row{position:relative}
+.achievement-row .ach-open::after{content:'';position:absolute;inset:0;z-index:1;border-radius:12px;cursor:pointer}
+.achievement-row .star{position:relative;z-index:2}
+.achievement-row:focus-within{outline:2px solid var(--accent);outline-offset:3px}
