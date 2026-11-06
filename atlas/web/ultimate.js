@@ -157,7 +157,11 @@ init=function(){baseInit();
  $('recoverCoverLibrary').onclick=async()=>{const r=await run(()=>api('/api/media/download',{covers_only:true}));if(r)toast(r.message+' İşlem tamamlanınca kapak kuyruğunu yeniden tara.')};
  $('coverInventoryList').onclick=e=>{
   const b=e.target.closest('[data-cover-select]');if(!b)return;
-  const g=gameById(b.dataset.coverSelect);if(!g)return toast('Oyun kaydı bulunamadı.',true);
+  const g=(DATA.library.games||[]).find(x=>x.id===b.dataset.coverSelect);if(!g)return toast('Oyun kaydı bulunamadı.',true);
+  // The cover queue spans all providers even when the current filter is PSN/Xbox/Steam.
+  if(ACTIVE_PLATFORM!=='all'||ACTIVE_DEVICE!=='all'){
+   ACTIVE_PLATFORM='all';ACTIVE_DEVICE='all';render();
+  }
   $('artGame').value=g.id;$('localArtKind').value='cover';
   $('artGame').dispatchEvent(new Event('change',{bubbles:true}));
   const details=document.querySelector('#artwork details.panel');if(details)details.open=true;
