@@ -17,6 +17,12 @@ Yerel test son kodda 219 Python; tam satır, cache recovery ve onaylı TitleHub
 görsel kategorileri dahil. Yeni birleşik HEAD CI sonucu ayrıca doğrulanmalıdır.
 Gerçek PSN/Steam kabulü, fiziksel gamepad ve NVDA henüz doğrulanmadı.
 
+Devam düzeltmesi: profil kaydından sonraki opsiyonel media/guide başlatma hataları
+hesap eşitleme hatası olarak gösterilmez. Ağ hatası sonrası aynı uygulamada
+yeniden deneme ve not/pin/arşiv koruma mock testi eklendi; canlı Xbox hatasının
+kök nedeni doğrulandı denmez. Yeni toplam 221 Python testi; exact-head CI yeniden
+kontrol edilir. Yeni PR açılmaz, mevcut #43 güncellenir.
+
 **Güncellendi:** 6 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
 
 ## Aktif üst emir — #37: offline arşiv + sınırlı hedef planlayıcısı

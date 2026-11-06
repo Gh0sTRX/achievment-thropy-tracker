@@ -209,10 +209,18 @@ class Controller:
                 if self.public_stop.is_set():
                     self.store.status['public_job']['message']='Profil kaydedildi; sonraki indirmeler durduruldu.'
                     return
-                self.download_media({'platform':platform})
+                try:self.download_media({'platform':platform})
+                except Exception:
+                    # Optional follow-up failure must not invalidate a saved profile.
+                    job={'platform':platform,'running':False,'error':'Görsel indirmesi başlatılamadı. Profil kaydedildi; görselleri yeniden deneyebilirsin.'}
+                    self.store.status['media_job']=job
+                    self.record_activity(platform,'media',job)
                 if settings.get('ATLAS_AUTO_GUIDES','0') == '1' and guides.configured() and not self.public_stop.is_set():
                     try:self.generate_guides({'platform': platform})
-                    except ValueError:self.store.status['guide_job']={'platform':platform,'running':False,'error':'İsteğe bağlı rehber servisi kullanılamadı. Hesap verileri kaydedildi.'}
+                    except Exception:
+                        job={'platform':platform,'running':False,'error':'İsteğe bağlı rehber servisi kullanılamadı. Hesap verileri kaydedildi.'}
+                        self.store.status['guide_job']=job
+                        self.record_activity(platform,'guides',job)
             except sync_control.Cancelled:
                 self.store.status['public_job'].update(cancelled=True,message='Eşitleme durduruldu; önceki arşiv korundu.')
             except Exception as exc:
@@ -222,8 +230,8 @@ class Controller:
                 self.store.status['public_job']['error'] = safe_error(exc,350)
             finally:
                 self.store.status['public_job']['running'] = False
-                self.record_activity(platform,'profile',self.store.status['public_job'])
-                self.public_guard.release()
+                try:self.record_activity(platform,'profile',self.store.status['public_job'])
+                finally:self.public_guard.release()
         threading.Thread(target=worker, daemon=True).start()
         return {'message': 'Herkese açık profil eşitlemesi başladı.'}
 

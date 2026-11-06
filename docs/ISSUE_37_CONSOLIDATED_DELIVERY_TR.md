@@ -38,3 +38,17 @@ dalıdır; eski dosyaları güncel kodun üstüne taşımak yok. Geliştirme tab
 
 Offline/online göstergesi özellikle ertelendi. Bu liste bitmiş özellik listesi
 değildir. Sentetik test, native Windows CI ve gerçek hesap kabulü ayrı tutulur.
+
+## Eşitleme sonrası hata ayrımı
+
+Profil arşivi başarıyla kaydedildikten sonra görsel indirme başlatıcısı veya
+isteğe bağlı rehber başlatıcısı hata verirse, kaydedilmiş profil artık bu nedenle
+başarısız/erişimi bozulmuş olarak işaretlenmez. Hata ilgili media/guides geçmişine
+gizli servis exception metni olmadan kaydedilir. Profil geçmişi ayrı kalır.
+Profil geçmişi kaydı hata verse bile yeniden deneme kilidi finally ile bırakılır.
+
+Yeni mock testi ağ hatası→aynı Controller ile yeniden eşitlemeyi, arşiv/not/pin
+korunmasını ve hatadan sonraki verified durumunu kontrol eder. Diğer test iki
+opsiyonel başlatıcıyı hata verdirerek hesap sonucunun bozulmadığını doğrular.
+Bu, kullanıcının gerçek offline→online Xbox hatasının kök nedeninin bulunduğu
+anlamına gelmez. Gerçek ağ/hesap kabulü hâlâ açık. Ücretli rehber tercihi değişmez.
