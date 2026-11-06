@@ -78,7 +78,8 @@ try {
         @{version='0.14.1';sha='c0169c3f10bcf2b1dd2303f8f03aa081d3d04b3456d395a3e453b13ae727be7d'},
         @{version='0.15.0';sha='e016ac7532a77c690a1a6a5e0f4afb0cc24a4c0b4064a54ccf4a31a0205ced09'},
         @{version='0.15.1';sha='dba8a8c385ee261ac59970b7ac9e6d3fb10da426af39a6d6641e2b0cecbec3e4'},
-        @{version='0.16.1';sha='509637b9ebe5c8da04d1b4a60ae9a3c602a68e5858c4ff53f96184e46224b577'}
+        @{version='0.16.1';sha='509637b9ebe5c8da04d1b4a60ae9a3c602a68e5858c4ff53f96184e46224b577'},
+        @{version='0.16.2';sha='df146f08541deada69fd97e83a006fe29d73de06c2db64598f343008c94c1ab2'}
     )) {
         Write-Output ('Upgrade matrix baseline '+$baseline.version)
         $case=Join-Path $root $baseline.version
