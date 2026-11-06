@@ -20,6 +20,25 @@ class MediaTruthTests(unittest.TestCase):
  def test_decoded_not_fake_cache(self):
   p=self.s.root/'artwork';p.mkdir();(p/'icon_ta_1.png').write_bytes(b'not an image')
   self.assertIsNone(artwork.cached(self.s.root,'icon','ta:1'));self.assertEqual(media_sync.health(self.s)['cached_icons'],0)
+ def test_forbidden_host_does_not_cancel_other_providers(self):
+  self.g['cover_url']='https://xboxlive.com/forbidden'
+  self.g['hero_url']='https://cdn2.steamgriddb.com/hero'
+  self.g['logo_url']='https://xboxlive.com/logo'
+  def fetch(url):
+   if url.startswith('https://xboxlive.com/'):raise HTTPError(url,403,'secret',{},None)
+   return self.png,'image/png'
+  with patch.object(artwork,'fetch',side_effect=fetch) as request:r=media_sync.download(self.s)
+  self.totals(r);self.assertEqual(r['downloaded'],1);self.assertEqual(r['blocked'],2)
+  self.assertEqual(request.call_count,2);self.assertFalse(r['stopped'])
+ def test_rate_limit_still_stops_other_providers(self):
+  self.g['cover_url']='https://xboxlive.com/limit';self.g['hero_url']='https://cdn2.steamgriddb.com/hero'
+  with patch.object(artwork,'fetch',side_effect=HTTPError(self.g['cover_url'],429,'secret',{},None)) as request:r=media_sync.download(self.s)
+  self.totals(r);self.assertEqual(request.call_count,1);self.assertEqual(r['downloaded'],0);self.assertTrue(r['stopped'])
+ def test_independent_confirmed_fallback_clears_prior_error_code(self):
+  self.g['art_candidates']=[{'kind':'cover','url':'https://xboxlive.com/denied'}, {'kind':'cover','url':'https://cdn2.steamgriddb.com/cover','provider':'SteamGridDB'}]
+  with patch.object(artwork,'fetch',side_effect=[HTTPError('https://xboxlive.com/denied',403,'secret',{},None),(self.png,'image/png')]):r=media_sync.download(self.s)
+  self.totals(r);self.assertEqual(r['downloaded'],1);self.assertEqual(r['blocked'],0)
+  self.assertIsNone(self.g['artwork_download']['cover']['code']);self.assertEqual(self.g['artwork_meta']['cover']['provider'],'SteamGridDB')
  def test_failures_are_not_missing_sources_and_secrets_redacted(self):
   self.g['cover_url']='https://xboxlive.com/image'
   for code in (401,403,429,404):

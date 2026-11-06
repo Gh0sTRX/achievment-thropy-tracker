@@ -1,5 +1,12 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+Görsel devamı: tek 403 tüm sağlayıcıların indirmesini durduruyordu; host kapsamlı
+403 engeli eklendi. Aynı host'a yeni istek yok, önceden seçilmiş bağımsız host
+adayları devam edebilir. 401/429 ve kullanıcı iptali global stop korunur.
+docs/ISSUE_37_MEDIA_FORBIDDEN_SCOPE_TR.md. Gerçek kapak kapsamı ölçülmedi.
+94c0ada Windows 42241833904 ve Unit/Chromium 42241833771 başarılı; bu yeni
+kaynak için exact-head CI ayrıca izlenmeli. PR/merge/release yok.
+
 Xbox refresh devamı: kilitsiz eski token okuması üç-thread mock ile yeniden
 üretildi; süreç içi read/refresh/write guard eklendi, API sorguları kilit dışında.
 Dört yeni test ve sınırlar docs/ISSUE_37_XBOX_REFRESH_RACE_TR.md. Bu canlı

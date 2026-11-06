@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 import time
 from urllib.error import URLError
+from urllib.parse import urlsplit
 from .sync_control import Cancelled
 from . import artwork,catalog
 
@@ -41,7 +42,7 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
         icons=[dict(a) for a in store.library['achievements'] if a.get('game_id') in gids or (not platform and not game_id and a.get('game_id') not in {g['id'] for g in store.library['games']})]
     kinds=('cover','hero','banner','logo','screenshot')
     report={'downloaded':0,'cached':0,'missing_source':0,'failed':0,'blocked':0,'skipped':0,'cancelled':0,'attempted':0,'processed':0,'planned':len(games)*5+len(icons),'records':len(games)+len(icons),'missing':[],'errors':[],'details':[],'detail_count':0,'missing_count':0,'error_count':0,'checked_at':datetime.now(timezone.utc).isoformat()}
-    blocked=threading.Event();dirty=0;last_save=time.monotonic();indexed=None;indexes={}
+    blocked=threading.Event();forbidden_hosts=set();dirty=0;last_save=time.monotonic();indexed=None;indexes={}
     def lookup(is_icon,ident):
         nonlocal indexed,indexes
         if indexed is not store.library:
@@ -67,6 +68,10 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
                 if url in seen:continue
                 seen.add(url)
                 if halted():state='cancelled';break
+                host=urlsplit(url).hostname
+                with store.lock:forbidden=host in forbidden_hosts
+                if forbidden:
+                    state='blocked';code=403;continue
                 attempted=True
                 try:
                     if is_icon:
@@ -83,11 +88,15 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
                         provenance={**meta,'provider':candidate.get('provider') or obj.get('platform'),'provider_id':candidate.get('provider_id') or (obj.get('provider_identity') or {}).get('achievement_id') or obj.get('provider_id') or obj.get('title_id',''),'source_url':url,'game_id':obj.get('game_id',ident),'platform':obj.get('platform'),'platform_edition':obj.get('platform_edition'),'saved_at':report['checked_at'],'rights_note':candidate.get('rights_note') or 'Sağlayıcı görseli; yeniden dağıtım izni verilmez.'}
                         if is_icon:current['icon_meta']=provenance;current['icon_url']=url
                         else:current[kind+'_url']='local';current.setdefault('artwork_meta',{})[kind]=provenance
-                        dirty+=1;state='downloaded';break
+                        dirty+=1;state='downloaded';code=None;break
                 except Cancelled:state='cancelled';break
                 except Exception as exc:
                     code=getattr(exc,'code',None);state='blocked' if code in (401,403,429) else 'failed'
-                    if state=='blocked':blocked.set();break
+                    if code==403:
+                        # Respect this host's denial without suppressing already
+                        # selected, independent sources from other providers.
+                        with store.lock:forbidden_hosts.add(host)
+                    elif state=='blocked':blocked.set();break
         with store.lock:
             report[state]+=1;report['attempted']+=int(attempted);report['processed']+=1
             detail={'id':ident,'game_id':obj.get('game_id',ident),'kind':kind,'state':state,'code':code,'platform':obj.get('platform')}
