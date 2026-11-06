@@ -121,13 +121,7 @@ async def _xbox(username, progress):
                 g=editions.apply(game('xbox',tid,str(title.get('name') or tid),'360' if version=='1' else 'one',meta.get('cover_url','')),devices)
                 g['api_generation']=version
                 if devices and devices!=['xbox360']:g['platform_edition']='-'.join(devices)
-                g['art_candidates']=[]
-                for image in meta.get('images',[]):
-                    if not isinstance(image,dict):continue
-                    typ=str(image.get('imageType') or image.get('imagePurpose') or image.get('type') or '').lower()
-                    kind='logo' if 'logo' in typ else 'cover' if any(w in typ for w in ('box','poster','cover')) else 'hero' if any(w in typ for w in ('background','wallpaper','hero')) else 'banner' if 'banner' in typ else 'screenshot' if 'screenshot' in typ else ''
-                    url=str(image.get('uri') or image.get('url') or '')
-                    if kind and artwork.safe_url(url):g['art_candidates'].append({'kind':kind,'url':url,'provider':'Xbox TitleHub'})
+                g['art_candidates']=artwork.xbox_title_candidates(meta)
                 cached=sync_control.reuse(g,title,xuid)
                 if cached is not None:
                     games.append(g);items.extend(cached);loaded=True;break

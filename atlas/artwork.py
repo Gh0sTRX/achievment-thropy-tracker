@@ -28,6 +28,20 @@ def safe_url(url:str)->bool:
         return any(host==d or host.endswith('.'+d) for d in TRUSTED_DOMAINS)
     except (TypeError,ValueError,AttributeError):return False
 
+def xbox_title_candidates(metadata):
+    """Use only artwork categories actually reported by Xbox TitleHub."""
+    result=[];seen=set()
+    images=metadata.get('images') or []
+    if not isinstance(images,list):images=[]
+    for image in images:
+        if not isinstance(image,dict):continue
+        typ=str(image.get('imageType') or image.get('imagePurpose') or image.get('type') or '').lower()
+        kind='logo' if 'logo' in typ else 'cover' if any(w in typ for w in ('box','poster','cover')) else 'hero' if any(w in typ for w in ('background','wallpaper','hero')) else 'banner' if 'banner' in typ else 'screenshot' if 'screenshot' in typ else ''
+        url=str(image.get('uri') or image.get('url') or '')
+        if kind and safe_url(url) and (kind,url) not in seen:
+            seen.add((kind,url));result.append({'kind':kind,'url':url,'provider':'Xbox TitleHub'})
+    return result
+
 class GuardedRedirects(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,req,fp,code,msg,headers,newurl):
         if not safe_url(newurl):raise ValueError('Untrusted image redirect')

@@ -552,6 +552,11 @@ class Controller:
             from . import editions
             editions.apply(game,editions.xbox_devices(candidate,generation='1' if candidate.get('platform')=='360' else '2') or (['xbox360'] if candidate.get('platform')=='360' else game.get('devices',[])))
             game['title_identity_confirmed']=True
+            # The user has explicitly confirmed this title and edition. Keep
+            # every reported category, rather than dropping all but displayImage.
+            reported=artwork.xbox_title_candidates(candidate)
+            existing=[c for c in game.get('art_candidates',[]) if c.get('provider')!='Xbox TitleHub']
+            game['art_candidates']=existing+[{**c,'confirmed_game_id':gid,'provider_id':tid} for c in reported]
             image=candidate.get('cover_url','')
             if artwork.safe_url(image) and game.get('cover_url')!='local':game['cover_url']=image;game['image_source']='Xbox TitleHub'
             self.store.save()
