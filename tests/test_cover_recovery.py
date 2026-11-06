@@ -195,3 +195,18 @@ class CoverRecoveryTests(unittest.TestCase):
                 with patch.object(artwork,'fetch',side_effect=fetch):result=media_sync.download(store,covers_only=True)
                 self.assertEqual(result['downloaded'],0);self.assertEqual(result['skipped'],1)
                 self.assertIsNone(artwork.cached(store.root,'cover',g['id']))
+
+
+    def test_metadata_cache_cannot_transfer_steam_cover_to_another_pc_provider(self):
+        for order in (False,True):
+            with self.subTest(order=order),TemporaryDirectory() as root:
+                store=Library(root)
+                valid=game(12)
+                other=dict(game(12),id='other:12',provider='unknown')
+                conflict=dict(game(12),id='conflicting:12',steam_appid='999')
+                store.library['games']=[valid,other,conflict] if order else [other,conflict,valid]
+                result=recovery.discover(store)
+                self.assertEqual(result['discovered'],1);self.assertEqual(result['no_source'],2)
+                self.assertTrue(media_sync.game_sources(valid,'cover'))
+                self.assertEqual(media_sync.game_sources(other,'cover'),[])
+                self.assertEqual(media_sync.game_sources(conflict,'cover'),[])

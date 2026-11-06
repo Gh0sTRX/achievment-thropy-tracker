@@ -38,7 +38,7 @@ class Sources:
         psn_edition = set(edition.split(',')) == devices
         if platform in self.denied:
             return [], 'Sağlayıcı bu işlemde erişimi reddetti; yeniden sorgulanmadı.'
-        key = (platform, tid, tuple(sorted(devices)), game.get('platform_edition'))
+        key = (platform, tid, tuple(sorted(devices)), game.get('platform_edition'), game.get('provider'), str(game.get('steam_appid') or ''))
         if key in self.results:
             return self.results[key]
         result = ([], 'Doğrulanabilir platform kimliği/edisyonu veya resmî kapak bulunamadı.')
@@ -81,6 +81,7 @@ class Sources:
                         self.denied.add(platform)
                         raise
                     if str(user.account_id) != str(profile['id']):
+                        self.denied.add(platform)
                         raise ValueError('PSN profil kimliği değişti.')
                     found = {}
                     for title in user.trophy_titles(limit=None):
@@ -167,7 +168,9 @@ async def _discover(store, progress, stop, platform, game_id):
                     continue
                 safe = [c for c in candidates if artwork.safe_url(c.get('url'))]
                 # Bound all new sources to this precise identity, including devices.
-                current['art_candidates'] = current.get('art_candidates', []) + [dict(c, cover_identity=identity(game)) for c in safe if c not in current.get('art_candidates', [])]
+                existing = current.get('art_candidates', [])
+                additions = [dict(c, cover_identity=identity(game)) for c in safe]
+                current['art_candidates'] = existing + [c for c in additions if c not in existing]
                 current['cover_discovery'] = dict(identity=identity(game), access=access, profile=profiles.get(game.get('platform')), state=state, reason=reason,
                     candidates=suggestions, checked_at=time.time(), retry_after=time.time() + (300 if state == 'failed' else 21600))
                 dirty += 1
