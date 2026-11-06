@@ -1,16 +1,28 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
-**Güncellendi:** 5 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
+**Güncellendi:** 6 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
+
+## Aktif üst emir — #37: offline arşiv + sınırlı hedef planlayıcısı
+
+Kullanıcı #37 / #35 / #36 ve #27–#34 planını uygulamak için “devam et” dedi. Öncelik Xbox-first, sonra yetkili Steam/PSN; yeni tema/platform/sosyal/launcher/LLM özellikleri ve büyük mimari rewrite yok. **Main veya geliştirme dalına otomatik merge ve yeni Development Release YOK.** Yayımlı kanal 0.16.1 değişmedi.
+
+#25'in native history/focus kırılması kaynak `9512d149ae6e17b92cf01a4d1c6d8a380342ca5a` ile giderildi: Windows `42134533000`, unit PR `42134532809` başarılı; 203 Python + Chromium regressions. Gerçek düğme anchor'ı taşınmadığı için fazladan Vault rotası oluşuyordu; render sonrası aynı kayıt odağı da korunuyor. Eski başarısız koşu `42107565658` saklanır; test atlanmadı.
+
+Yeni küçük PR'lar: #38 (`fix/37-offline-archive-contract`, kaynak `1b78d0702f13df63d14e80de87f207e78faa4827`) Steam/PC profili yüzünden export/recovery backup reddini ve platform ad/uyarı kaybını düzeltir; 211 test. #39 (`fix/37-archive-file-transport`, kaynak `da489e465b428f554341ff055c544338210a6d8e`) tarayıcının JSON yeniden yazımında 1.0→1/büyük sayı değişimi ile hash bozmasını, ham export/import ile düzeltir; 215 test ve gerçek UI indirme/restore tarayıcı senaryosu. Hash/Host/Origin/token/onay/boyut korumaları kaldırılmadı. Son CI kanıtı docs/ISSUE_37_STATUS_TR.md'de tutulur.
+
+Kullanıcı 6 Kasım'da kendi Windows cihazında **arşiv kopyasıyla gerçek Xbox kabulü yapabileceğini** bildirdi. Henüz gerçek sonuç alınmadı. Parola/token/API anahtarı isteme veya public rapora koyma. Deneme protokolü docs/ISSUE_37_WINDOWS_ACCEPTANCE_TR.md. JSON yedek medya dosyalarını içermez; aynı klasörde cache korunması taşınabilir tam medya yedeği değildir.
+
+Mevcut bağlam: #23 → #24 → #25 kodları incelemeye açık; #38 → #39, #25 üstüne küçük ekler. #26 yalnız belgeler, yeni kanıtları toplar. Hiçbirini otomatik birleştirme. Alan bazlı provenance kısmi; tam offline fiziksel Windows, gerçek hesaplar, NVDA/gamepad, portable media backup ve bağımsız güvenlik/p95-RAM ölçümü bitmedi. Next Move MVP, bu kabul kapıları olmadan büyütülmez.
 
 ## Aktif görev — Issue #22 kaynak düzeltmeleri, YAYIN YOK
 
 Kullanıcı Issue #22'nin tamamını uygulamayı, küçük test edilebilir PR'lar ve rapor vermeyi istedi. **Bu görevde main/geliştirme dalına otomatik merge ve yeni Development Release YOK.** Önceki 0.16.1 yayın yetkisi bu yeni işe taşınmaz.
 
-PR zinciri: #23 `fix/22-achievement-universe` → codex; #24 `fix/22-media-provenance` → #23 dalı; #25 `fix/22-provider-setup-history` → #24 dalı. Son kaynak `1512997624fd6ad1954fbf9f9f093460ba70b474`. Hepsi incelemeye açık tutulur. Bu belge doğrulama dalında; yeni sürüm yayımlanmadı, sürüm 0.16.1 kaldı. Geliştirme tabanı `145accefdf1053d826249d52e54aeba6aa69fbfd`, main `98f870b908fa73ec2711c2f3fd359eca92a7ab77` korunur.
+PR zinciri: #23 `fix/22-achievement-universe` → codex; #24 `fix/22-media-provenance` → #23 dalı; #25 `fix/22-provider-setup-history` → #24 dalı. Son #22 kaynak `9512d149ae6e17b92cf01a4d1c6d8a380342ca5a`. Hepsi incelemeye açık tutulur. Bu belge doğrulama dalında; yeni sürüm yayımlanmadı, sürüm 0.16.1 kaldı. Geliştirme tabanı `145accefdf1053d826249d52e54aeba6aa69fbfd`, main `98f870b908fa73ec2711c2f3fd359eca92a7ab77` korunur.
 
 Uygulandı: Vault/Universe ortak satır ve gerçek tarihler/kaynak/ikon/açıklama; URL'siz yerel ikon; decode sıralı kompakt hero/kapak; gerçek görsel sayaçları ve güvenli cache; açık kimlik onaylı Xbox metadata zenginleştirme; görünür ve düzeltilmiş keşif HTTP akışı; PSN/Steam uygulama içi ayar+ayrı bağlantı testi; platform ad/durum/geçmiş ayrımı; global sarı bant yok; rehber hatası ayrı; legacy app filtresi ve oyun vitrin/öneri/media hariç tutma; CSV/pin/not/metadata/yerel görsel koruma. Gizli bilgi girilen alanlar temizlenir, mevcut DPAPI sürer. Resmî Sony OAuth veya anahtarsız Steam vaadi yok.
 
-Yerelde 203 Python, dört Node suite, yeni metadata/setup Chromium testleri ve önceki Universe/search/16 theme/5k–40k/gzip/partial/gamepad/reduced-motion kontrolleri geçti. Windows son kaynak CI sonuçları audit dosyasında doğrulandıktan sonra yazılır. Gerçek PSN/Steam/Xbox kabulü, fiziksel gamepad/NVDA ve kullanıcı arşiviyle önce/sonra art kapsamı ölçülmedi. Test kayıtları sentetiktir, gerçek başarımlar diye raporlanmaz.
+Yerelde 203 Python, dört Node suite, yeni metadata/setup Chromium testleri ve önceki Universe/search/16 theme/5k–40k/gzip/partial/gamepad/reduced-motion kontrolleri geçti. Windows son kaynak CI sonucu başarılı; audit dosyasında koşular kayıtlı. Gerçek PSN/Steam/Xbox kabulü, fiziksel gamepad/NVDA ve kullanıcı arşiviyle önce/sonra art kapsamı ölçülmedi. Test kayıtları sentetiktir, gerçek başarımlar diye raporlanmaz.
 
 Rapor: docs/ISSUE_22_REAL_USER_UX_AUDIT_TR.md. PR'ları ve Actions'ı yeniden sorgulamadan başarılı/release var deme. Sonraki işlem kullanıcı incelemesi ve gerçek izinli hesap kabulüdür; yeni sürüm/main merge için açık yeni talep gerekir.
 
