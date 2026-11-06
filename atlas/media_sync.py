@@ -1,4 +1,5 @@
 """Bounded media caching; cancellation preserves completed, validated files."""
+from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import time
@@ -12,12 +13,17 @@ def game_sources(game,kind):
     """Shared eligible sources for download and health; user files stay local."""
     saved=(game.get('artwork_meta') or {}).get(kind,{})
     if saved.get('provider')=='user_file':return []
-    candidates=[c for c in game.get('art_candidates',[]) if c.get('kind')==kind]
-    candidates.append({'url':game.get(kind+'_url'),'provider':game.get('image_source') or game.get('platform')})
+    from .cover_recovery import identity,bound_match
+    candidates=[c for c in game.get('art_candidates',[]) if c.get('kind')==kind
+                and (not c.get('cover_identity') or c['cover_identity']==identity(game))
+                and (c.get('provider')!='SteamGridDB' or bound_match(game))]
+    candidates.sort(key=lambda c:c.get('provider')=='SteamGridDB')
+    sources=[]
     recorded_title=saved.get('title_id') or (saved.get('provider_id') if saved.get('provider')!='SteamGridDB' else None)
     if saved.get('game_id')==game['id'] and saved.get('platform')==game.get('platform') and saved.get('platform_edition')==game.get('platform_edition') and (recorded_title or None)==(game.get('title_id') or None):
-        candidates.append({**saved,'url':saved.get('source_url')})
-    return [c for c in candidates if artwork.safe_url(c.get('url'))]
+        sources.append({**saved,'url':saved.get('source_url')})
+    sources.append({'url':game.get(kind+'_url'),'provider':game.get('image_source') or game.get('platform')})
+    return [c for c in sources+candidates if artwork.safe_url(c.get('url'))]
 
 
 def asset_diagnosis(root,game,kind,present):
@@ -58,7 +64,9 @@ def media_request(call,halted):
 def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, game_id=None, covers_only=False):
     from datetime import datetime,timezone
     with store.lock:
-        games=[dict(g) for g in store.library['games'] if not catalog.is_app(g) and (not platform or g.get('platform')==platform) and (not game_id or g['id']==game_id)]
+        games=[deepcopy(g) for g in store.library['games'] if not catalog.is_app(g) and (not platform or g.get('platform')==platform) and (not game_id or g['id']==game_id)]
+        profile_context=deepcopy(store.state.get('public_profiles',{}))
+        game_objects={g['id']:g for g in store.library['games']}
         gids={g['id'] for g in games}
         icons=[] if covers_only else [dict(a) for a in store.library['achievements'] if a.get('game_id') in gids or (not platform and not game_id and a.get('game_id') not in {g['id'] for g in store.library['games']})]
     kinds=('cover',) if covers_only else ('cover','hero','banner','logo','screenshot')
@@ -103,7 +111,8 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
                     # Identity and user override are rechecked after the network request.
                     with store.lock:
                         current=lookup(is_icon,ident)
-                        if not current or any(current.get(k)!=obj.get(k) for k in ('platform','game_id','title_id','platform_edition')):state='skipped';break
+                        if not current or any(current.get(k)!=obj.get(k) for k in ('platform','game_id','title_id','platform_edition','devices','provider')):state='skipped';break
+                        if not is_icon and (current is not game_objects.get(ident) or store.state.get('public_profiles',{})!=profile_context):state='skipped';break
                         if not is_icon and (current.get('artwork_meta') or {}).get(kind,{}).get('provider')=='user_file':state='skipped';break
                         if not is_icon:meta=artwork.store_bytes(store.root,kind,ident,data)
                         provenance={**meta,'provider':candidate.get('provider') or obj.get('platform'),'provider_id':candidate.get('provider_id') or (obj.get('provider_identity') or {}).get('achievement_id') or obj.get('provider_id') or obj.get('title_id',''),'title_id':obj.get('title_id'),'source_url':url,'game_id':obj.get('game_id',ident),'platform':obj.get('platform'),'platform_edition':obj.get('platform_edition'),'saved_at':report['checked_at'],'rights_note':candidate.get('rights_note') or 'Sağlayıcı görseli; yeniden dağıtım izni verilmez.'}
@@ -133,7 +142,7 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
                 if len(report['details'])<200:report['details'].append(detail)
         with store.lock:
             current=lookup(is_icon,ident)
-            if current and (not is_icon or state!='missing_source'):
+            if current and all(current.get(k)==obj.get(k) for k in ('platform','game_id','title_id','platform_edition','devices','provider')) and (is_icon or current is game_objects.get(ident) and store.state.get('public_profiles',{})==profile_context) and (not is_icon or state!='missing_source'):
                 value={'state':state,'code':code,'updated_at':report['checked_at']}
                 if is_icon:current['icon_download']=value
                 else:current.setdefault('artwork_download',{})[kind]=value
@@ -181,7 +190,7 @@ def health(store,platform=None,game_id=None):
             'missing':{kind:len(games)-coverage[kind] for kind in kinds},'issues':issues[:200],'issue_count':len(issues),'has_more':len(issues)>200,'missing_icons':len(items)-icons,'scope':'validated_local_cache','last_checked_states':state_counts,'checked_at':max((s.get('updated_at','') for s in states),default='')}
 
 
-def cover_inventory(store, platform=None, offset=0, limit=20):
+def cover_inventory(store, platform=None, offset=0, limit=20, state=None):
     """All-library Game Universe cover queue, never inferred by title alone.
 
     Reports verified *decoded* local covers; remote candidates and URLs are not
@@ -194,25 +203,32 @@ def cover_inventory(store, platform=None, offset=0, limit=20):
         raise ValueError('Kapak kuyruğu sayfa parametresi geçersiz.') from None
     if offset<0 or offset>1_000_000 or not 1<=limit<=50:
         raise ValueError('Kapak kuyruğu sayfa aralığı geçersiz.')
+    if state not in (None,'pending','no_source','failed','available'):raise ValueError('Kapak kuyruk filtresi geçersiz.')
     if platform not in (None,'xbox','psn','pc'):
         raise ValueError('Kapak platformu geçersiz.')
     with store.lock:
         games=sorted((dict(g) for g in store.library['games']
                       if not catalog.is_app(g) and (platform is None or g.get('platform')==platform)),
                      key=lambda g:(str(g.get('name','')).casefold(),str(g.get('platform','')),str(g['id'])))
-    missing=[];covered=0;available=0;unmatched=0
+    missing=[];covered=0;available=0;unmatched=0;pending=0;failed=0
     for g in games:
         if artwork.game_cached(store.root,g,'cover'):
             covered+=1
             continue
         info=asset_diagnosis(store.root,g,'cover',False)
+        from .cover_recovery import identity
+        discovery=g.get('cover_discovery') or {}
+        if discovery.get('identity')!=identity(g):discovery={}
+        pending+=int(discovery.get('state')=='pending')
+        failed+=int(info['state'] in ('blocked','failed','invalid_cache') or discovery.get('state')=='failed')
         available+=int(info['source_available'])
         unmatched+=int(info['state'] in ('missing_source','identity_mismatch'))
         missing.append({'game_id':g['id'],'name':g.get('name',''),'platform':g.get('platform',''),
                         'edition':g.get('platform_edition',''),'title_id':str(g.get('title_id') or ''),
                         'state':info['state'],'reason':info['reason'],'action':info['action'],
                         'provider':info['provider'],'source_available':info['source_available'],
-                        'code':info['code']})
-    return {'total_games':len(games),'covered':covered,'missing':len(missing),
-            'with_source':available,'needs_matching':unmatched,'offset':offset,
-            'limit':limit,'has_more':offset+limit<len(missing),'items':missing[offset:offset+limit]}
+                        'code':info['code'],'discovery':discovery})
+    queue=[g for g in missing if state is None or (state=='pending' and g['discovery'].get('state')=='pending') or (state=='no_source' and not g['source_available'] and g['discovery'].get('state')!='pending') or (state=='failed' and (g['state'] in ('blocked','failed','invalid_cache') or g['discovery'].get('state')=='failed')) or (state=='available' and g['source_available'])]
+    return {'total_games':len(games),'covered':covered,'missing':len(missing),'queue_total':len(queue),
+            'with_source':available,'needs_matching':unmatched,'pending_approval':pending,'failed':failed,'offset':offset,
+            'limit':limit,'has_more':offset+limit<len(queue),'items':queue[offset:offset+limit]}

@@ -104,6 +104,7 @@ jobs:
           node tests/test_console_return.cjs
           node tests/test_artwork_health_ui.cjs
           node tests/test_cover_inventory_ui.cjs
+          node tests/test_cover_recovery_ui.cjs
           node tests/test_next_moves.cjs
           node tests/test_issue22_metadata.cjs
           node tests/test_library_transfer.cjs
@@ -119,3 +120,4 @@ jobs:
             work/audit/game-universe-results.json
             work/audit/server-performance.json
             work/audit/native-*.png
+            work/audit/cover-*.json

@@ -88,8 +88,9 @@
         <p>Xbox, PlayStation ve Steam dahil bütün oyun kütüphaneni kapsar. Var olan kapakları korur. Kaynak adresi olanlar indirilebilir; kaynağı bulunmayanlar oyun/edisyon onayıyla eşleştirilir. Yanlış oyun kapağı otomatik seçilmez.</p>
         <div class="detail-buttons">
           <button id="scanCoverLibrary" class="secondary">TÜM KAPAKLARI TARA</button>
-          <button id="recoverCoverLibrary" class="secondary">DOĞRULANMIŞ KAPAKLARI İNDİR</button>
+          <button id="recoverCoverLibrary" class="secondary">TÜM EKSİK KAPAKLARI BUL VE TAMAMLA</button>
         </div>
+        <label>Kapak kuyruğu <select id="coverInventoryFilter"><option value="all">Tüm eksikler</option><option value="pending">Onay bekleyen eşleşmeler</option><option value="available">Kaynak bulundu, indirme bekliyor</option><option value="no_source">Kaynak bulunamadı</option><option value="failed">Başarısız kaynaklar</option></select></label>
         <p id="coverInventoryStatus" role="status" aria-live="polite">Henüz taranmadı.</p>
         <div id="coverInventoryList" class="cover-inventory"></div>
         <div class="pager">

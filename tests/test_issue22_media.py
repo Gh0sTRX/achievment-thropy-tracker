@@ -35,6 +35,8 @@ class MediaTruthTests(unittest.TestCase):
   with patch.object(artwork,'fetch',side_effect=HTTPError(self.g['cover_url'],429,'secret',{},None)) as request:r=media_sync.download(self.s)
   self.totals(r);self.assertEqual(request.call_count,1);self.assertEqual(r['downloaded'],0);self.assertTrue(r['stopped'])
  def test_independent_confirmed_fallback_clears_prior_error_code(self):
+  # A community candidate now requires the same persisted edition approval as the UI.
+  self.g['artwork_match']={'provider':'SteamGridDB','provider_id':'42','confirmed':True,'game_id':self.g['id'],'platform':'xbox','title_id':'12','platform_edition':'360','devices':['xbox360']}
   self.g['art_candidates']=[{'kind':'cover','url':'https://xboxlive.com/denied'}, {'kind':'cover','url':'https://cdn2.steamgriddb.com/cover','provider':'SteamGridDB'}]
   with patch.object(artwork,'fetch',side_effect=[HTTPError('https://xboxlive.com/denied',403,'secret',{},None),(self.png,'image/png')]):r=media_sync.download(self.s)
   self.totals(r);self.assertEqual(r['downloaded'],1);self.assertEqual(r['blocked'],0)

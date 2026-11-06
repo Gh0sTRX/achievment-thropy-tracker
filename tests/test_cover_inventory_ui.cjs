@@ -44,6 +44,7 @@ const {chromium}=require('playwright'),fs=require('node:fs'),assert=require('nod
   await p.locator('#recoverCoverLibrary').click();
   await p.waitForFunction(()=>document.querySelector('#coverInventoryStatus')?.textContent.includes('27 oyun'));
   assert.equal(coversRequest.covers_only,true);
+  assert.equal(coversRequest.discover_sources,true);
   assert.deepEqual(calls.map(x=>x.offset),[0,20,0]);
   console.log('Game Universe: full cross-platform cover inventory, 20+6 paging, per-game edition review and cover-only download request passed');
  }finally{await browser.close()}
