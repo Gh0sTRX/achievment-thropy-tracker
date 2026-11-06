@@ -240,8 +240,11 @@ def _psn(username, progress):
         except sync_control.Cancelled:raise
         except Exception as exc:
             failed.append(str(title.np_communication_id))
-            code=getattr(exc,'status_code',None) or getattr(getattr(exc,'response',None),'status_code',None)
-            if code in (401,403,429) or any(word in type(exc).__name__.lower() for word in ('authentication','forbidden','ratelimit','unauthorized')):raise ValueError('PSN erişimi veya hız sınırı; önceki arşiv korundu.') from None
+            code=getattr(exc,'code',None) or getattr(exc,'status_code',None) or getattr(getattr(exc,'response',None),'status_code',None)
+            if code in (401,403,429) or any(word in type(exc).__name__.lower() for word in ('authentication','forbidden','ratelimit','unauthorized','toomanyrequests')):
+                fault=ValueError('PSN erişimi veya hız sınırı; önceki arşiv korundu.')
+                fault.code=code;fault.provider_error_type=type(exc).__name__
+                raise fault from None
             warnings.append({'game':str(title.title_name or title.np_communication_id),'reason':'PSN kupa listesi tamamlanamadı; önceki oyun kaydı korunur.'})
             progress(len(games)+len(failed),len(titles),str(title.title_name or title.np_communication_id))
     return {'id': str(user.account_id), 'username': user.online_id,'warnings':warnings,'failed_title_ids':failed}, games, items
@@ -261,7 +264,7 @@ def fetch(platform, username, progress=lambda *args: None, stop=lambda:False, ca
     except Exception as exc:
         # SDK exceptions can contain request headers or tokens; expose only the class.
         fault=ValueError('Profil alınamadı: '+type(exc).__name__+'. Gizlilik, servis oturumu, ağ erişimi ve hız limitini kontrol et.')
-        fault.code=getattr(exc,'code',None) or getattr(getattr(exc,'response',None),'status_code',None)
+        fault.code=getattr(exc,'code',None) or getattr(exc,'status_code',None) or getattr(getattr(exc,'response',None),'status_code',None)
         fault.provider_error_type=type(exc).__name__
         raise fault from None
     finally:sync_control.context.reset(token)

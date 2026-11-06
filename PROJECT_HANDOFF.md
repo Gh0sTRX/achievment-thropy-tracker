@@ -1,5 +1,11 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+PSN devamı: reuse platform/title/edisyon/cihaz eşitliği ve trophy_groups deep copy
+koruması; PSN 401/403/429/TooManyRequests kod/sınıfının güvenli hata mesajında
+korunması. docs/ISSUE_37_PSN_REUSE_TR.md. Bu canlı PSN hızı/kabulü değildir.
+Sonraki exact-head CI yeniden izlenmeli; önceki dd237a9 iki CI işi başarılı.
+Yeni PR/merge/release yok, kaynak dalı korunur.
+
 Görsel devamı: tek 403 tüm sağlayıcıların indirmesini durduruyordu; host kapsamlı
 403 engeli eklendi. Aynı host'a yeni istek yok, önceden seçilmiş bağımsız host
 adayları devam edebilir. 401/429 ve kullanıcı iptali global stop korunur.

@@ -48,10 +48,12 @@ def reuse(g,title,identity):
         for a in old.get('achievements',[]):value['item_index'].setdefault(a['game_id'],[]).append(a)
     prior=value['game_index'].get(g['id'])
     if not prior or prior.get('sync_signature')!=sig or prior.get('api_generation')!=g.get('api_generation'):return None
+    if any(prior.get(k)!=g.get(k) for k in ('platform','title_id','platform_edition')) or prior.get('devices',[])!=g.get('devices',[]):return None
     age=time.time()-prior.get('sync_checked_at',0)
     rows=value['item_index'].get(g['id'],[])
     if not 0<=age<600 or not rows or len(rows)!=summary(title)['totalAchievements']:return None
     g['sync_signature']=prior['sync_signature'];g['sync_checked_at']=prior['sync_checked_at']
+    if prior.get('trophy_groups'):g['trophy_groups']=deepcopy(prior['trophy_groups'])
     return deepcopy(rows)
 
 def mark(g,title):

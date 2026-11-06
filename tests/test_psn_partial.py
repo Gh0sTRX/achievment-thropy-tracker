@@ -5,6 +5,21 @@ from unittest.mock import patch
 from atlas import public_profiles as public
 
 class PsnPartialTests(unittest.TestCase):
+    def test_access_failures_keep_safe_classification(self):
+        from atlas import accounts
+        from urllib.error import HTTPError
+        class Platform(Enum):PS4='PS4'
+        class TooManyRequests(Exception):pass
+        title=NS(np_communication_id='NP1',title_platform={Platform.PS4},title_name='Game',title_icon_url='')
+        for error,expected in [(HTTPError('https://service/?secret=private',401,'private',{},None),'expired'),(HTTPError('https://service/',403,'private',{},None),'expired'),(HTTPError('https://service/',429,'private',{},None),'rate_limited'),(TooManyRequests('private'),'rate_limited')]:
+            def trophies(*args,**kwargs):raise error
+            user=NS(account_id='123',online_id='Player1',trophy_titles=lambda **kwargs:[title],trophies=trophies)
+            sdk=NS(PSNAWP=lambda secret:NS(user=lambda **kwargs:user))
+            with patch.dict('sys.modules',{'psnawp_api':sdk}),patch.object(public.settings,'get',return_value='session'):
+                with self.assertRaises(ValueError) as caught:public.fetch('psn','Player1')
+            self.assertEqual(accounts.failure(caught.exception)[0],expected)
+            self.assertNotIn('private',str(caught.exception))
+
     def test_cancel_during_title_discovery_stops_before_trophy_requests(self):
         from atlas import sync_control
         stopped=False;yielded=[]
