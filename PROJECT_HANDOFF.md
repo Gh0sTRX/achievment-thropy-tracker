@@ -1,5 +1,16 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+## 7 Kasım — v0.16.3 Artwork Rescue / Console Mode emri
+
+Kullanıcı v0.16.2'de Xbox reconnect/sync, PSN ve Steam GEÇTİ; kapaklar sorunlu,
+Console Mode kısmen geçti dedi. Bunlar gerçek kullanıcı gözlemi, tüm API/fiziksel
+kontrolcü kapsamı değil. Bu emir yeni yayın yetkisi vermez. Main/release korunur.
+Kaynak codex/public-profile-trophies'da; yeni tema/platform/ücretli AI yok.
+Health neden+çözüm/tek oyun kontrolü, Title ID/cache/reset koruması ve Console
+kökenli Universe dönüşünde seçili oyun/odak geliştiriliyor. Ayrıntılı kabul
+tablosu docs/V0_16_3_ARTWORK_CONSOLE_ACCEPTANCE_TR.md. Üç gerçek hedef oyunun
+kapağı kişisel arşiv olmadan düzeldi sayılmaz. Yeni HEAD CI ayrıca izlenmeli.
+
 ## 0.16.2 YAYIMLANDI — güncel sonuç, 6 Kasım 2026
 
 Kullanıcının açık derle/güncelleme yayımla talebi tamamlandı. Birikmiş kaynak
