@@ -8,6 +8,19 @@ async function checkArtworkHealth(gameId=null){
  $('artHealthGames').innerHTML=h.issues.slice(0,20).map(g=>`<article class="panel"><h3><button class="ghost-link" data-gid="${esc(g.game_id)}">${esc(g.name)}</button></h3><p>${esc(g.platform)} · ${esc(g.edition||'Edisyon belirtilmemiş')} · ${esc(deviceLabel(g))} · Oyun kimliği: ${esc(g.title_id||'Doğrulanmamış')}</p><dl>${Object.entries(g.assets||{}).map(([kind,a])=>`<dt><strong>${esc(artKindLabels[kind]||kind)}</strong> · ${esc(artStateLabels[a.state]||a.state)}${(a.code?[a.code]:(a.http_codes||[])).map(code=>' · HTTP '+esc(code)).join('')}</dt><dd>${esc(a.reason)} ${esc(a.action)}${a.provider?' Kaynak: '+esc(a.provider)+'.':''}</dd>`).join('')}</dl><button class="secondary" data-health-art="${esc(g.game_id)}">Bu oyuna görsel seç</button> <button class="secondary" data-health-retry="${esc(g.game_id)}">Bu oyunun eksiklerini yeniden dene</button></article>`).join('')||'<p>Bu kapsamda eksik görsel bulunmadı.</p>';
  if(h.issue_count>20)$('artHealthGames').insertAdjacentHTML('beforeend',`<p>İlk 20 / ${esc(h.issue_count)} oyun gösteriliyor. Tek oyun için aşağıdan oyunu seçip “Seçili oyunu kontrol et” düğmesini kullan.</p>`);
 }
+
+let coverInventoryOffset=0, coverInventoryRows=[];
+async function scanCoverInventory(offset=0){
+ const r=await run(()=>api('/api/art/cover_inventory',{offset,limit:20,state:$('coverInventoryFilter').value==='all'?null:$('coverInventoryFilter').value}));
+ if(!r)return;
+ coverInventoryOffset=r.offset;coverInventoryRows=r.items;
+ $('coverInventoryStatus').textContent=r.total_games+' oyun/sürüm · '+r.covered+' gerçek yerel kapak · '+r.missing+' eksik · '+r.with_source+' doğrulanabilir kaynak · '+r.needs_matching+' eşleştirme/kaynak gerekli · '+(r.pending_approval||0)+' onay bekliyor · '+(r.failed||0)+' başarısız. Kaynak sayısı indirme başarısı değildir.';
+ const queueTotal=r.queue_total??r.missing;
+ $('coverInventoryPage').textContent=queueTotal?Math.floor(r.offset/r.limit)+1+' / '+Math.ceil(queueTotal/r.limit):'Bu kuyruk boş';
+ $('coverInventoryPrev').disabled=r.offset===0;
+ $('coverInventoryNext').disabled=!r.has_more;
+ $('coverInventoryList').innerHTML=r.items.map(g=>`<article class="panel cover-queue-row"><h3>${esc(g.name)}</h3><p>${esc(g.platform.toUpperCase())} · ${esc(g.edition||'Edisyon belirtilmemiş')} · Kimlik: ${esc(g.title_id||'Doğrulanmamış')}</p><p><strong>${esc(artStateLabels[g.state]||g.state)}</strong>${g.code?' · HTTP '+esc(g.code):''} · ${esc(g.reason)} ${esc(g.action)}</p>${g.discovery?.reason?`<p>${esc(g.discovery.reason)}</p>`:''}${g.discovery?.candidates?.length?`<p>Onay bekleyen adaylar: ${g.discovery.candidates.map(c=>esc(c.name)+' (#'+esc(c.id)+')').join(', ')}</p>`:''}<button type="button" class="secondary" data-cover-select="${esc(g.game_id)}">EŞLEŞTİR / KAPAK SEÇ</button></article>`).join('')||'<p>Bu kapsamda eksik oyun kapağı kalmadı. Kaynaklı kapaklar çevrimdışı kullanılabilir.</p>';
+}
 function nextMoveChoices(){return (PLATFORM_REPORTS[ACTIVE_PLATFORM]?.next_moves||[]).filter(r=>gameById(r.game_id)).slice(0,3)}
 let preferenceQueue=Promise.resolve();
 function savePreferences(values){
@@ -98,7 +111,7 @@ function renderUniverse(){const g=gameById(selectedGame);if(!g)return;const item
  $('universeStatus').value=universeStatus;$('universeStatus').onchange=e=>{universeStatus=e.target.value;universeOffset=0;renderUniverse()};$('universePrev').onclick=()=>{universeOffset-=48;renderUniverse()};$('universeNext').onclick=()=>{universeOffset+=48;renderUniverse()};return;
  }
  if(universeTab==='goals'){const pins=new Set(DATA.state.pins||[]);const rows=items.filter(a=>pins.has(a.id)).map(a=>questCard(pseudoRec(a)));out.innerHTML=rows.join('')||empty('Bu oyun için sabitlenmiş hedef yok. Başarımlar sekmesinden hedef seç.');return}
- if(universeTab==='artwork'){out.innerHTML=`<div class="detail-buttons"><button class="secondary" data-universe-art>Bu oyuna görsel seç</button><button class="secondary" data-universe-media>Eksik görselleri bul / yeniden dene</button></div><p class="helper">CSV kapak veya resmî oyun kimliği içermez. Başlık/edisyon eşleşmesini onaylamadan görsel atanmaz. Kaynağı olmayan kategoriler üretilmez.</p>`+['cover','hero','banner','logo','screenshot'].map(kind=>{const url=visualUrl(g,kind),meta=g.artwork_meta?.[kind]||{};return `<figure class="universe-art"><figcaption>${esc(kind)} · ${esc(meta.provider||'Kaynak belirtilmemiş')}</figcaption>${url?`<img loading="lazy" src="${esc(url)}" alt="${esc(g.name+' '+kind)}">`:`<p>${esc(mediaStateLabel(g.artwork_download?.[kind]?.state))}${g.artwork_download?.[kind]?.code?' · HTTP '+esc(g.artwork_download[kind].code):''}. CSV yalnız başlık/başarım kayıtlarını taşır; bu kategori için izinli bir kaynak veya kendi dosyan gerekir.</p>`}</figure>`}).join('');return}
+ if(universeTab==='artwork'){out.innerHTML=`<div class="detail-buttons"><button class="secondary" data-universe-art>Bu oyuna görsel seç</button><button class="secondary" data-universe-media>Eksik görselleri bul / yeniden dene</button><button class="secondary" data-cover-library>Tüm Game Universe kapaklarını yönet</button></div><p class="helper">CSV kapak veya resmî oyun kimliği içermez. Başlık/edisyon eşleşmesini onaylamadan görsel atanmaz. Kaynağı olmayan kategoriler üretilmez.</p>`+['cover','hero','banner','logo','screenshot'].map(kind=>{const url=visualUrl(g,kind),meta=g.artwork_meta?.[kind]||{};return `<figure class="universe-art"><figcaption>${esc(kind)} · ${esc(meta.provider||'Kaynak belirtilmemiş')}</figcaption>${url?`<img loading="lazy" src="${esc(url)}" alt="${esc(g.name+' '+kind)}">`:`<p>${esc(mediaStateLabel(g.artwork_download?.[kind]?.state))}${g.artwork_download?.[kind]?.code?' · HTTP '+esc(g.artwork_download[kind].code):''}. CSV yalnız başlık/başarım kayıtlarını taşır; bu kategori için izinli bir kaynak veya kendi dosyan gerekir.</p>`}</figure>`}).join('');return}
  if(universeTab==='timeline'){out.innerHTML=timelineMarkup(items);return}
  if(universeTab==='dlc'){const groups=new Map();for(const a of items){const key=a.dlc||'Temel oyun';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(a)}out.innerHTML=groups.size>1?[...groups].map(([key,arr])=>{const p=AtlasModel.progress(arr);return `<div class="mini-game"><strong>${esc(key)}</strong><span>${p.earned}/${p.total} kazanılmış</span></div>`}).join(''):empty('Sağlayıcı ayrı DLC veya grup bilgisi bildirmedi.');return}
  if(universeTab==='notes'){out.innerHTML=`<label for="gameNotes">Bu oyun için yerel notların</label><textarea id="gameNotes" class="universe-notes" maxlength="8000">${esc(g.notes||'')}</textarea><button id="saveNotes" class="secondary">NOTLARI KAYDET</button>`;$('saveNotes').onclick=async()=>{const r=await run(()=>api('/api/game/notes',{game_id:g.id,notes:$('gameNotes').value}));if(r){g.notes=$('gameNotes').value;toast(r.message)}};return}
@@ -139,6 +152,29 @@ init=function(){baseInit();
  document.querySelectorAll('[data-layout]').forEach(b=>b.onclick=async()=>{await savePreferences({library_layout:b.dataset.layout});renderGames()});
  document.querySelectorAll('[data-tab]').forEach(b=>{b.onclick=()=>{universeTab=b.dataset.tab;renderUniverse()};b.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const tabs=[...document.querySelectorAll('[data-tab]')],i=tabs.indexOf(b),target=e.key==='Home'?tabs[0]:e.key==='End'?tabs.at(-1):tabs[(i+(e.key==='ArrowLeft'?-1:1)+tabs.length)%tabs.length];target.click();target.focus()}});
  $('detailClose').onclick=leaveUniverse;
+ $('scanCoverLibrary').onclick=()=>scanCoverInventory(0);
+ $('coverInventoryFilter').onchange=()=>scanCoverInventory(0);
+ let coverJobWasRunning=false;
+ setInterval(()=>{const job=DATA.status.media_job;if(!job?.discover_sources)return;if(job.running){coverJobWasRunning=true;if(page==='artwork')$('coverInventoryStatus').textContent=job.message+' · '+job.done+'/'+job.total}else if(coverJobWasRunning){coverJobWasRunning=false;if(page==='artwork')scanCoverInventory(0)}},2000);
+ $('coverInventoryPrev').onclick=()=>scanCoverInventory(Math.max(0,coverInventoryOffset-20));
+ $('coverInventoryNext').onclick=()=>scanCoverInventory(coverInventoryOffset+20);
+ $('recoverCoverLibrary').onclick=async()=>{const r=await run(()=>api('/api/media/download',{covers_only:true,discover_sources:true}));if(r)toast(r.message+' İşlem tamamlanınca kapak kuyruğunu yeniden tara.')};
+ $('coverInventoryList').onclick=e=>{
+  const b=e.target.closest('[data-cover-select]');if(!b)return;
+  const g=(DATA.library.games||[]).find(x=>x.id===b.dataset.coverSelect);if(!g)return toast('Oyun kaydı bulunamadı.',true);
+  // The cover queue spans all providers even when the current filter is PSN/Xbox/Steam.
+  if(ACTIVE_PLATFORM!=='all'||ACTIVE_DEVICE!=='all'){
+   ACTIVE_PLATFORM='all';ACTIVE_DEVICE='all';render();
+  }
+  $('artGame').value=g.id;$('localArtKind').value='cover';
+  $('artGame').dispatchEvent(new Event('change',{bubbles:true}));
+  const details=document.querySelector('#artwork details.panel');if(details)details.open=true;
+  $('artEdition').scrollIntoView({block:'center',behavior:'instant'});$('artGame').focus({preventScroll:true});
+  const row=coverInventoryRows.find(x=>x.game_id===g.id),matches=row?.discovery?.candidates||[];
+  if(matches.length){$('artConfirm').checked=false;$('sgdbMatches').innerHTML=matches.map(m=>`<option value="${esc(m.id)}">${esc(m.name)} · SteamGridDB · hedef: ${esc(deviceLabel(g))} · edisyonu doğrula</option>`).join('')}
+  toast('Doğru oyun/edisyonu kontrol et; SteamGridDB ile ara veya kendi kapağını seç.');
+ };
+ document.body.addEventListener('click',e=>{if(e.target.closest('[data-cover-library]')){navigate('artwork');scanCoverInventory(0)}});
  $('checkArtHealth').onclick=()=>checkArtworkHealth();
  $('checkSelectedArtHealth').onclick=()=>checkArtworkHealth($('artGame').value);
  $('artHealthGames').onclick=async e=>{const art=e.target.closest('[data-health-art]'),retry=e.target.closest('[data-health-retry]');if(art){$('artGame').value=art.dataset.healthArt;renderVisuals();$('artGame').focus()}if(retry){const r=await run(()=>api('/api/media/download',{game_id:retry.dataset.healthRetry}));if(r)toast(r.message)}};

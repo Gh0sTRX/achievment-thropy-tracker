@@ -83,6 +83,23 @@
     </section>
     <section class="page hidden" id="artwork">
       <div class="section-head"><span class="eyebrow">VISUAL STUDIO / ARTWORK</span><h1>Oyun <em>görselleri</em></h1><p>Bu bölüm yalnızca oyun kapağını ve arka planını değiştirir. Başarım veya oyuncu ilerlemesi indirmez. Oyunların kendi görselleri varsa otomatik kullanılır.</p></div>
+      <section class="panel" id="coverRescue">
+        <h2>Game Universe · Tüm oyun kapaklarını tamamla</h2>
+        <p>Xbox, PlayStation ve Steam dahil bütün oyun kütüphaneni kapsar. Var olan kapakları korur. Kaynak adresi olanlar indirilebilir; kaynağı bulunmayanlar oyun/edisyon onayıyla eşleştirilir. Yanlış oyun kapağı otomatik seçilmez.</p>
+        <div class="detail-buttons">
+          <button id="scanCoverLibrary" class="secondary">TÜM KAPAKLARI TARA</button>
+          <button id="recoverCoverLibrary" class="secondary">TÜM EKSİK KAPAKLARI BUL VE TAMAMLA</button>
+        </div>
+        <label>Kapak kuyruğu <select id="coverInventoryFilter"><option value="all">Tüm eksikler</option><option value="pending">Onay bekleyen eşleşmeler</option><option value="available">Kaynak bulundu, indirme bekliyor</option><option value="no_source">Kaynak bulunamadı</option><option value="failed">Başarısız kaynaklar</option></select></label>
+        <p id="coverInventoryStatus" role="status" aria-live="polite">Henüz taranmadı.</p>
+        <div id="coverInventoryList" class="cover-inventory"></div>
+        <div class="pager">
+          <button id="coverInventoryPrev" class="secondary" disabled>← Önceki eksikler</button>
+          <span id="coverInventoryPage">—</span>
+          <button id="coverInventoryNext" class="secondary" disabled>Sonraki eksikler →</button>
+        </div>
+        <p class="helper">Kaynak yoksa “Eşleştir / kapak seç” ile SteamGridDB sonucunu ve oyun sürümünü onaylayabilir veya kendi görselini seçebilirsin. SteamGridDB için kişisel API anahtarın gerekir; servis engelleri aşılmaz.</p>
+      </section>
       <div class="panel"><h2>Görsel sağlığı</h2><p id="artHealth" role="status">Doğrulanmış yerel görsel kapsamını kontrol et.</p><div id="artHealthGames"></div><button id="checkArtHealth" class="secondary">KAPSAMAYI KONTROL ET</button><button id="checkSelectedArtHealth" class="secondary">SEÇİLİ OYUNU KONTROL ET</button><button id="repairArtHealth" class="secondary">EKSİKLERİ İNDİR / YENİDEN DENE</button><p class="helper">İndirmeyi üstteki transfer panelinden durdurabilirsin. Yalnız kalıcı oyun kimliğiyle gelen güvenilir adaylar kullanılır.</p></div><div class="panel visual-workbench"><div class="workbench-title"><div><span class="eyebrow">KÜTÜPHANENDEN / GERÇEK GÖRSELLER</span><h2>Oyununa bir atmosfer seç</h2></div><span class="source-badge">YEREL ÖNCELİKLİ</span></div>
         <label class="form-label">OYUN<select id="artGame"></select></label><p id="artEdition" class="helper"></p>
         <div id="localArtControls"><div class="art-workspace"><div id="localArtPreview" role="img" aria-label="Seçili oyun görseli önizlemesi"><span id="artPreviewEmpty"></span></div><div class="art-controls"><label class="form-label">GÖRSEL TÜRÜ<select id="localArtKind"><option value="hero">Geniş arka plan</option><option value="cover">Oyun kapağı</option><option value="logo">Şeffaf logo</option><option value="banner">Banner</option><option value="screenshot">Ekran görüntüsü</option></select></label><button id="localArtChoose" class="cta wide">BİLGİSAYARIMDAN GÖRSEL SEÇ ↗</button><input id="localArtFile" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"><p class="helper">PNG, JPEG veya WebP · En fazla 8 MB / 16 MP. Seçtiğin dosya yalnız bu oyun için yerel kaydedilir.</p><button id="localArtReset" class="secondary">BU GÖRSELİ SIFIRLA</button><p id="artProvenance" class="helper"></p><a id="artSourceLink" class="ghost-link hidden" target="_blank" rel="noopener noreferrer">GÖRSELİN KAYNAĞI ↗</a></div></div>

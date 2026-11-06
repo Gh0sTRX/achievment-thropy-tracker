@@ -20,7 +20,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit, unquote
 from .core import Library,normalize
 from . import recommendations,artwork,accounts
-from . import xbox, public_profiles, guides, settings, media_sync, updater, sync_control
+from . import xbox, public_profiles, guides, settings, media_sync, updater, sync_control, cover_recovery
 
 BASE=Path(__file__).resolve().parent
 
@@ -239,22 +239,26 @@ class Controller:
         data=data or {}
         platform=data.get('platform') or None
         gid=data.get('game_id') or None
+        covers_only=data.get('covers_only') is True
+        recover=covers_only and data.get('discover_sources') is True
+        if platform not in (None,'xbox','psn','pc'):raise ValueError('Görsel platformu geçersiz.')
         if gid:platform=self.art_game(data).get('platform')
         if not self.media_guard.acquire(blocking=False):return {'message':'Görsel indirmesi zaten çalışıyor.'}
         self.media_stop.clear()
-        self.store.status['media_job']={'running':True,'done':0,'total':0,'message':'Görsel kaynakları kontrol ediliyor.','platform':platform,'game_id':gid}
+        self.store.status['media_job']={'running':True,'done':0,'total':0,'message':'Görsel kaynakları kontrol ediliyor.','platform':platform,'game_id':gid,'covers_only':covers_only,'discover_sources':recover}
         def progress(done,total,name):self.store.status['media_job'].update(done=done,total=total,message=name)
         def worker():
             try:
-                report=media_sync.download(self.store,progress,stop=self.media_stop.is_set,platform=platform,game_id=gid)
-                self.store.status['media_job'].update(report=report,cancelled=self.media_stop.is_set(),message=('İndirme durduruldu; tamamlanan görseller korundu. ' if self.media_stop.is_set() else '')+f"{report['downloaded']} indirildi; {report['cached']} önbellekte; {report['missing_source']} kaynaksız; {report['failed']} başarısız; {report['blocked']} engellendi. {'; '.join(report['errors'])}")
+                if recover:report=cover_recovery.recover(self.store,progress,self.media_stop.is_set,platform,gid)
+                else:report=media_sync.download(self.store,progress,stop=self.media_stop.is_set,platform=platform,game_id=gid,covers_only=covers_only)
+                self.store.status['media_job'].update(report=report,cancelled=self.media_stop.is_set() or report.get('context_changed',False),message=('Oyun veya profil değişti; yeni isteğe geçilmedi. ' if report.get('context_changed') else 'İndirme durduruldu; tamamlanan görseller korundu. ' if self.media_stop.is_set() else '')+f"{report['downloaded']} indirildi; {report['cached']} önbellekte; {report['missing_source']} kaynaksız; {report['failed']} başarısız; {report['blocked']} engellendi. {'; '.join(report['errors'])}")
             except Exception as exc:self.store.status['media_job']['message']='Görsel indirmesi: '+type(exc).__name__
             finally:
                 self.store.status['media_job']['running']=False
                 self.record_activity(platform,'media',self.store.status['media_job'])
                 self.media_guard.release()
         threading.Thread(target=worker,daemon=True).start()
-        return {'message':'Mevcut oyunların resmi kapak/logo ve başarım ikonları indiriliyor.'}
+        return {'message':'Eksik kapaklar kimlik ve edisyonla aranıyor; doğrulananlar indirilecek, belirsizler onay bekleyecek.' if recover else 'Game Universe genelindeki mevcut, doğrulanmış kapak kaynakları indiriliyor.' if covers_only else 'Mevcut oyunların resmi kapak/logo ve başarım ikonları indiriliyor.'}
 
     def stop_downloads(self,data):
         kind=data.get('kind','all')
@@ -436,6 +440,7 @@ class Controller:
             if current is not game or any(current.get(k)!=before[k] for k in fields):
                 raise ValueError('Oyun kaydı değişti; sürüm eşleşmesini yeniden onayla.')
             self.store.live_artwork[gid]=choices
+            current.pop('cover_discovery',None)
             current['artwork_match']={'provider':'SteamGridDB','provider_id':str(int(data['sgdb_id'])),'game_id':gid,
                 'platform':current.get('platform'),'title_id':current.get('title_id'),'platform_edition':current.get('platform_edition'),
                 'devices':list(current.get('devices',[])),'confirmed':True}
@@ -744,6 +749,7 @@ class Handler(BaseHTTPRequestHandler):
                '/api/game/notes':self.server.controller.save_notes,
                '/api/preferences':lambda d:self.server.controller.store.set_preferences(d),
                '/api/art/health':lambda d:media_sync.health(self.server.controller.store,d.get('platform'),d.get('game_id')),
+               '/api/art/cover_inventory':lambda d:media_sync.cover_inventory(self.server.controller.store,d.get('platform'),d.get('offset',0),d.get('limit',20),d.get('state')),
                '/api/enrichment/preview':self.server.controller.preview_enrichment,
                '/api/enrichment/confirm':self.server.controller.confirm_enrichment,
                '/api/art/key':self.server.controller.set_sgdb_key,

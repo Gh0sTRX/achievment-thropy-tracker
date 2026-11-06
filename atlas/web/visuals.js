@@ -13,7 +13,7 @@ function visualUrl(game,kind='hero'){
  try{const url=new URL(value);const hosts=['trueachievements.com','steamstatic.com','steamcdn-a.akamaihd.net','steamuserimages-a.akamaihd.net','steamgriddb.com','xboxlive.com','xbox.com','microsoft.com','s-microsoft.com','playstation.net','playstation.com'];if(url.protocol==='https:'&&!url.username&&!url.password&&(!url.port||url.port==='443')&&hosts.some(h=>url.hostname===h||url.hostname.endsWith('.'+h)))return url.href}catch(e){}
  return '';
 }
-function cssUrl(url){return 'url('+encodeURI(url).replace(/[()'"<>\s\\]/g,c=>'%'+c.charCodeAt(0).toString(16))+')'}
+function cssUrl(url){return 'url('+encodeURI(url).replace(/%25([0-9a-f]{2})/gi,'%$1').replace(/[()'"<>\s\\]/g,c=>'%'+c.charCodeAt(0).toString(16))+')'}
 function visualStyle(game,kind='cover'){
  const url=visualUrl(game,kind);if(!url)return '';
  const theme=game.art_theme||{};

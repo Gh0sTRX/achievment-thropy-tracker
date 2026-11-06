@@ -1,4 +1,5 @@
 """Bounded media caching; cancellation preserves completed, validated files."""
+from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import time
@@ -12,12 +13,17 @@ def game_sources(game,kind):
     """Shared eligible sources for download and health; user files stay local."""
     saved=(game.get('artwork_meta') or {}).get(kind,{})
     if saved.get('provider')=='user_file':return []
-    candidates=[c for c in game.get('art_candidates',[]) if c.get('kind')==kind]
-    candidates.append({'url':game.get(kind+'_url'),'provider':game.get('image_source') or game.get('platform')})
+    from .cover_recovery import identity,bound_match
+    candidates=[c for c in game.get('art_candidates',[]) if c.get('kind')==kind
+                and (not c.get('cover_identity') or c['cover_identity']==identity(game))
+                and (c.get('provider')!='SteamGridDB' or bound_match(game))]
+    candidates.sort(key=lambda c:c.get('provider')=='SteamGridDB')
+    sources=[]
     recorded_title=saved.get('title_id') or (saved.get('provider_id') if saved.get('provider')!='SteamGridDB' else None)
     if saved.get('game_id')==game['id'] and saved.get('platform')==game.get('platform') and saved.get('platform_edition')==game.get('platform_edition') and (recorded_title or None)==(game.get('title_id') or None):
-        candidates.append({**saved,'url':saved.get('source_url')})
-    return [c for c in candidates if artwork.safe_url(c.get('url'))]
+        sources.append({**saved,'url':saved.get('source_url')})
+    sources.append({'url':game.get(kind+'_url'),'provider':game.get('image_source') or game.get('platform')})
+    return [c for c in sources+candidates if artwork.safe_url(c.get('url'))]
 
 
 def asset_diagnosis(root,game,kind,present):
@@ -55,15 +61,20 @@ def media_request(call,halted):
                 time.sleep(.05)
 
 
-def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, game_id=None):
+def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, game_id=None, covers_only=False, transfer=None):
     from datetime import datetime,timezone
     with store.lock:
-        games=[dict(g) for g in store.library['games'] if not catalog.is_app(g) and (not platform or g.get('platform')==platform) and (not game_id or g['id']==game_id)]
+        games=[deepcopy(g) for g in store.library['games'] if not catalog.is_app(g) and (not platform or g.get('platform')==platform) and (not game_id or g['id']==game_id)]
+        profile_context=deepcopy(store.state.get('public_profiles',{}))
+        game_objects={g['id']:g for g in store.library['games']}
         gids={g['id'] for g in games}
-        icons=[dict(a) for a in store.library['achievements'] if a.get('game_id') in gids or (not platform and not game_id and a.get('game_id') not in {g['id'] for g in store.library['games']})]
-    kinds=('cover','hero','banner','logo','screenshot')
-    report={'downloaded':0,'cached':0,'missing_source':0,'failed':0,'blocked':0,'skipped':0,'cancelled':0,'attempted':0,'processed':0,'planned':len(games)*5+len(icons),'records':len(games)+len(icons),'missing':[],'errors':[],'details':[],'detail_count':0,'missing_count':0,'error_count':0,'checked_at':datetime.now(timezone.utc).isoformat()}
-    blocked=threading.Event();forbidden_hosts=set();dirty=0;last_save=time.monotonic();indexed=None;indexes={}
+        icons=[] if covers_only else [dict(a) for a in store.library['achievements'] if a.get('game_id') in gids or (not platform and not game_id and a.get('game_id') not in {g['id'] for g in store.library['games']})]
+    kinds=('cover',) if covers_only else ('cover','hero','banner','logo','screenshot')
+    report={'downloaded':0,'cached':0,'missing_source':0,'failed':0,'blocked':0,'skipped':0,'cancelled':0,'attempted':0,'processed':0,'planned':len(games)*len(kinds)+len(icons),'records':len(games)+len(icons),'missing':[],'errors':[],'details':[],'detail_count':0,'missing_count':0,'error_count':0,'checked_at':datetime.now(timezone.utc).isoformat()}
+    outcomes=transfer.setdefault('outcomes',{}) if transfer is not None else None
+    forbidden_hosts=transfer.setdefault('forbidden_hosts',set()) if transfer is not None else set()
+    unavailable=transfer.setdefault('unavailable',{}) if transfer is not None else {}
+    blocked=threading.Event();dirty=0;last_save=time.monotonic();indexed=None;indexes={}
     def lookup(is_icon,ident):
         nonlocal indexed,indexes
         if indexed is not store.library:
@@ -71,12 +82,20 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
         return indexes[is_icon].get(ident)
     assets=[(g,kind,False) for g in games for kind in kinds]+[(a,'icon',True) for a in icons]
     def halted():return stop() or blocked.is_set()
+    def record_outcome(detail, attempted=False):
+        if outcomes is None:return
+        key=(detail['id'],detail['kind']);previous=outcomes.get(key,{})
+        # A later cache hit or cancellation must not erase this job's completed download.
+        if previous.get('state')=='downloaded' and detail['state'] in ('cached','cancelled'):return
+        outcomes[key]={**detail,'attempted':attempted or previous.get('attempted',False)}
     def process(asset):
         nonlocal dirty,last_save
         obj,kind,is_icon=asset
         ident=obj['id'];state='missing_source';code=None;attempted=False;meta=None
         if halted():
-            with store.lock:report['cancelled']+=1
+            with store.lock:
+                report['cancelled']+=1
+                record_outcome({'id':ident,'game_id':obj.get('game_id',ident),'kind':kind,'platform':obj.get('platform'),'state':'cancelled','code':None})
             return
         if (artwork.cached(store.root,kind,ident) if is_icon else artwork.game_cached(store.root,obj,kind)):state='cached'
         elif (obj.get('artwork_meta') or {}).get(kind,{}).get('provider')=='user_file':state='skipped'
@@ -93,6 +112,9 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
                 with store.lock:forbidden=host in forbidden_hosts
                 if forbidden:
                     state='blocked';code=403;continue
+                with store.lock:prior_failure=unavailable.get(url)
+                if prior_failure:
+                    state,code=prior_failure;continue
                 attempted=True
                 try:
                     if is_icon:
@@ -103,7 +125,8 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
                     # Identity and user override are rechecked after the network request.
                     with store.lock:
                         current=lookup(is_icon,ident)
-                        if not current or any(current.get(k)!=obj.get(k) for k in ('platform','game_id','title_id','platform_edition')):state='skipped';break
+                        if not current or any(current.get(k)!=obj.get(k) for k in ('platform','game_id','title_id','platform_edition','devices','provider')):state='skipped';break
+                        if not is_icon and (current is not game_objects.get(ident) or store.state.get('public_profiles',{})!=profile_context):state='skipped';break
                         if not is_icon and (current.get('artwork_meta') or {}).get(kind,{}).get('provider')=='user_file':state='skipped';break
                         if not is_icon:meta=artwork.store_bytes(store.root,kind,ident,data)
                         provenance={**meta,'provider':candidate.get('provider') or obj.get('platform'),'provider_id':candidate.get('provider_id') or (obj.get('provider_identity') or {}).get('achievement_id') or obj.get('provider_id') or obj.get('title_id',''),'title_id':obj.get('title_id'),'source_url':url,'game_id':obj.get('game_id',ident),'platform':obj.get('platform'),'platform_edition':obj.get('platform_edition'),'saved_at':report['checked_at'],'rights_note':candidate.get('rights_note') or 'Sağlayıcı görseli; yeniden dağıtım izni verilmez.'}
@@ -113,6 +136,8 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
                 except Cancelled:state='cancelled';break
                 except Exception as exc:
                     code=getattr(exc,'code',None);state='blocked' if code in (401,403,429) else 'failed'
+                    if transfer is not None and isinstance(exc,(ValueError,URLError,TimeoutError,ConnectionError)):
+                        with store.lock:unavailable[url]=(state,code)
                     if code==403:
                         # Respect this host's denial without suppressing already
                         # selected, independent sources from other providers.
@@ -121,6 +146,7 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
         with store.lock:
             report[state]+=1;report['attempted']+=int(attempted);report['processed']+=1
             detail={'id':ident,'game_id':obj.get('game_id',ident),'kind':kind,'state':state,'code':code,'platform':obj.get('platform')}
+            record_outcome(detail,attempted)
             # Never include provider exception text or credential-bearing request URLs.
             if state in ('failed','blocked'):
                 report['error_count']+=1
@@ -133,16 +159,16 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
                 if len(report['details'])<200:report['details'].append(detail)
         with store.lock:
             current=lookup(is_icon,ident)
-            if current and (not is_icon or state!='missing_source'):
+            if current and all(current.get(k)==obj.get(k) for k in ('platform','game_id','title_id','platform_edition','devices','provider')) and (is_icon or current is game_objects.get(ident) and store.state.get('public_profiles',{})==profile_context) and (not is_icon or state!='missing_source'):
                 value={'state':state,'code':code,'updated_at':report['checked_at']}
                 if is_icon:current['icon_download']=value
                 else:current.setdefault('artwork_download',{})[kind]=value
                 dirty+=1
             if dirty and time.monotonic()-last_save>=5:store.save();dirty=0;last_save=time.monotonic()
         progress(report['processed'],report['planned'],obj.get('name',''))
-    for asset in assets[:len(games)*5]:process(asset)
+    for asset in assets[:len(games)*len(kinds)]:process(asset)
     with ThreadPoolExecutor(max_workers=4,thread_name_prefix='atlas-media') as pool:
-        for offset in range(len(games)*5,len(assets),4):
+        for offset in range(len(games)*len(kinds),len(assets),4):
             if halted():
                 report['cancelled']+=len(assets)-offset;break
             list(pool.map(process,assets[offset:offset+4]))
@@ -179,3 +205,47 @@ def health(store,platform=None,game_id=None):
     state_counts={key:sum(s.get('state')==key for s in states) for key in ('downloaded','cached','missing_source','failed','blocked','skipped','cancelled')}
     return {'games':len(games),'achievements':len(items),'cached':coverage,'cached_icons':icons,'valid_source_urls':sources,'icon_source_urls':sum(artwork.safe_url(a.get('icon_url') or a.get('icon_candidate')) for a in items),
             'missing':{kind:len(games)-coverage[kind] for kind in kinds},'issues':issues[:200],'issue_count':len(issues),'has_more':len(issues)>200,'missing_icons':len(items)-icons,'scope':'validated_local_cache','last_checked_states':state_counts,'checked_at':max((s.get('updated_at','') for s in states),default='')}
+
+
+def cover_inventory(store, platform=None, offset=0, limit=20, state=None):
+    """All-library Game Universe cover queue, never inferred by title alone.
+
+    Reports verified *decoded* local covers; remote candidates and URLs are not
+    counted as downloaded art. Results are paginated for large libraries.
+    """
+    try:
+        offset=int(offset)
+        limit=int(limit)
+    except (TypeError,ValueError):
+        raise ValueError('Kapak kuyruğu sayfa parametresi geçersiz.') from None
+    if offset<0 or offset>1_000_000 or not 1<=limit<=50:
+        raise ValueError('Kapak kuyruğu sayfa aralığı geçersiz.')
+    if state not in (None,'pending','no_source','failed','available'):raise ValueError('Kapak kuyruk filtresi geçersiz.')
+    if platform not in (None,'xbox','psn','pc'):
+        raise ValueError('Kapak platformu geçersiz.')
+    with store.lock:
+        games=sorted((dict(g) for g in store.library['games']
+                      if not catalog.is_app(g) and (platform is None or g.get('platform')==platform)),
+                     key=lambda g:(str(g.get('name','')).casefold(),str(g.get('platform','')),str(g['id'])))
+    missing=[];covered=0;available=0;unmatched=0;pending=0;failed=0
+    for g in games:
+        if artwork.game_cached(store.root,g,'cover'):
+            covered+=1
+            continue
+        info=asset_diagnosis(store.root,g,'cover',False)
+        from .cover_recovery import identity
+        discovery=g.get('cover_discovery') or {}
+        if discovery.get('identity')!=identity(g):discovery={}
+        pending+=int(discovery.get('state')=='pending')
+        failed+=int(info['state'] in ('blocked','failed','invalid_cache') or discovery.get('state')=='failed')
+        available+=int(info['source_available'])
+        unmatched+=int(info['state'] in ('missing_source','identity_mismatch'))
+        missing.append({'game_id':g['id'],'name':g.get('name',''),'platform':g.get('platform',''),
+                        'edition':g.get('platform_edition',''),'title_id':str(g.get('title_id') or ''),
+                        'state':info['state'],'reason':info['reason'],'action':info['action'],
+                        'provider':info['provider'],'source_available':info['source_available'],
+                        'code':info['code'],'discovery':discovery})
+    queue=[g for g in missing if state is None or (state=='pending' and g['discovery'].get('state')=='pending') or (state=='no_source' and not g['source_available'] and g['discovery'].get('state')!='pending') or (state=='failed' and (g['state'] in ('blocked','failed','invalid_cache') or g['discovery'].get('state')=='failed')) or (state=='available' and g['source_available'])]
+    return {'total_games':len(games),'covered':covered,'missing':len(missing),'queue_total':len(queue),
+            'with_source':available,'needs_matching':unmatched,'pending_approval':pending,'failed':failed,'offset':offset,
+            'limit':limit,'has_more':offset+limit<len(queue),'items':queue[offset:offset+limit]}

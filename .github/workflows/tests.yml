@@ -93,6 +93,7 @@ jobs:
           atlas_fixture_pid=$!
           trap 'kill "$atlas_fixture_pid" 2>/dev/null || true' EXIT
           python -c "import pathlib,time; p=pathlib.Path('work/audit/fixture-urls.json'); deadline=time.monotonic()+30; exec('while not p.exists() and time.monotonic()<deadline: time.sleep(.2)'); assert p.exists(), 'Fixture startup timed out'"
+          python -m unittest discover -s tests -p test_cover_recovery.py -v
           node tests/test_game_universe.cjs
           node tests/test_native_search.cjs
           node tests/test_native_themes.cjs
@@ -103,6 +104,8 @@ jobs:
           node tests/test_console_layout.cjs
           node tests/test_console_return.cjs
           node tests/test_artwork_health_ui.cjs
+          node tests/test_cover_inventory_ui.cjs
+          node tests/test_cover_recovery_ui.cjs
           node tests/test_next_moves.cjs
           node tests/test_issue22_metadata.cjs
           node tests/test_library_transfer.cjs
@@ -118,3 +121,4 @@ jobs:
             work/audit/game-universe-results.json
             work/audit/server-performance.json
             work/audit/native-*.png
+            work/audit/cover-*.json

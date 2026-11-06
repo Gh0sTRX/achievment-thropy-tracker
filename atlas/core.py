@@ -240,7 +240,7 @@ class Library:
             old_ach={a['id']:a for a in old['achievements']}
             for g in lib['games']:
                 prior=old_games.get(g['id']) or {}
-                for key in ('title_id','platform_edition','cover_url','hero_url','image_source','plan','notes','ownership','artwork_meta','artwork_download','art_theme','logo_url','banner_url','screenshot_url','artwork_match','art_candidates','devices'):
+                for key in ('title_id','platform_edition','cover_url','hero_url','image_source','plan','notes','ownership','artwork_meta','artwork_download','art_theme','logo_url','banner_url','screenshot_url','artwork_match','art_candidates','devices','cover_discovery'):
                     if prior.get(key):g[key]=prior[key]
             for a in lib['achievements']:
                 prior=old_ach.get(a['id']) or {}
@@ -345,6 +345,10 @@ class Library:
                 prior = prior_games.get(g['id'], {})
                 for field in ('hero_url', 'plan', 'notes', 'artwork_meta','artwork_download','art_theme','logo_url','banner_url','screenshot_url'):
                     if prior.get(field): g[field] = prior[field]
+                from .cover_recovery import identity as cover_identity
+                if cover_identity(prior)==cover_identity(g):
+                    if prior.get('cover_discovery'):g['cover_discovery']=deepcopy(prior['cover_discovery'])
+                    g['art_candidates']=g.get('art_candidates',[])+[deepcopy(c) for c in prior.get('art_candidates',[]) if c.get('cover_identity')==cover_identity(g)]
                 match=prior.get('artwork_match',{})
                 if match.get('confirmed') is True and match.get('game_id')==g['id'] and all(match.get(k)==g.get(k) for k in ('platform','title_id','platform_edition')) and match.get('devices',[])==(g.get('devices') or[]):
                     g['artwork_match']=deepcopy(match)
