@@ -16,7 +16,7 @@ function expandInline(id,anchor){
  const panel=document.createElement('section');panel.className='inline-achievement';panel.setAttribute('role','region');panel.setAttribute('aria-labelledby','inline-achievement-title');panel.innerHTML=detailMarkup(a);host.insertAdjacentElement('afterend',panel);trigger?.setAttribute('aria-expanded','true');
  if(!matchMedia('(prefers-reduced-motion:reduce)').matches&&!DATA.state.ui?.reduced_motion)panel.animate([{opacity:0,transform:'translateY(-8px)',maxHeight:'0px'},{opacity:1,transform:'translateY(0)',maxHeight:panel.scrollHeight+'px'}],{duration:220,easing:'ease-out'});
 }
-jumpAch=id=>expandInline(id);
+jumpAch=(id,anchor)=>expandInline(id,anchor);
 document.addEventListener('click',e=>{if(e.target.closest('[data-inline-close]')){closeInline();return}if(e.target.closest('[data-inline-reveal]')&&inlineSelection){const a=(DATA.library.achievements||[]).find(a=>a.id===inlineSelection.id);inlineSelection.revealed=true;document.querySelector('.inline-achievement').innerHTML=detailMarkup(a,true)}});
 let inlineBeforeRender=null;
 window.addEventListener('atlas:before-render',()=>{inlineBeforeRender=inlineSelection;inlineSelection=null});
