@@ -1,5 +1,22 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+## 6 Kasım — PR konsolidasyonu (önce bu bölümü oku)
+
+Kullanıcı açık PR birikimini kapatıp işi bütünleştirmeyi istedi. Tek teslimat
+PR #43, hedef `codex/public-profile-trophies`: #23–#26, #38–#39 ve #41–#42
+kaynakları ve belgeleri bu dalda korunur. Eski incelemeler yerine geçen #43
+belirtilerek kapatılır; dallar silinmez. #1/#2 main incelemeleri de kapatılır;
+main veya geliştirme dalına merge ve release yapılmaz. Aşağıdaki eski PR
+durumları tarihsel kayıttır, güncel açık PR listesi değildir.
+
+Kullanıcı Windows gözlemi: offline, tarihler, trophy ikonları, not/pin kalıcılığı
+çalışıyor; kapaklar eksik. Xbox yeniden başlatınca toparladı, kök neden kabulü
+yok. PSN ilk eşitleme yavaş; Console Mode şikâyeti düzen/konsol hissi.
+Offline/online göstergesi kullanıcı talebiyle yalnız sırada; hemen uygulanmaz.
+Yerel test son kodda 219 Python; tam satır, cache recovery ve onaylı TitleHub
+görsel kategorileri dahil. Yeni birleşik HEAD CI sonucu ayrıca doğrulanmalıdır.
+Gerçek PSN/Steam kabulü, fiziksel gamepad ve NVDA henüz doğrulanmadı.
+
 **Güncellendi:** 6 Kasım 2026. Bu sürüm kontrollü belge yeni ChatGPT/Codex oturumlarında kaldığımız yerden devam etmek içindir. GitHub'daki commitleri, PR durumlarını ve CI sonuçlarını her yeni oturumda yeniden sorgula; bu belge geçmiş anlık kayıttır.
 
 ## Aktif üst emir — #37: offline arşiv + sınırlı hedef planlayıcısı
