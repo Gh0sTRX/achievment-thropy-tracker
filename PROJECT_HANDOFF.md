@@ -1,5 +1,11 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+Steam devamı: bozuk player achievement satırı tüm sync'i kesmek yerine AppID
+düzeyinde başarısız sayılır; önceki aynı hesap kaydı korunur. known_games boş
+schema koruması SteamID64'ye bağlandı, diğer hesabın cache'i yeni hesabı engellemez.
+docs/ISSUE_37_STEAM_PARTIAL_SCOPE_TR.md. Gerçek hesap kabulü değil. Yeni HEAD
+CI ayrıca izlenir; 438a3c1 Unit/Windows işleri başarılıydı. PR/merge/release yok.
+
 Geç gelen artwork yanıtları: manuel seçim fetch'i dosyayı yazmadan önce profil/
 edisyon/cihaz/eşleştirme ve kategori metadata'sını immutable snapshot ile tekrar
 doğrular. Yeni user_file ve farklı profil korunur. Aday sorgusunda in-place

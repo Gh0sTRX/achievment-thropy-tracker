@@ -13,6 +13,35 @@ def responses(interface,method,version='v1',**params):
     raise AssertionError(method)
 
 class SteamTests(unittest.TestCase):
+    def test_other_accounts_cache_does_not_block_empty_schema(self):
+        def request(*args,**kwargs):
+            if args[1]=='GetSchemaForGame':return {'game':{'gameName':'No achievements'}}
+            return responses(*args,**kwargs)
+        cache={'id':'76561198000000001','achievements':[{'game_id':'steam:10'}]}
+        with patch.object(steam,'request',side_effect=request):
+            result=public_profiles.fetch('pc',SID,cache=cache)
+        self.assertEqual(result['id'],SID);self.assertEqual(len(result['games']),1);self.assertEqual(result['achievements'],[])
+
+    def test_malformed_title_rows_preserve_old_title_without_aborting_other_games(self):
+        with patch.object(steam,'request',side_effect=responses):old=public_profiles.fetch('pc',SID)
+        with TemporaryDirectory() as root:
+            store=Library(root);store.apply_public_profile(old)
+            store.library['games'][0]['notes']='keep';store.state['pins']=[old['achievements'][0]['id']]
+            for broken in ('not a row',{'apiname':['not','hashable']}):
+                def request(*args,**kwargs):
+                    if args[1]=='GetOwnedGames':return {'response':{'game_count':2,'games':[{'appid':10,'name':'Old'},{'appid':20,'name':'Other'}]}}
+                    if str(kwargs.get('appid'))=='20' and args[1]=='GetSchemaForGame':return {'game':{'gameName':'Other'}}
+                    data=responses(*args,**kwargs)
+                    if args[1]=='GetPlayerAchievements':data['playerstats']['achievements']=[broken]
+                    return data
+                cache={'id':SID,'games':store.library['games'],'achievements':store.library['achievements']}
+                with patch.object(steam,'request',side_effect=request):new=public_profiles.fetch('pc',SID,cache=cache)
+                self.assertEqual(new['failed_title_ids'],['10']);store.apply_public_profile(new)
+                self.assertEqual({g['id'] for g in store.library['games']},{'steam:10','steam:20'})
+                self.assertTrue(store.library['achievements'][0]['unlocked']);self.assertEqual(store.library['achievements'][0]['unlock_time'],old['achievements'][0]['unlock_time'])
+                self.assertEqual(next(g for g in store.library['games'] if g['id']=='steam:10')['notes'],'keep')
+                self.assertIn(old['achievements'][0]['id'],store.state['pins'])
+
     def test_official_id_schema_and_no_gamerscore(self):
         with patch.object(steam,'request',side_effect=responses):result=public_profiles.fetch('pc','https://steamcommunity.com/id/AtlasTest')
         a=result['achievements'][0];g=result['games'][0]

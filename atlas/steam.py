@@ -114,6 +114,8 @@ def fetch_game(row,sid,known_games):
         if stats.get('success') is not True or str(stats.get('steamID',''))!=sid:raise SteamError('Steam başarım görünürlüğü veya hesap kimliği doğrulanamadı.')
         entries=stats.get('achievements',[])
         if not isinstance(entries,list):raise SteamError('Steam kazanım listesi geçersiz.')
+        if any(not isinstance(a,dict) or not isinstance(a.get('apiname'),str) or not a['apiname'] for a in entries):
+            raise SteamError('Steam başarım satırı geçersiz; önceki oyun kaydı korunur.')
         player={a.get('apiname'):a for a in entries}
         if len(player)!=len(entries):raise SteamError('Tekrarlanan Steam başarım kimliği.')
         if set(player)!={row['name'] for row in definitions}:
@@ -154,7 +156,9 @@ def fetch(username,progress=lambda *args:None):
         raise SteamError('Steam oyun ayrıntıları gizli veya erişilemiyor. Profil ve oyun ayrıntılarını herkese açık yap.')
     if owned['game_count']!=len(owned.get('games',[])):raise SteamError('Steam oyun listesi eksik; önceki kayıt korundu.')
     context=sync_control.context.get() or{}
-    known_games={a.get('game_id') for a in (context.get('cache') or{}).get('achievements',[])}
+    cache=context.get('cache') or{}
+    # Legacy archives without an account ID still receive conservative protection.
+    known_games={a.get('game_id') for a in cache.get('achievements',[])} if not cache.get('id') or str(cache['id'])==sid else set()
     games=[];items=[];warnings=[];failed=[];seen=set()
     rows=owned.get('games',[])
     for row in rows:
