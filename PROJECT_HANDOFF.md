@@ -1,5 +1,12 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+Son CI takibi: f3d2a0d Unit tests kırmızısı Console Mode testindeki kalıcı
+oyun seçimi varsayımındandı (42234874945 / 42234866618). Kapaklı ve kapaksız
+fixture artık açıkça seçiliyor. Aynı CI sırasındaki 11 Chromium script'i
+yerelde birlikte geçti; 5k/15k/40k ve gamepad simülasyonu dahil, fiziksel kabul
+değil. Sonraki kaynak SHA için uzak CI yeniden beklenir; eski kırmızı sonuç
+saklanır. Açık PR yok, kaynak dalından devam; merge veya release yok.
+
 ## Son kullanıcı emri — eksikleri sürdür ve açık PR'ları kapat
 
 Tek teslimat dalında PSN ilk listeleme sırasında iptal/progress ve Console Mode

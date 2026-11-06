@@ -1,5 +1,20 @@
 # Birikmiş PR teslimatı
 
+## Console Mode CI regresyon takibi
+
+f3d2a0d kaynaklı Unit tests 42234874945 / 42234866618 başarısız oldu:
+`test_console_layout.cjs` seçilen oyunun kapağı olmadığını varsayıyordu.
+CI sırasındaki önceki testler platform/seçili oyun tercihlerini kalıcı olarak
+değiştiriyor; fixture içinde audit-game-1'in gerçek yerel test kapağı var.
+Tek başına testin geçmesi tam test sırasının geçtiği anlamına gelmedi.
+
+Test artık platform/cihaz/katalog filtresini ve oyun kimliğini açıkça seçer;
+dört çözünürlükte kapaklı ve kapaksız oyunu ayrı doğrular. Kapaklı senaryoda
+img complete/naturalWidth kontrolü de zorunludur. Odak, Escape ve kontrol
+çakışması kontrolleri korunur. Üretim kodu veya güvenlik testi atlanmaz.
+Fixture resmi Atlas uygulama simgesidir; gerçek oyun kapağı veya canlı kabul
+olarak sunulmaz. Yeni exact-head CI sonucu ayrıca izlenmelidir.
+
 Son takip: Kullanıcı tüm açık PR'ları kapatmayı tekrar istedi. #43 de kaynak
 dalı korunarak, merge/release yapılmadan kapatılır. Bu belge bir tamamlanma
 ilanı değildir; aşağıdaki gerçek hesap, artwork kapsama ve güvenlik eksikleri
