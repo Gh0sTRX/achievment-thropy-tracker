@@ -50,6 +50,12 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
         else:
             candidates=([{'url':obj.get('icon_url') or obj.get('icon_candidate'),'provider':obj.get('provider') or obj.get('platform')}] if is_icon else
                 [c for c in obj.get('art_candidates',[]) if c.get('kind')==kind]+[{'url':obj.get(kind+'_url'),'provider':obj.get('image_source') or obj.get('platform')}])
+            # A successful cache replaces the public URL with 'local'. Recover a
+            # missing file only from provenance belonging to this exact edition.
+            if not is_icon:
+                saved=(obj.get('artwork_meta') or {}).get(kind,{})
+                if saved.get('provider')!='user_file' and saved.get('game_id')==ident and saved.get('platform')==obj.get('platform') and saved.get('platform_edition')==obj.get('platform_edition'):
+                    candidates.append({**saved,'url':saved.get('source_url')})
             candidates=[c for c in candidates if artwork.safe_url(c.get('url'))]
             seen=set()
             for candidate in candidates:

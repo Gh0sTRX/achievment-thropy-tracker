@@ -33,6 +33,25 @@ class MediaTruthTests(unittest.TestCase):
   with patch.object(artwork,'fetch') as fetch:r=media_sync.download(self.s);fetch.assert_not_called()
   self.totals(r);self.assertEqual(r['cached'],1)
   r=media_sync.download(self.s,stop=lambda:True);self.totals(r);self.assertEqual(r['cancelled'],6)
+ def test_missing_cover_recovers_from_exact_edition_provenance(self):
+  self.g['cover_url']='https://xboxlive.com/cover'
+  with patch.object(artwork,'fetch',return_value=(self.png,'image/png')):
+   self.assertEqual(media_sync.download(self.s)['downloaded'],1)
+  self.assertEqual(self.g['cover_url'],'local')
+  artwork.cached(self.s.root,'cover',self.g['id']).unlink()
+  with patch.object(artwork,'fetch',return_value=(self.png,'image/png')) as fetch:
+   result=media_sync.download(self.s)
+  fetch.assert_called_once_with('https://xboxlive.com/cover')
+  self.totals(result);self.assertEqual(result['downloaded'],1)
+  self.assertEqual(self.a['unlock_time'],'2026-01-01');self.assertEqual(self.s.state['pins'],['ta:1']);self.assertEqual(self.g['notes'],'keep')
+ def test_recovery_rejects_other_identity_and_user_file(self):
+  saved={'source_url':'https://xboxlive.com/cover','provider':'xbox','game_id':self.g['id'],'platform':'xbox','platform_edition':'360'}
+  self.g['cover_url']='local'
+  for change in ({'game_id':'other'},{'platform':'psn'},{'platform_edition':'windows'},{'provider':'user_file'}):
+   self.g['artwork_meta']={'cover':{**saved,**change}}
+   with patch.object(artwork,'fetch') as fetch:
+    result=media_sync.download(self.s);fetch.assert_not_called()
+   self.totals(result);self.assertEqual(result['downloaded'],0)
  def test_explicit_enrichment_preserves_identity_date_pin_notes(self):
   remote={'id':'99','name':'One','gamerscore':20,'description':'official','icon':'https://xboxlive.com/icon','unlocked':False}
   pairs=enrichment.proposals(self.g,[self.a],[remote]);batch={'game':dict(self.g),'pairs':pairs}
