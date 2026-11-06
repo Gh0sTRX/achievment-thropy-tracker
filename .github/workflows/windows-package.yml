@@ -15,7 +15,7 @@ on:
       - 'KURULUM.txt'
       - '.github/workflows/windows-package.yml'
   push:
-    branches: [main, 'codex/public-profile-trophies']
+    branches: [main, 'codex/public-profile-trophies', 'fix/37-confirmed-xbox-artwork-candidates']
     tags: ['v*']
     paths:
       - '.gitattributes'

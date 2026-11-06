@@ -7,6 +7,29 @@ from atlas.core import Library
 from atlas import artwork,media_sync
 
 class ArtworkHealthTests(unittest.TestCase):
+    def test_health_sources_obey_download_edition_and_user_file_rules(self):
+        with TemporaryDirectory() as root:
+            store=Library(root)
+            game={'id':'xbox:1','platform':'xbox','platform_edition':'360','cover_url':'local'}
+            store.library['games']=[game]
+            metadata={'game_id':'xbox:1','platform':'xbox','platform_edition':'windows','provider':'xbox','source_url':'https://xboxlive.com/cover'}
+            game['artwork_meta']={'cover':metadata}
+            self.assertEqual(media_sync.health(store)['valid_source_urls']['cover'],0)
+            with patch.object(artwork,'fetch') as fetch:media_sync.download(store);fetch.assert_not_called()
+            metadata['platform_edition']='360'
+            self.assertEqual(media_sync.health(store)['valid_source_urls']['cover'],1)
+            metadata['provider']='user_file'
+            game['art_candidates']=[{'kind':'cover','url':'https://xboxlive.com/cover'}]
+            self.assertEqual(media_sync.health(store)['valid_source_urls']['cover'],0)
+    def test_health_and_download_both_exclude_retained_apps(self):
+        with TemporaryDirectory() as root:
+            store=Library(root)
+            store.library['games']=[{'id':'app','name':'Netflix','platform':'xbox','cover_url':'https://xboxlive.com/cover'}]
+            store.library['achievements']=[{'id':'app:1','game_id':'app','icon_url':'https://xboxlive.com/icon'}]
+            self.assertEqual(media_sync.health(store)['games'],0)
+            self.assertEqual(media_sync.health(store)['achievements'],0)
+            self.assertEqual(media_sync.download(store)['planned'],0)
+            self.assertEqual(len(store.library['games']),1)
     def test_candidates_are_not_downloaded_coverage_and_all_kinds_cache(self):
         image=io.BytesIO();Image.new('RGB',(20,20)).save(image,format='PNG')
         with TemporaryDirectory() as root:

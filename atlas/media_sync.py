@@ -7,6 +7,17 @@ from .sync_control import Cancelled
 from . import artwork,catalog
 
 
+def game_sources(game,kind):
+    """Shared eligible sources for download and health; user files stay local."""
+    saved=(game.get('artwork_meta') or {}).get(kind,{})
+    if saved.get('provider')=='user_file':return []
+    candidates=[c for c in game.get('art_candidates',[]) if c.get('kind')==kind]
+    candidates.append({'url':game.get(kind+'_url'),'provider':game.get('image_source') or game.get('platform')})
+    if saved.get('game_id')==game['id'] and saved.get('platform')==game.get('platform') and saved.get('platform_edition')==game.get('platform_edition'):
+        candidates.append({**saved,'url':saved.get('source_url')})
+    return [c for c in candidates if artwork.safe_url(c.get('url'))]
+
+
 def media_request(call,halted):
     """Retry transient transports only; cancellation/rate limits stop new requests."""
     for attempt in range(3):
@@ -48,14 +59,7 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
         if artwork.cached(store.root,kind,ident):state='cached'
         elif (obj.get('artwork_meta') or {}).get(kind,{}).get('provider')=='user_file':state='skipped'
         else:
-            candidates=([{'url':obj.get('icon_url') or obj.get('icon_candidate'),'provider':obj.get('provider') or obj.get('platform')}] if is_icon else
-                [c for c in obj.get('art_candidates',[]) if c.get('kind')==kind]+[{'url':obj.get(kind+'_url'),'provider':obj.get('image_source') or obj.get('platform')}])
-            # A successful cache replaces the public URL with 'local'. Recover a
-            # missing file only from provenance belonging to this exact edition.
-            if not is_icon:
-                saved=(obj.get('artwork_meta') or {}).get(kind,{})
-                if saved.get('provider')!='user_file' and saved.get('game_id')==ident and saved.get('platform')==obj.get('platform') and saved.get('platform_edition')==obj.get('platform_edition'):
-                    candidates.append({**saved,'url':saved.get('source_url')})
+            candidates=([{'url':obj.get('icon_url') or obj.get('icon_candidate'),'provider':obj.get('provider') or obj.get('platform')}] if is_icon else game_sources(obj,kind))
             candidates=[c for c in candidates if artwork.safe_url(c.get('url'))]
             seen=set()
             for candidate in candidates:
@@ -123,11 +127,11 @@ def health(store,platform=None):
     """Coverage counts decoded local assets; candidates are a separate metric."""
     kinds=('cover','hero','banner','logo','screenshot')
     with store.lock:
-        games=[dict(g) for g in store.library['games'] if not platform or g.get('platform')==platform]
+        games=[dict(g) for g in store.library['games'] if not catalog.is_app(g) and (not platform or g.get('platform')==platform)]
         gids={g['id'] for g in games};items=[dict(a) for a in store.library['achievements'] if a.get('game_id') in gids]
     present={g['id']:{kind:bool(artwork.cached(store.root,kind,g['id'])) for kind in kinds} for g in games}
     coverage={kind:sum(present[g['id']][kind] for g in games) for kind in kinds}
-    sources={kind:sum(bool(artwork.safe_url(g.get(kind+'_url')) or artwork.safe_url((g.get('artwork_meta') or {}).get(kind,{}).get('source_url')) or any(c.get('kind')==kind and artwork.safe_url(c.get('url')) for c in g.get('art_candidates',[]))) for g in games) for kind in kinds}
+    sources={kind:sum(bool(game_sources(g,kind)) for g in games) for kind in kinds}
     issues=[{'game_id':g['id'],'name':g.get('name',''),'platform':g.get('platform'),'devices':g.get('devices',[]),'missing':[kind for kind in kinds if not present[g['id']][kind]],'states':g.get('artwork_download',{})} for g in games if not all(present[g['id']].values())]
     icons=sum(bool(artwork.cached(store.root,'icon',a['id'])) for a in items)
     states=[v for g in games for v in g.get('artwork_download',{}).values()]+[a['icon_download'] for a in items if a.get('icon_download')]

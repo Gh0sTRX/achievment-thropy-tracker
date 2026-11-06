@@ -1,5 +1,13 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+Yeni ana emir: docs/POST_0161_MASTER_ACCEPTANCE_TR.md. Başlangıç 955f236,
+228 Python ve dört Node suite başarılı. Artwork Health/indirme kaynak uygunluğu
+ortaklaştırıldı; edisyon/user-file ve retained app sayımı düzeltildi. Aktif kaynak
+dalı Windows push test filtresine eklendi; publish/promote guard'ları değişmedi.
+Yeni HEAD için CI/Windows sonucu tamamlanmadan hazır veya yayımlandı denmez.
+Gerçek Xbox/PSN/Steam hesap, gerçek artwork kapsamı ve fiziksel gamepad/NVDA
+doğrulanmadı. Açık PR yok, yeni PR/merge/release yok.
+
 Sonraki kaynak çalışması: sınırlı Next Move ayrı `next_moves` raporu ve ana
 ekran/hedef/oyun öneri alanlarına bağlandı. En fazla üç farklı oyun; pin,
 kayıtlarda tamamlanmaya yakınlık ve geçerli son kazanım tarihi. Kaynak ve
