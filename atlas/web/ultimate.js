@@ -18,7 +18,22 @@ achForGame=gid=>groupIndex.get(gid)||[];
 let progressIndex=new Map(),indexedScope=null;
 progress=gid=>{if(!progressIndex.has(gid))progressIndex.set(gid,AtlasModel.progress(achForGame(gid)));return progressIndex.get(gid)};
 function indexLibrary(){const scoped=games();if(indexedScope===scoped)return;indexedScope=scoped;progressIndex=new Map();gameIndex=new Map(scoped.map(g=>[g.id,g]));const ids=new Set(gameIndex.keys());const items=(DATA.library.achievements||[]).filter(a=>ids.has(a.game_id));itemIndex=new Map(items.map(a=>[a.id,a]));groupIndex=AtlasModel.index(items)}
-render=function(){emitUI('before-render');indexLibrary();applyPreferences();baseRender();if(page==='quests')renderQuests();if(page==='hall')renderMuseum();if(page==='profile')renderProfile();if(page==='games')renderLibraryLayout();if(page==='universe')renderGameDetail();emitUI('render');};
+// Preserve record focus only when this render removed the focused DOM node.
+function focusedRecord(){
+ const node=document.activeElement;
+ if(!node?.closest('.page:not(.hidden)'))return null;
+ for(const attr of ['data-gid','data-ach','data-pin']){
+  if(node.hasAttribute(attr))return {node,attr,value:node.getAttribute(attr)};
+ }
+ return null;
+}
+function restoreRecordFocus(old){
+ if(!old||old.node.isConnected||document.activeElement!==document.body)return;
+ const next=[...document.querySelectorAll('.page:not(.hidden) ['+old.attr+']')]
+  .find(n=>n.getAttribute(old.attr)===old.value&&n.getClientRects().length);
+ next?.focus({preventScroll:true});
+}
+render=function(){const focused=focusedRecord();emitUI('before-render');indexLibrary();applyPreferences();baseRender();if(page==='quests')renderQuests();if(page==='hall')renderMuseum();if(page==='profile')renderProfile();if(page==='games')renderLibraryLayout();if(page==='universe')renderGameDetail();emitUI('render');restoreRecordFocus(focused);};
 navigate=function(where){const previous=page;if(!$(where)||!$(where).classList.contains('page'))where='home';if(page!==where&&$('achievementDrawer').open)$('achievementDrawer').close();baseNavigate(where);$('breadcrumb').textContent=({home:'ATLAS HUB',games:'OYUN KÜTÜPHANESİ',quests:'HEDEF PANOSU',hall:'KOLEKSİYON MÜZESİ',profile:'OYUNCU PROFİLİ',account:'HESAP & VERİ'})[where]||$('breadcrumb').textContent;$('skipTarget')?.removeAttribute('id');document.querySelector('.skip-link').href='#'+where;document.querySelectorAll('.nav-link').forEach(b=>{b.setAttribute('aria-current',b.dataset.page===where?'page':'false')});setMenu(false);if(!routeRestoring&&where!=='universe'&&location.hash!=='#'+where)history.pushState({page:where},'', '#'+where);emitUI('navigate',{destination:where,previous})};
 function card(g,rail=false){const p=progress(g.id),url=visualUrl(g,'cover');if(rail)return `<button class="rail-game" data-gid="${esc(g.id)}"><div class="cover-art" style="${esc(artStyle(g))}"><span class="cover-caption">${url?'':esc(g.name)}</span></div><strong>${esc(g.name)}</strong><small>${esc(deviceLabel(g))} · ${p.earned}/${p.total}</small></button>`;
  return `<button class="game-card" data-gid="${esc(g.id)}" aria-label="${esc(g.name+' · '+deviceLabel(g))}"><div class="cover-art" style="${esc(artStyle(g))}"><span class="cover-caption">${url?'':esc(g.name)}</span></div><div class="game-foot"><strong class="game-title">${esc(g.name)}</strong><strong>${p.earned}/${p.total} · ${p.total?p.ratio.toFixed(1)+'%':'İLERLEME YOK'}</strong><div class="bar" aria-label="Kayıtlı başarım ilerlemesi"><i style="width:${p.ratio}%"></i></div><small>${catalogueType(g)==='app'?'UYGULAMA / SERVİS · ':''}${esc(deviceLabel(g))}${g.shared_achievement_list?' · ORTAK LİSTE':''}<br>${g.platform==='xbox'?fmt(p.remainingG)+' G kaldı':p.left+' başarım kaldı'}</small></div></button>`;

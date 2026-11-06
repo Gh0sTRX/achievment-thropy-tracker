@@ -7,9 +7,9 @@ from atlas.server import LocalApp
 from atlas import artwork
 Path('work/audit').mkdir(parents=True,exist_ok=True)
 fixtures=[];urls={};metrics={}
-for count in (80,5000,15000,40000):
+for count in (0,80,5000,15000,40000):
  root=TemporaryDirectory(prefix='atlas-audit-');fixtures.append(root);app=LocalApp(root.name)
- games=[];items=[];game_count=max(4,count//50)
+ games=[];items=[];game_count=max(4,count//50) if count else 0
  for i in range(game_count):
   platform='xbox' if i%2==0 else 'psn';device=('xbox360' if i%4==0 else 'windows') if platform=='xbox' else ('ps3' if i%4==1 else 'ps5')
   games.append({'id':f'audit-game-{i}','title_id':str(1000+i),'name':f'AUDIT GAME {i:04} <img src=x onerror="window.pwned=1">','platform':platform,'devices':[device],'platform_edition':device,'hero_url':'','cover_url':''})
@@ -24,7 +24,8 @@ for count in (80,5000,15000,40000):
   artwork.store_bytes(Path(root.name),'cover',games[1]['id'],Path('assets/atlas-mark.png').read_bytes());games[1]['cover_url']='local'
  app.controller.store.library={'schema':2,'gamertag':'AUDIT FIXTURE — NOT A LIVE PROFILE','complete_export':False,'games':games,'achievements':items}
  # Original application mark used only as a test image; no game art is generated.
- artwork.store_bytes(Path(root.name),'hero',games[0]['id'],Path('assets/atlas-mark.png').read_bytes());games[0]['hero_url']='local'
+ if games:
+  artwork.store_bytes(Path(root.name),'hero',games[0]['id'],Path('assets/atlas-mark.png').read_bytes());games[0]['hero_url']='local'
  timings=[]
  for _ in range(3):
   start=time.perf_counter();app.controller.status();timings.append(round((time.perf_counter()-start)*1000,2))
