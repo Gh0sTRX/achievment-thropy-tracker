@@ -78,6 +78,19 @@
     }
   }
 
+  // Do not parse/re-serialize archive bytes: JS can round numbers covered by the hash.
+  async function archiveResponse(path, body, confirmed=false) {
+    const headers={'Content-Type':'application/json','X-Atlas-Token':document.body.dataset.token};
+    if(confirmed)headers['X-Atlas-Archive-Confirm']='restore';
+    const response=await fetch(path,{method:'POST',headers,body});
+    if(!response.ok){
+      let message='Arşiv isteği tamamlanamadı: HTTP '+response.status;
+      try{message=(await response.json()).error||message}catch(_){}
+      throw new Error(message);
+    }
+    return response;
+  }
+
   async function archiveAction(action) {
     const exportButton = byId('atlasArchiveExport');
     const restoreButton = byId('atlasArchiveRestore');
@@ -88,8 +101,8 @@
     try {
       if (action === 'export') {
         status.textContent = 'Arşiv hazırlanıyor…';
-        const archive = await api('/api/archive/export', {});
-        const data = new Blob([JSON.stringify(archive)], {type:'application/json'});
+        const response = await archiveResponse('/api/archive/export', '{}');
+        const data = new Blob([await response.text()], {type:'application/json'});
         const url = URL.createObjectURL(data);
         const link = document.createElement('a');
         link.href = url;
@@ -103,15 +116,17 @@
         const file = byId('atlasArchiveFile')?.files?.[0];
         if (!file) throw new Error('Önce bir Atlas JSON arşivi seç.');
         if (file.size > 49_000_000) throw new Error('Arşiv dosyası 49 MB sınırını aşıyor.');
+        const archiveText=await file.text();
         let documentData;
-        try { documentData = JSON.parse(await file.text()); }
+        try { documentData = JSON.parse(archiveText); }
         catch (_) { throw new Error('Seçilen dosya geçerli JSON değil.'); }
         const count = Array.isArray(documentData?.data?.library?.achievements) ?
           documentData.data.library.achievements.length : '?';
         if (!confirm('Bu işlem mevcut yerel kütüphaneyi ' + count +
           ' başarım kaydıyla değiştirecek. Önceki durum recovery klasöründe saklanacak. Devam?')) return;
         status.textContent = 'Bütünlük ve oyun kimlikleri doğrulanıyor…';
-        const result = await api('/api/archive/restore', {archive:documentData, confirm:true});
+        const response=await archiveResponse('/api/archive/restore',archiveText,true);
+        const result=await response.json();
         await reload();
         navigate('home');
         status.textContent = result.message;

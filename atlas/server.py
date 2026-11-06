@@ -698,7 +698,9 @@ class Handler(BaseHTTPRequestHandler):
             methods={
                '/api/import':self.server.controller.import_csv,
                '/api/archive/export':lambda d:self.server.controller.export_archive(),
-               '/api/archive/restore':self.server.controller.restore_archive,
+               # Raw-file mode preserves numeric JSON values; legacy wrapped clients remain supported.
+               '/api/archive/restore':lambda d:self.server.controller.restore_archive(
+                   {'archive':d,'confirm':True} if self.headers.get('X-Atlas-Archive-Confirm')=='restore' else d),
                '/api/settings':self.server.controller.save_settings,
                '/api/downloads/stop':self.server.controller.stop_downloads,
                '/api/providers/setup':self.server.controller.provider_setup,
@@ -734,6 +736,9 @@ class Handler(BaseHTTPRequestHandler):
             with self.server.controller.action_guard:
                 if self.server.controller.updates.snapshot().get('state')=='installing':raise ValueError('Güncelleme kuruluyor; uygulamanın yeniden açılmasını bekle.')
                 result=methods[path](data)
+            if path=='/api/archive/export':
+                # Compact raw JSON stays within the file limit without JS number conversion.
+                return self.blob(json.dumps(result,ensure_ascii=False,separators=(',',':')).encode('utf-8'),'application/json; charset=utf-8')
             return self.reply(result)
         except (ValueError,KeyError,xbox.DirectError,urllib.error.HTTPError,urllib.error.URLError) as e:
             return self.reply({'error':safe_error(e,350)},400)

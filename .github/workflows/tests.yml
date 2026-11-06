@@ -97,6 +97,7 @@ jobs:
           node tests/test_native_search.cjs
           node tests/test_native_themes.cjs
           node tests/test_native_history.cjs
+          node tests/test_offline_archive.cjs
           node tests/test_issue22_setup.cjs
           node tests/test_issue22_metadata.cjs
           node tests/test_library_transfer.cjs
