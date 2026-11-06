@@ -55,14 +55,14 @@ def media_request(call,halted):
                 time.sleep(.05)
 
 
-def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, game_id=None):
+def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, game_id=None, covers_only=False):
     from datetime import datetime,timezone
     with store.lock:
         games=[dict(g) for g in store.library['games'] if not catalog.is_app(g) and (not platform or g.get('platform')==platform) and (not game_id or g['id']==game_id)]
         gids={g['id'] for g in games}
-        icons=[dict(a) for a in store.library['achievements'] if a.get('game_id') in gids or (not platform and not game_id and a.get('game_id') not in {g['id'] for g in store.library['games']})]
-    kinds=('cover','hero','banner','logo','screenshot')
-    report={'downloaded':0,'cached':0,'missing_source':0,'failed':0,'blocked':0,'skipped':0,'cancelled':0,'attempted':0,'processed':0,'planned':len(games)*5+len(icons),'records':len(games)+len(icons),'missing':[],'errors':[],'details':[],'detail_count':0,'missing_count':0,'error_count':0,'checked_at':datetime.now(timezone.utc).isoformat()}
+        icons=[] if covers_only else [dict(a) for a in store.library['achievements'] if a.get('game_id') in gids or (not platform and not game_id and a.get('game_id') not in {g['id'] for g in store.library['games']})]
+    kinds=('cover',) if covers_only else ('cover','hero','banner','logo','screenshot')
+    report={'downloaded':0,'cached':0,'missing_source':0,'failed':0,'blocked':0,'skipped':0,'cancelled':0,'attempted':0,'processed':0,'planned':len(games)*len(kinds)+len(icons),'records':len(games)+len(icons),'missing':[],'errors':[],'details':[],'detail_count':0,'missing_count':0,'error_count':0,'checked_at':datetime.now(timezone.utc).isoformat()}
     blocked=threading.Event();forbidden_hosts=set();dirty=0;last_save=time.monotonic();indexed=None;indexes={}
     def lookup(is_icon,ident):
         nonlocal indexed,indexes
@@ -140,9 +140,9 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
                 dirty+=1
             if dirty and time.monotonic()-last_save>=5:store.save();dirty=0;last_save=time.monotonic()
         progress(report['processed'],report['planned'],obj.get('name',''))
-    for asset in assets[:len(games)*5]:process(asset)
+    for asset in assets[:len(games)*len(kinds)]:process(asset)
     with ThreadPoolExecutor(max_workers=4,thread_name_prefix='atlas-media') as pool:
-        for offset in range(len(games)*5,len(assets),4):
+        for offset in range(len(games)*len(kinds),len(assets),4):
             if halted():
                 report['cancelled']+=len(assets)-offset;break
             list(pool.map(process,assets[offset:offset+4]))
@@ -179,3 +179,40 @@ def health(store,platform=None,game_id=None):
     state_counts={key:sum(s.get('state')==key for s in states) for key in ('downloaded','cached','missing_source','failed','blocked','skipped','cancelled')}
     return {'games':len(games),'achievements':len(items),'cached':coverage,'cached_icons':icons,'valid_source_urls':sources,'icon_source_urls':sum(artwork.safe_url(a.get('icon_url') or a.get('icon_candidate')) for a in items),
             'missing':{kind:len(games)-coverage[kind] for kind in kinds},'issues':issues[:200],'issue_count':len(issues),'has_more':len(issues)>200,'missing_icons':len(items)-icons,'scope':'validated_local_cache','last_checked_states':state_counts,'checked_at':max((s.get('updated_at','') for s in states),default='')}
+
+
+def cover_inventory(store, platform=None, offset=0, limit=20):
+    """All-library Game Universe cover queue, never inferred by title alone.
+
+    Reports verified *decoded* local covers; remote candidates and URLs are not
+    counted as downloaded art. Results are paginated for large libraries.
+    """
+    try:
+        offset=int(offset)
+        limit=int(limit)
+    except (TypeError,ValueError):
+        raise ValueError('Kapak kuyruğu sayfa parametresi geçersiz.') from None
+    if offset<0 or offset>1_000_000 or not 1<=limit<=50:
+        raise ValueError('Kapak kuyruğu sayfa aralığı geçersiz.')
+    if platform not in (None,'xbox','psn','pc'):
+        raise ValueError('Kapak platformu geçersiz.')
+    with store.lock:
+        games=sorted((dict(g) for g in store.library['games']
+                      if not catalog.is_app(g) and (platform is None or g.get('platform')==platform)),
+                     key=lambda g:(str(g.get('name','')).casefold(),str(g.get('platform','')),str(g['id'])))
+    missing=[];covered=0;available=0;unmatched=0
+    for g in games:
+        if artwork.game_cached(store.root,g,'cover'):
+            covered+=1
+            continue
+        info=asset_diagnosis(store.root,g,'cover',False)
+        available+=int(info['source_available'])
+        unmatched+=int(info['state'] in ('missing_source','identity_mismatch'))
+        missing.append({'game_id':g['id'],'name':g.get('name',''),'platform':g.get('platform',''),
+                        'edition':g.get('platform_edition',''),'title_id':str(g.get('title_id') or ''),
+                        'state':info['state'],'reason':info['reason'],'action':info['action'],
+                        'provider':info['provider'],'source_available':info['source_available'],
+                        'code':info['code']})
+    return {'total_games':len(games),'covered':covered,'missing':len(missing),
+            'with_source':available,'needs_matching':unmatched,'offset':offset,
+            'limit':limit,'has_more':offset+limit<len(missing),'items':missing[offset:offset+limit]}
