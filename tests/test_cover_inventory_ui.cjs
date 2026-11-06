@@ -26,7 +26,8 @@ const {chromium}=require('playwright'),fs=require('node:fs'),assert=require('nod
   const fixture=JSON.parse(fs.readFileSync('work/audit/fixture-urls.json'))['80'];
   await p.goto(fixture);
   await p.waitForFunction(()=>window.uiLoaded&&window.AtlasGameRoute);
-  await p.evaluate(()=>navigate('artwork'));
+  // Start on PSN to verify that the all-library queue can open an Xbox game.
+  await p.evaluate(()=>{ACTIVE_PLATFORM='psn';ACTIVE_DEVICE='all';navigate('artwork')});
   await p.locator('#scanCoverLibrary').click();
   await p.waitForFunction(()=>document.querySelectorAll('#coverInventoryList [data-cover-select]').length===20);
   assert.match(await p.locator('#coverInventoryStatus').innerText(),/27 oyun\/sürüm/);
@@ -37,6 +38,7 @@ const {chromium}=require('playwright'),fs=require('node:fs'),assert=require('nod
   await p.locator('#coverInventoryPrev').click();
   await p.locator('[data-cover-select="audit-game-0"]').click();
   assert.equal(await p.locator('#artGame').inputValue(),'audit-game-0');
+  assert.equal(await p.evaluate(()=>ACTIVE_PLATFORM),'all');
   assert.equal(await p.locator('#localArtKind').inputValue(),'cover');
   assert.equal(await p.locator('#artwork details.panel').first().evaluate(el=>el.open),true);
   await p.locator('#recoverCoverLibrary').click();
