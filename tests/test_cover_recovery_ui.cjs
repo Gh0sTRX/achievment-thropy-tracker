@@ -17,6 +17,10 @@ const {chromium}=require('playwright'),{spawn}=require('node:child_process'),fs=
   await p.keyboard.press('Escape');await p.waitForURL('**/#games');
   await p.evaluate(()=>navigate('artwork'));await p.locator('#recoverCoverLibrary').click();
   await p.waitForFunction(()=>DATA.status.media_job?.report?.discovery&&!DATA.status.media_job.running);
+  const report=await p.evaluate(()=>DATA.status.media_job.report);
+  assert.equal(report.downloaded,7);assert.equal(report.cached,0);assert.equal(report.failed,0);
+  assert.equal(report.planned,20);assert.equal(report.attempted,7);assert.equal(report.asset_attempts,9);
+  assert.equal(report.passes.length,3);assert.equal(report.fallback_discovery.discovered,1);
   await p.locator('#scanCoverLibrary').click();
   await p.waitForFunction(()=>document.querySelector('#coverInventoryStatus').textContent.includes('7 gerçek yerel kapak'));
   assert.match(await p.locator('#coverInventoryStatus').innerText(),/13 onay bekliyor/);
@@ -45,7 +49,7 @@ const {chromium}=require('playwright'),{spawn}=require('node:child_process'),fs=
   await p.reload();await p.waitForFunction(()=>window.uiLoaded);
   assert.equal(await p.evaluate(()=>visualUrl(gameById('fixture:0'),'cover')),cover);
   assert.deepEqual(errors,[]);
-  fs.writeFileSync('work/audit/cover-ui-results.json',JSON.stringify({synthetic_only:true,total:20,covered:7,recovered:7,pending:13,network:'mock provider + real localhost HTTP',shared_views:['library','universe','console'],errors},null,2));
+  fs.writeFileSync('work/audit/cover-ui-results.json',JSON.stringify({synthetic_only:true,total:20,covered:7,recovered:7,pending:13,saved_404_recovered:true,official_404_recovered:true,unique_assets_attempted:report.attempted,asset_attempts:report.asset_attempts,network:'mock provider + real localhost HTTP',shared_views:['library','universe','console'],errors},null,2));
   console.log('Synthetic cover recovery: real localhost discovery/download, 7 decoded covers, 13 pending confirmations, shared offline cover across Library/Universe/Console passed');
  }finally{if(browser)await browser.close();fixture.kill()}
 })().catch(e=>{console.error(e);process.exit(1)});

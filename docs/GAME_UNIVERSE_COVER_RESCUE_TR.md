@@ -106,10 +106,10 @@ ağ yanıtları sentetik, süreler gerçek servis performansı değildir):
 
 | Oyun | Yeni/geçerli kapak | Kaynaksız | Toplam süre | İzlenen tepe Python belleği |
 |---:|---:|---:|---:|---:|
-| 20 | 2 | 18 | 0,102 s | 0,33 MiB |
-| 100 | 11 | 89 | 0,665 s | 1,56 MiB |
-| 500 | 55 | 445 | 2,539 s | 7,71 MiB |
-| 1000 | 111 | 889 | 8,623 s | 15,22 MiB |
+| 20 | 2 | 18 | 0,072 s | 0,37 MiB |
+| 100 | 11 | 89 | 0,337 s | 1,76 MiB |
+| 500 | 55 | 445 | 2,604 s | 8,49 MiB |
+| 1000 | 111 | 889 | 7,701 s | 18,52 MiB |
 
 Bu süre keşif, mock indirme/decode, diske yazma, tekrar tarama ve envanteri
 kapsar. Python bellek izlemesi native Pillow/işletim sistemi belleğini kapsamaz.
@@ -140,3 +140,40 @@ Gerçek kullanıcı arşivi ve canlı Xbox/PSN/Steam/SteamGridDB servis oturumla
 sertifikalı Windows imzası iddia edilmez. Authenticode sertifikası hâlâ ayrı iştir.
 PR #44 son HEAD Unit/Chromium/Windows kontrolleri ve kullanıcının gerçek Windows
 kabulü ile yayın onayı beklenir. `main` birleştirme ve Development yayını yapılmaz.
+
+
+## Devam: ikinci tıklama gerektirmeyen kurtarma
+
+Önceki akışta kaynak keşfi indirmeden önce yapılıyordu. Yeni bulunan resmî URL
+404/bozuk görüntü döndürürse ek kaynak araması ancak sonraki kullanıcı denemesinde
+başlayabiliyordu. `cover_recovery.recover` artık tek düğmeyle sınırlı bir akış yürütür:
+
+1. Kayıtlı kaynakları ve yerel cache'i değerlendirir.
+2. Eksikler için kimlikle metadata keşfi yapar; doğrulanmış yeni kaynakları indirir.
+3. Yeni kaynak da başarısızsa **en fazla bir ek keşif** yapar. Onaylı ek kaynak
+   varsa indirir; isimden bulunan belirsiz adayı onay kuyruğuna koyar.
+
+Sonsuz tekrar yok: en fazla 3 indirme / 2 keşif aşaması. Her aşama, önceki aşamanın
+cache'ini kullanır; tamamlanmış kapak yeniden indirilmez. Resmî metadata, SGDB
+adayları ve onaylı seçimler aynı işlem içinde paylaşılır. Xbox fallback testinde
+TitleHub isteği ve yetkili oturum **birer kez** çalışır. Süresi dolan oturum veya
+servis hatasını atlatmak için başka uç noktaya geçilmez.
+
+- HTTP 403 host engeli bütün aşamalarda korunur. 401/429 indirme engelinde
+  sonraki keşif/indirme aşaması başlamaz. Tükenmiş görüntü URL'leri aynı işte
+  tekrar denenmez; normal transient retry sınırı değişmedi.
+- İptal ve profil/kütüphane değişiminde sonraki aşama başlamaz. Tamamlanmış
+  görseller korunur; yeni profilin arşivi eski işin raporuna katılmaz.
+- Nihai `downloaded/cached/failed/...` sayıları **oyun kapağı başına** hesaplanır.
+  Ara denemeler `passes` ve `asset_attempts` altında tutulur; indirme sayısı gibi
+  sunulmaz. Ara hata giderildiyse nihai hata sayısında kalmaz.
+- Yerel disk yazma hatası, URL'nin bozuk olduğu varsayımıyla ortak kaynak
+  engeline dönüştürülmez. Genel medya indirmesi için yeni bir kurtarma döngüsü
+  açılmaz; bu akış yalnız `covers_only + discover_sources` içindir.
+
+Geniş 20/100/500/1000 testi artık bu gerçek orkestrasyon üzerinden çalışır;
+yukarıdaki tablo bu akışın yerel, mock ağ yanıtlı ölçümüdür. Chromium fixture'ında
+20 oyundan 7'si indirilir, 13'ü onay bekler. Bir bozuk kayıtlı URL ve bir yeni
+resmî 404 aynı tıklamada kurtarılır. **7 tekil kapak / 9 varlık denemesi** açıkça
+ayrılır; resmî 404'ten sonra yalnız önceden onaylı SGDB eşleşmesi otomatik kullanılır.
+Gerçek oyuncu arşivi veya canlı servis kabulü değildir.

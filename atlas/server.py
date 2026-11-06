@@ -249,10 +249,9 @@ class Controller:
         def progress(done,total,name):self.store.status['media_job'].update(done=done,total=total,message=name)
         def worker():
             try:
-                discovery=cover_recovery.discover(self.store,progress,self.media_stop.is_set,platform,gid) if recover else None
-                report=media_sync.download(self.store,progress,stop=self.media_stop.is_set,platform=platform,game_id=gid,covers_only=covers_only)
-                if discovery is not None:report['discovery']=discovery
-                self.store.status['media_job'].update(report=report,cancelled=self.media_stop.is_set(),message=('İndirme durduruldu; tamamlanan görseller korundu. ' if self.media_stop.is_set() else '')+f"{report['downloaded']} indirildi; {report['cached']} önbellekte; {report['missing_source']} kaynaksız; {report['failed']} başarısız; {report['blocked']} engellendi. {'; '.join(report['errors'])}")
+                if recover:report=cover_recovery.recover(self.store,progress,self.media_stop.is_set,platform,gid)
+                else:report=media_sync.download(self.store,progress,stop=self.media_stop.is_set,platform=platform,game_id=gid,covers_only=covers_only)
+                self.store.status['media_job'].update(report=report,cancelled=self.media_stop.is_set() or report.get('context_changed',False),message=('Oyun veya profil değişti; yeni isteğe geçilmedi. ' if report.get('context_changed') else 'İndirme durduruldu; tamamlanan görseller korundu. ' if self.media_stop.is_set() else '')+f"{report['downloaded']} indirildi; {report['cached']} önbellekte; {report['missing_source']} kaynaksız; {report['failed']} başarısız; {report['blocked']} engellendi. {'; '.join(report['errors'])}")
             except Exception as exc:self.store.status['media_job']['message']='Görsel indirmesi: '+type(exc).__name__
             finally:
                 self.store.status['media_job']['running']=False

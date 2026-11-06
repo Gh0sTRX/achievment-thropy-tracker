@@ -23,12 +23,13 @@ def bound_match(game):
 
 class Sources:
     """One Xbox session and one PSN catalogue per job; serial bounded requests."""
-    def __init__(self, stack, profiles, stop):
+    def __init__(self, stack, profiles, stop, cache=None):
         self.stack, self.profiles, self.stop = stack, profiles, stop
         self.client = None
         self.psn = None
-        self.results = {}
-        self.denied = set()
+        cache = cache if cache is not None else {}
+        self.results = cache.setdefault('official', {})
+        self.denied = cache.setdefault('denied', set())
 
     async def official(self, game):
         platform = game.get('platform'); tid = str(game.get('title_id') or '')
@@ -97,16 +98,18 @@ class Sources:
         return result
 
 
-async def _discover(store, progress, stop, platform, game_id):
+async def _discover(store, progress, stop, platform, game_id, cache):
     with store.lock:
         profiles = deepcopy(store.state.get('public_profiles', {}))
         games = [(g, deepcopy(g)) for g in store.library['games'] if not catalog.is_app(g)
                  and (not platform or g.get('platform') == platform) and (not game_id or g['id'] == game_id)]
         key = store.steamgriddb_key
     report = dict(scanned=0, discovered=0, pending=0, no_source=0, failed=0, skipped=0, cancelled=False)
-    names = {}; sgdb_denied = False; dirty = 0; saved_at = time.monotonic()
+    cache = cache if cache is not None else {}
+    choices = cache.setdefault('choices', {})
+    names = cache.setdefault('names', {}); sgdb_denied = cache.get('sgdb_denied',False); dirty = 0; saved_at = time.monotonic()
     async with AsyncExitStack() as stack:
-        sources = Sources(stack, profiles, stop)
+        sources = Sources(stack, profiles, stop, cache)
         for index, (original, game) in enumerate(games):
             if stop():
                 report['cancelled'] = True
@@ -137,7 +140,9 @@ async def _discover(store, progress, stop, platform, game_id):
                 if not candidates and key and not stop() and not sgdb_denied:
                     stage = 'sgdb'
                     if bound_match(game):
-                        candidates = [c for c in artwork.candidates(game['artwork_match']['provider_id'], key) if c.get('kind') == 'cover']
+                        match_id=game['artwork_match']['provider_id']
+                        if match_id not in choices:choices[match_id]=artwork.candidates(match_id,key)
+                        candidates = [c for c in choices[match_id] if c.get('kind') == 'cover']
                         candidates = [{**c, 'provider': 'SteamGridDB', 'confirmed_game_id': game['id']} for c in candidates]
                     else:
                         name = str(game.get('name', '')).strip().casefold()
@@ -157,7 +162,8 @@ async def _discover(store, progress, stop, platform, game_id):
                 reason = 'Metadata kaynağına erişilemedi: ' + type(exc).__name__ + (f' (HTTP {code})' if code else '')
                 if code in (401, 403, 429):
                     if stage == 'official':sources.denied.add(game.get('platform'))
-                    else:sgdb_denied = True
+                    else:
+                        sgdb_denied = True;cache['sgdb_denied']=True
             if stop():
                 report['cancelled'] = True
                 break
@@ -183,5 +189,80 @@ async def _discover(store, progress, stop, platform, game_id):
     return report
 
 
-def discover(store, progress=lambda *a: None, stop=lambda: False, platform=None, game_id=None):
-    return asyncio.run(_discover(store, progress, stop, platform, game_id))
+def discover(store, progress=lambda *a: None, stop=lambda: False, platform=None, game_id=None, cache=None):
+    return asyncio.run(_discover(store, progress, stop, platform, game_id, cache))
+
+
+
+def recover(store, progress=lambda *a: None, stop=lambda: False, platform=None, game_id=None):
+    """One bounded cover job: saved sources, discovery, then one fallback discovery.
+
+    Counters describe unique game covers, not the sum of repeated phases. HTTP
+    denials and exhausted URLs remain blocked throughout the entire operation.
+    """
+    from . import media_sync
+    with store.lock:
+        library=store.library
+        game_list=library['games']
+        profiles=deepcopy(store.state.get('public_profiles',{}))
+        games=[(g,identity(g)) for g in library['games'] if not catalog.is_app(g)
+               and (not platform or g.get('platform')==platform) and (not game_id or g['id']==game_id)]
+
+    invalid_context=False
+    def context_changed():
+        with store.lock:
+            return invalid_context or store.library is not library or store.library['games'] is not game_list or store.state.get('public_profiles',{})!=profiles
+
+    def scope_changed():
+        with store.lock:
+            current={g['id']:g for g in store.library['games'] if not catalog.is_app(g)
+                     and (not platform or g.get('platform')==platform) and (not game_id or g['id']==game_id)}
+            return len(current)!=len(games) or any(current.get(before['id']) is not g or identity(g)!=before for g,before in games)
+
+    def halted():
+        return stop() or context_changed()
+
+    transfer={};cache={};passes=[];discoveries=[]
+    def download_phase(label):
+        def update(done,total,name):progress(done,total,label+' · '+name)
+        result=media_sync.download(store,update,halted,platform,game_id,covers_only=True,transfer=transfer)
+        passes.append({k:result[k] for k in ('attempted','downloaded','failed','blocked','stopped')})
+        return result
+
+    report=download_phase('Kayıtlı kapak kaynakları')
+    for label in ('Kapak kaynakları aranıyor','Başarısız kapaklar için ek kaynak aranıyor'):
+        if report['stopped'] or halted():break
+        # Stop if an in-place identity change occurred between phases too.
+        if scope_changed():
+            invalid_context=True
+            break
+        found=discover(store,lambda d,t,n:progress(d,t,label+' · '+n),halted,platform,game_id,cache)
+        discoveries.append(found)
+        if not found['discovered'] or halted():break
+        report=download_phase('Doğrulanan kapaklar indiriliyor')
+        if not report['failed']:break
+
+    invalid_context=invalid_context or scope_changed()
+    # A profile switch can change which IDs the downloader sees before its snapshot.
+    # Count only this job's original scope, including unprocessed cancelled entries.
+    outcomes=[transfer['outcomes'].get((before['id'],'cover'),
+              dict(id=before['id'],game_id=before['id'],kind='cover',platform=before['platform'],state='cancelled',code=None,attempted=False))
+              for g,before in games]
+    for state in ('downloaded','cached','missing_source','failed','blocked','skipped','cancelled'):
+        report[state]=sum(x['state']==state for x in outcomes)
+    report['attempted']=sum(bool(x['attempted']) for x in outcomes)
+    report['asset_attempts']=sum(p['attempted'] for p in passes)
+    report['processed']=len(outcomes)-report['cancelled']
+    report['planned']=report['records']=len(games)
+    errors=[x for x in outcomes if x['state'] in ('failed','blocked')]
+    missing=[x for x in outcomes if x['state']=='missing_source']
+    details=[x for x in outcomes if x['state'] not in ('cached','downloaded')]
+    # Keep per-job memory diagnostics bounded and free of private request URLs.
+    clean=lambda rows:[{k:v for k,v in x.items() if k!='attempted'} for x in rows[:200]]
+    report.update(errors=[f"cover: HTTP {x['code']}" if x['code'] else 'cover: invalid image or transport' for x in errors[:200]],
+                  error_count=len(errors),missing=clean(missing),missing_count=len(missing),details=clean(details),
+                  detail_count=len(details),details_truncated=len(details)>200,passes=passes,
+                  context_changed=context_changed(),stopped=bool(report['stopped'] or halted()))
+    report['discovery']=discoveries[0] if discoveries else None
+    if len(discoveries)>1:report['fallback_discovery']=discoveries[1]
+    return report

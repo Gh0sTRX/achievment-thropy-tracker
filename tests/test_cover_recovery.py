@@ -138,13 +138,16 @@ class CoverRecoveryTests(unittest.TestCase):
                         if ed=='csv':g.pop('title_id');g['devices']=[]
                         store.library['games'].append(g)
                     before=deepcopy(store.library['games']);tracemalloc.start();start=time.perf_counter()
-                    report=recovery.discover(store)
                     with patch.object(artwork,'fetch',return_value=(image(),'image/png')) as fetch:
-                        downloaded=media_sync.download(store,covers_only=True)
+                        downloaded=recovery.recover(store)
+                        report=downloaded['discovery']
                         self.assertEqual(downloaded['downloaded'],count//9)
                         self.assertEqual(fetch.call_count,count//9)
-                        repeat=recovery.discover(store)
-                        self.assertEqual(repeat['discovered'],0)
+                        repeat=recovery.recover(store)
+                        self.assertEqual(repeat['downloaded'],0)
+                        self.assertEqual(repeat['cached'],count//9)
+                        self.assertEqual(fetch.call_count,count//9)
+                        self.assertEqual(sum(downloaded[k] for k in ('downloaded','cached','missing_source','failed','blocked','skipped','cancelled')),count)
                     inventory=media_sync.cover_inventory(store)
                     self.assertEqual(inventory['total_games'],count);self.assertEqual(inventory['covered'],count//9)
                     self.assertLessEqual(len(inventory['items']),20)
@@ -210,3 +213,117 @@ class CoverRecoveryTests(unittest.TestCase):
                 self.assertTrue(media_sync.game_sources(valid,'cover'))
                 self.assertEqual(media_sync.game_sources(other,'cover'),[])
                 self.assertEqual(media_sync.game_sources(conflict,'cover'),[])
+
+    def test_one_job_recovers_bad_saved_url_and_counts_games_once(self):
+        with TemporaryDirectory() as root:
+            store=Library(root);g=game();g['cover_url']='https://xboxlive.com/stale.png'
+            cached=game(2);custom=game(3);custom['artwork_meta']={'cover':{'provider':'user_file'}}
+            store.library['games']=[g,cached,custom]
+            artwork.store_bytes(store.root,'cover',cached['id'],image())
+            artwork.store_bytes(store.root,'cover',custom['id'],image())
+            urls=[]
+            def fetch(url):
+                urls.append(url)
+                if 'stale' in url:raise HTTPError(url,404,'private error',{},None)
+                return image(),'image/png'
+            with patch.object(artwork,'fetch',side_effect=fetch):r=recovery.recover(store)
+            self.assertEqual((r['downloaded'],r['cached'],r['failed'],r['planned']),(1,2,0,3))
+            self.assertEqual(len(urls),2);self.assertEqual(r['attempted'],1);self.assertEqual(r['asset_attempts'],2)
+            self.assertEqual(sum(r[k] for k in ('downloaded','cached','missing_source','failed','blocked','skipped','cancelled')),3)
+            self.assertEqual(custom['artwork_meta']['cover']['provider'],'user_file')
+
+    def test_new_official_404_uses_confirmed_supplementary_source_in_same_job(self):
+        with TemporaryDirectory() as root:
+            store=Library(root);g=game();store.library['games']=[g];store.steamgriddb_key='memory-only'
+            g['artwork_match']=dict(provider='SteamGridDB',provider_id='55',confirmed=True,game_id=g['id'],platform='pc',title_id='1',platform_edition='steam',devices=['pc'])
+            urls=[]
+            def fetch(url):
+                urls.append(url)
+                if 'steamstatic' in url:raise HTTPError(url,404,'private error',{},None)
+                return image(),'image/png'
+            choices=[{'kind':'cover','url':'https://cdn2.steamgriddb.com/approved.png'}]
+            with patch.object(artwork,'fetch',side_effect=fetch),patch.object(artwork,'candidates',return_value=choices) as query:
+                result=recovery.recover(store)
+            self.assertEqual((result['downloaded'],result['failed'],result['planned']),(1,0,1))
+            self.assertEqual(len(result['passes']),3);self.assertEqual(len(urls),2);query.assert_called_once_with('55','memory-only')
+            self.assertEqual(g['artwork_meta']['cover']['provider'],'SteamGridDB')
+            self.assertEqual(result['fallback_discovery']['discovered'],1)
+            self.assertEqual(result['errors'],[])
+
+    def test_new_official_failure_discovers_name_candidate_without_second_click(self):
+        with TemporaryDirectory() as root,patch.object(artwork,'fetch',side_effect=HTTPError('https://example.com/PRIVATE',404,'PRIVATE',{},None)) as fetch,patch.object(artwork,'search_game',return_value=[{'id':55,'name':'SYNTHETIC CANDIDATE'}]) as search:
+            store=Library(root);store.library['games']=[game()];store.steamgriddb_key='memory-only'
+            result=recovery.recover(store)
+            self.assertEqual(result['failed'],1);self.assertEqual(result['downloaded'],0)
+            self.assertEqual(result['fallback_discovery']['pending'],1)
+            fetch.assert_called_once();search.assert_called_once()
+            self.assertEqual(media_sync.cover_inventory(store,state='pending')['queue_total'],1)
+            self.assertNotIn('artwork_match',store.library['games'][0])
+            self.assertNotIn('PRIVATE',json.dumps(result))
+
+    def test_quota_failure_prevents_metadata_and_alternative_downloads(self):
+        for code in (401,429):
+            with self.subTest(code=code),TemporaryDirectory() as root,patch.object(artwork,'fetch',side_effect=HTTPError('https://example.com/private',code,'private',{},None)) as fetch,patch.object(recovery,'discover') as discover:
+                store=Library(root);store.library['games']=[dict(game(),cover_url='https://xboxlive.com/limited.png'),game(2)]
+                result=recovery.recover(store)
+                self.assertTrue(result['stopped']);self.assertEqual(result['blocked'],1);self.assertEqual(result['cancelled'],1)
+                discover.assert_not_called();fetch.assert_called_once()
+
+    def test_forbidden_host_stays_blocked_in_later_discovery_phase(self):
+        async def official(_self,g):
+            return [{'kind':'cover','url':'https://xboxlive.com/new.png'}],''
+        with TemporaryDirectory() as root,patch.object(recovery.Sources,'official',official),patch.object(artwork,'fetch',side_effect=HTTPError('https://xboxlive.com/old.png',403,'private',{},None)) as fetch:
+            store=Library(root);store.library['games']=[dict(game(),cover_url='https://xboxlive.com/old.png')]
+            result=recovery.recover(store)
+            self.assertEqual(result['blocked'],1);self.assertEqual(result['downloaded'],0);fetch.assert_called_once()
+            self.assertEqual(result['attempted'],1)
+
+    def test_cancel_or_profile_change_does_not_start_another_phase(self):
+        for change in ('cancel','profile'):
+            with self.subTest(change=change),TemporaryDirectory() as root:
+                store=Library(root);g=game();store.library['games']=[dict(g,cover_url='https://xboxlive.com/first.png'),game(2)]
+                cancelled=[]
+                def fetch(url):
+                    if change=='cancel':cancelled.append(True)
+                    else:store.state['public_profiles']={'pc':{'id':'changed'}}
+                    return image(),'image/png'
+                with patch.object(artwork,'fetch',side_effect=fetch),patch.object(recovery,'discover') as discover:
+                    result=recovery.recover(store,stop=lambda:bool(cancelled))
+                discover.assert_not_called();self.assertTrue(result['stopped'])
+                if change=='cancel':
+                    self.assertEqual(result['downloaded'],1);self.assertEqual(result['cancelled'],1)
+                    self.assertIsNotNone(artwork.cached(store.root,'cover',g['id']))
+                else:
+                    self.assertTrue(result['context_changed']);self.assertEqual(result['downloaded'],0)
+                    self.assertIsNone(artwork.cached(store.root,'cover',g['id']))
+
+
+    def test_xbox_metadata_session_is_reused_across_fallback_phases(self):
+        client=SimpleNamespace(titlehub=SimpleNamespace(get_title_info=AsyncMock(return_value={'titles':[{
+            'titleId':'12','devices':['Xbox360'],'displayImage':'https://xboxlive.com/missing.png'}]})))
+        sessions=[]
+        @asynccontextmanager
+        async def auth(*args):
+            sessions.append(args);yield client,'123'
+        with TemporaryDirectory() as root,patch.object(recovery.xbox,'authenticated_client',auth),patch.object(recovery.settings,'get',return_value='token'),patch.object(recovery.xbox,'has_tokens',return_value=True):
+            store=Library(root);g=game(12,'xbox',['xbox360'],'360');store.library['games']=[g];store.steamgriddb_key='memory-only'
+            g['artwork_match']=dict(provider='SteamGridDB',provider_id='55',confirmed=True,game_id=g['id'],platform='xbox',title_id='12',platform_edition='360',devices=['xbox360'])
+            def fetch(url):
+                if 'xboxlive' in url:raise HTTPError(url,404,'private',{},None)
+                return image(),'image/png'
+            with patch.object(artwork,'fetch',side_effect=fetch),patch.object(artwork,'candidates',return_value=[{'kind':'cover','url':'https://cdn2.steamgriddb.com/approved.png'}]):
+                result=recovery.recover(store)
+            self.assertEqual(result['downloaded'],1);self.assertEqual(len(sessions),1)
+            client.titlehub.get_title_info.assert_awaited_once_with('12')
+
+    def test_profile_switch_before_download_snapshot_keeps_original_job_scope(self):
+        with TemporaryDirectory() as root,patch.object(artwork,'fetch') as fetch:
+            store=Library(root);store.library['games']=[game(1)]
+            original_download=media_sync.download
+            def replaced(*args,**kwargs):
+                store.library={**store.library,'games':[dict(game(i),cover_url='https://xboxlive.com/new-profile.png') for i in (2,3)]}
+                return original_download(*args,**kwargs)
+            with patch.object(media_sync,'download',side_effect=replaced):result=recovery.recover(store)
+            fetch.assert_not_called();self.assertEqual(result['planned'],1);self.assertEqual(result['cancelled'],1)
+            self.assertTrue(result['context_changed']);self.assertEqual(len(result['details']),1)
+            self.assertEqual(result['details'][0]['id'],game(1)['id'])

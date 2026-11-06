@@ -1,5 +1,17 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+## PR #44 devamı · tek işlemde kapak fallback
+
+`fix/game-universe-library-wide-cover-rescue` üzerinde çalışma sürüyor; main ve
+Development 0.16.2 korunur, yeni yayın yetkisi yok. Önceki doğrulanmış HEAD
+87d443c Unit 42306143112/42306131407 ve Windows 42306143134 yeşildi.
+Şimdi kayıtlı URL → keşif → yeni kaynağın 404/bozuk yanıtına tek ek keşif aynı
+işlemde yürütülüyor. Nihai sayaçlar tekil kapak, ara denemeler ayrı; 403/401/429,
+iptal ve profil değişimi korumaları aşamalar arasında taşınıyor. Testler sentetik;
+gerçek arşiv kapak kapsaması veya fiziksel gamepad kabulü iddia edilmez.
+Yeni commitin son HEAD Unit/Chromium/Windows sonuçları PR #44'te ayrıca izlenmeli.
+Ayrıntı: docs/GAME_UNIVERSE_COVER_RESCUE_TR.md. Merge/release yapılmaz.
+
 ## 7 Kasım — v0.16.3 Artwork Rescue / Console Mode emri
 
 Kullanıcı v0.16.2'de Xbox reconnect/sync, PSN ve Steam GEÇTİ; kapaklar sorunlu,

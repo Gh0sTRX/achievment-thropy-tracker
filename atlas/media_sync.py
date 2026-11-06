@@ -61,7 +61,7 @@ def media_request(call,halted):
                 time.sleep(.05)
 
 
-def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, game_id=None, covers_only=False):
+def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, game_id=None, covers_only=False, transfer=None):
     from datetime import datetime,timezone
     with store.lock:
         games=[deepcopy(g) for g in store.library['games'] if not catalog.is_app(g) and (not platform or g.get('platform')==platform) and (not game_id or g['id']==game_id)]
@@ -71,7 +71,10 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
         icons=[] if covers_only else [dict(a) for a in store.library['achievements'] if a.get('game_id') in gids or (not platform and not game_id and a.get('game_id') not in {g['id'] for g in store.library['games']})]
     kinds=('cover',) if covers_only else ('cover','hero','banner','logo','screenshot')
     report={'downloaded':0,'cached':0,'missing_source':0,'failed':0,'blocked':0,'skipped':0,'cancelled':0,'attempted':0,'processed':0,'planned':len(games)*len(kinds)+len(icons),'records':len(games)+len(icons),'missing':[],'errors':[],'details':[],'detail_count':0,'missing_count':0,'error_count':0,'checked_at':datetime.now(timezone.utc).isoformat()}
-    blocked=threading.Event();forbidden_hosts=set();dirty=0;last_save=time.monotonic();indexed=None;indexes={}
+    outcomes=transfer.setdefault('outcomes',{}) if transfer is not None else None
+    forbidden_hosts=transfer.setdefault('forbidden_hosts',set()) if transfer is not None else set()
+    unavailable=transfer.setdefault('unavailable',{}) if transfer is not None else {}
+    blocked=threading.Event();dirty=0;last_save=time.monotonic();indexed=None;indexes={}
     def lookup(is_icon,ident):
         nonlocal indexed,indexes
         if indexed is not store.library:
@@ -79,12 +82,20 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
         return indexes[is_icon].get(ident)
     assets=[(g,kind,False) for g in games for kind in kinds]+[(a,'icon',True) for a in icons]
     def halted():return stop() or blocked.is_set()
+    def record_outcome(detail, attempted=False):
+        if outcomes is None:return
+        key=(detail['id'],detail['kind']);previous=outcomes.get(key,{})
+        # A later cache hit or cancellation must not erase this job's completed download.
+        if previous.get('state')=='downloaded' and detail['state'] in ('cached','cancelled'):return
+        outcomes[key]={**detail,'attempted':attempted or previous.get('attempted',False)}
     def process(asset):
         nonlocal dirty,last_save
         obj,kind,is_icon=asset
         ident=obj['id'];state='missing_source';code=None;attempted=False;meta=None
         if halted():
-            with store.lock:report['cancelled']+=1
+            with store.lock:
+                report['cancelled']+=1
+                record_outcome({'id':ident,'game_id':obj.get('game_id',ident),'kind':kind,'platform':obj.get('platform'),'state':'cancelled','code':None})
             return
         if (artwork.cached(store.root,kind,ident) if is_icon else artwork.game_cached(store.root,obj,kind)):state='cached'
         elif (obj.get('artwork_meta') or {}).get(kind,{}).get('provider')=='user_file':state='skipped'
@@ -101,6 +112,9 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
                 with store.lock:forbidden=host in forbidden_hosts
                 if forbidden:
                     state='blocked';code=403;continue
+                with store.lock:prior_failure=unavailable.get(url)
+                if prior_failure:
+                    state,code=prior_failure;continue
                 attempted=True
                 try:
                     if is_icon:
@@ -122,6 +136,8 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
                 except Cancelled:state='cancelled';break
                 except Exception as exc:
                     code=getattr(exc,'code',None);state='blocked' if code in (401,403,429) else 'failed'
+                    if transfer is not None and isinstance(exc,(ValueError,URLError,TimeoutError,ConnectionError)):
+                        with store.lock:unavailable[url]=(state,code)
                     if code==403:
                         # Respect this host's denial without suppressing already
                         # selected, independent sources from other providers.
@@ -130,6 +146,7 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
         with store.lock:
             report[state]+=1;report['attempted']+=int(attempted);report['processed']+=1
             detail={'id':ident,'game_id':obj.get('game_id',ident),'kind':kind,'state':state,'code':code,'platform':obj.get('platform')}
+            record_outcome(detail,attempted)
             # Never include provider exception text or credential-bearing request URLs.
             if state in ('failed','blocked'):
                 report['error_count']+=1
