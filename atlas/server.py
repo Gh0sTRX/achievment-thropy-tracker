@@ -239,6 +239,7 @@ class Controller:
         data=data or {}
         platform=data.get('platform') or None
         gid=data.get('game_id') or None
+        covers_only=data.get('covers_only') is True
         if gid:platform=self.art_game(data).get('platform')
         if not self.media_guard.acquire(blocking=False):return {'message':'Görsel indirmesi zaten çalışıyor.'}
         self.media_stop.clear()
@@ -246,7 +247,7 @@ class Controller:
         def progress(done,total,name):self.store.status['media_job'].update(done=done,total=total,message=name)
         def worker():
             try:
-                report=media_sync.download(self.store,progress,stop=self.media_stop.is_set,platform=platform,game_id=gid)
+                report=media_sync.download(self.store,progress,stop=self.media_stop.is_set,platform=platform,game_id=gid,covers_only=covers_only)
                 self.store.status['media_job'].update(report=report,cancelled=self.media_stop.is_set(),message=('İndirme durduruldu; tamamlanan görseller korundu. ' if self.media_stop.is_set() else '')+f"{report['downloaded']} indirildi; {report['cached']} önbellekte; {report['missing_source']} kaynaksız; {report['failed']} başarısız; {report['blocked']} engellendi. {'; '.join(report['errors'])}")
             except Exception as exc:self.store.status['media_job']['message']='Görsel indirmesi: '+type(exc).__name__
             finally:
@@ -254,7 +255,7 @@ class Controller:
                 self.record_activity(platform,'media',self.store.status['media_job'])
                 self.media_guard.release()
         threading.Thread(target=worker,daemon=True).start()
-        return {'message':'Mevcut oyunların resmi kapak/logo ve başarım ikonları indiriliyor.'}
+        return {'message':'Game Universe genelindeki mevcut, doğrulanmış kapak kaynakları indiriliyor.' if covers_only else 'Mevcut oyunların resmi kapak/logo ve başarım ikonları indiriliyor.'}
 
     def stop_downloads(self,data):
         kind=data.get('kind','all')
@@ -744,6 +745,7 @@ class Handler(BaseHTTPRequestHandler):
                '/api/game/notes':self.server.controller.save_notes,
                '/api/preferences':lambda d:self.server.controller.store.set_preferences(d),
                '/api/art/health':lambda d:media_sync.health(self.server.controller.store,d.get('platform'),d.get('game_id')),
+               '/api/art/cover_inventory':lambda d:media_sync.cover_inventory(self.server.controller.store,d.get('platform'),d.get('offset',0),d.get('limit',20)),
                '/api/enrichment/preview':self.server.controller.preview_enrichment,
                '/api/enrichment/confirm':self.server.controller.confirm_enrichment,
                '/api/art/key':self.server.controller.set_sgdb_key,
