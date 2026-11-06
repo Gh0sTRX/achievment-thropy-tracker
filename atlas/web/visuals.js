@@ -5,7 +5,11 @@ const visualThemes={ember:'#e8a18b',ice:'#99cff1',forest:'#b8e5a2',dusk:'#c8b2eb
 function visualUrl(game,kind='hero'){
  if(!game)return '';
  const value=game[kind+'_url'];
- if(value==='local')return localArt(kind,game.id)+'?v='+encodeURIComponent(game.artwork_meta?.[kind]?.saved_at||DATA.state.sync_at||'1');
+ if(value==='local'){
+  const meta=game.artwork_meta?.[kind]||{};
+  if(meta.provider!=='user_file'&&[['game_id',game.id],['platform',game.platform],['platform_edition',game.platform_edition],['title_id',game.title_id]].some(([key,current])=>meta[key]!=null&&meta[key]!==''&&meta[key]!==current))return '';
+  return localArt(kind,game.id)+'?v='+encodeURIComponent(meta.saved_at||DATA.state.sync_at||'1');
+ }
  try{const url=new URL(value);const hosts=['trueachievements.com','steamstatic.com','steamcdn-a.akamaihd.net','steamuserimages-a.akamaihd.net','steamgriddb.com','xboxlive.com','xbox.com','microsoft.com','s-microsoft.com','playstation.net','playstation.com'];if(url.protocol==='https:'&&!url.username&&!url.password&&(!url.port||url.port==='443')&&hosts.some(h=>url.hostname===h||url.hostname.endsWith('.'+h)))return url.href}catch(e){}
  return '';
 }

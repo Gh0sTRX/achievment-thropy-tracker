@@ -14,9 +14,30 @@ def game_sources(game,kind):
     if saved.get('provider')=='user_file':return []
     candidates=[c for c in game.get('art_candidates',[]) if c.get('kind')==kind]
     candidates.append({'url':game.get(kind+'_url'),'provider':game.get('image_source') or game.get('platform')})
-    if saved.get('game_id')==game['id'] and saved.get('platform')==game.get('platform') and saved.get('platform_edition')==game.get('platform_edition'):
+    recorded_title=saved.get('title_id') or (saved.get('provider_id') if saved.get('provider')!='SteamGridDB' else None)
+    if saved.get('game_id')==game['id'] and saved.get('platform')==game.get('platform') and saved.get('platform_edition')==game.get('platform_edition') and recorded_title==game.get('title_id'):
         candidates.append({**saved,'url':saved.get('source_url')})
     return [c for c in candidates if artwork.safe_url(c.get('url'))]
+
+
+def asset_diagnosis(root,game,kind,present):
+    saved=(game.get('artwork_meta') or {}).get(kind,{})
+    last=(game.get('artwork_download') or {}).get(kind,{})
+    sources=game_sources(game,kind);available=bool(sources);code=last.get('code')
+    try:invalid_cache=any((root/'artwork'/(kind+'_'+artwork.cache_token(game['id'])+ext)).is_file() for ext in ('.png','.jpg','.webp')) and not present
+    except ValueError:invalid_cache=False
+    if present:state,reason,action='cached','Geçerli yerel görsel var.','Çevrimdışı kullanılabilir.'
+    elif saved.get('provider')=='user_file':state,reason,action='local_file_missing','Seçtiğin yerel dosya eksik veya bozuk.','Kendi dosyanı yeniden seç; otomatik üzerine yazılmaz.'
+    elif not artwork.game_art_matches(game,kind):state,reason,action='identity_mismatch','Yerel görsel farklı oyun kimliği/edisyona bağlı.','Dosya korunuyor; doğru edisyon kaynağını yeniden onayla.'
+    elif invalid_cache:state,reason,action='invalid_cache','Yerel dosya var ama geçerli bir görsel olarak okunamıyor.',('Bu oyunun görsellerini yeniden indir.' if available else 'Doğru edisyon için görsel veya kendi dosyanı seç.')
+    elif saved and not available and game.get(kind+'_url')=='local':state,reason,action='identity_mismatch','Saklı kaynak bu oyun kimliği/edisyonu için doğrulanamıyor.','Oyun ve edisyon eşleşmesini yeniden onayla veya kendi dosyanı seç.'
+    elif code in (401,403,429):state,reason,action='blocked',f'Kaynak erişimi engellendi (HTTP {code}).',('Hız sınırı: daha sonra yeniden dene.' if code==429 else 'Erişimi kontrol et veya başka izinli kaynak/kendi dosyanı seç.')
+    elif code==404:state,reason,action='failed','Kaynakta bu görsel bulunamadı (HTTP 404).','Aynı edisyon için başka görsel seç.'
+    elif game.get(kind+'_url')=='local' and available:state,reason,action='missing_cache','Kayıtlı görsel dosyası yok veya decode edilemiyor; kaynak adresi var.','Bu oyunun eksik görsellerini yeniden indir.'
+    elif not available:state,reason,action='missing_source','Bu kategori için kullanılabilir kaynak yok.','CSV görsel taşımaz; doğru oyun/edisyonu onaylayıp görsel veya kendi dosyanı seç.'
+    elif last.get('state')=='failed':state,reason,action='failed','Görsel indirilemedi veya geçerli bir resim değildi.','Ağ erişimini kontrol et; yeniden dene veya başka izinli görsel seç.'
+    else:state,reason,action='available_uncached','Kaynak adresi var; doğrulanmış yerel dosya henüz yok.','Bu oyunun eksik görsellerini indir.'
+    return {'kind':kind,'state':state,'code':None if present else code,'last_state':last.get('state'),'source_available':available,'provider':saved.get('provider') or (sources[0].get('provider') if sources else '') or game.get('image_source',''),'reason':reason,'action':action}
 
 
 def media_request(call,halted):
@@ -57,7 +78,7 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
         if halted():
             with store.lock:report['cancelled']+=1
             return
-        if artwork.cached(store.root,kind,ident):state='cached'
+        if (artwork.cached(store.root,kind,ident) if is_icon else artwork.game_cached(store.root,obj,kind)):state='cached'
         elif (obj.get('artwork_meta') or {}).get(kind,{}).get('provider')=='user_file':state='skipped'
         else:
             candidates=([{'url':obj.get('icon_url') or obj.get('icon_candidate'),'provider':obj.get('provider') or obj.get('platform')}] if is_icon else game_sources(obj,kind))
@@ -85,7 +106,7 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
                         if not current or any(current.get(k)!=obj.get(k) for k in ('platform','game_id','title_id','platform_edition')):state='skipped';break
                         if not is_icon and (current.get('artwork_meta') or {}).get(kind,{}).get('provider')=='user_file':state='skipped';break
                         if not is_icon:meta=artwork.store_bytes(store.root,kind,ident,data)
-                        provenance={**meta,'provider':candidate.get('provider') or obj.get('platform'),'provider_id':candidate.get('provider_id') or (obj.get('provider_identity') or {}).get('achievement_id') or obj.get('provider_id') or obj.get('title_id',''),'source_url':url,'game_id':obj.get('game_id',ident),'platform':obj.get('platform'),'platform_edition':obj.get('platform_edition'),'saved_at':report['checked_at'],'rights_note':candidate.get('rights_note') or 'Sağlayıcı görseli; yeniden dağıtım izni verilmez.'}
+                        provenance={**meta,'provider':candidate.get('provider') or obj.get('platform'),'provider_id':candidate.get('provider_id') or (obj.get('provider_identity') or {}).get('achievement_id') or obj.get('provider_id') or obj.get('title_id',''),'title_id':obj.get('title_id'),'source_url':url,'game_id':obj.get('game_id',ident),'platform':obj.get('platform'),'platform_edition':obj.get('platform_edition'),'saved_at':report['checked_at'],'rights_note':candidate.get('rights_note') or 'Sağlayıcı görseli; yeniden dağıtım izni verilmez.'}
                         if is_icon:current['icon_meta']=provenance;current['icon_url']=url
                         else:current[kind+'_url']='local';current.setdefault('artwork_meta',{})[kind]=provenance
                         dirty+=1;state='downloaded';code=None;break
@@ -132,17 +153,28 @@ def download(store, progress=lambda *a:None, stop=lambda:False, platform=None, g
     return report
 
 
-def health(store,platform=None):
+def health(store,platform=None,game_id=None):
     """Coverage counts decoded local assets; candidates are a separate metric."""
     kinds=('cover','hero','banner','logo','screenshot')
     with store.lock:
-        games=[dict(g) for g in store.library['games'] if not catalog.is_app(g) and (not platform or g.get('platform')==platform)]
+        games=[dict(g) for g in store.library['games'] if not catalog.is_app(g) and (not platform or g.get('platform')==platform) and (not game_id or g['id']==game_id)]
         gids={g['id'] for g in games};items=[dict(a) for a in store.library['achievements'] if a.get('game_id') in gids]
-    present={g['id']:{kind:bool(artwork.cached(store.root,kind,g['id'])) for kind in kinds} for g in games}
+    present={g['id']:{kind:bool(artwork.game_cached(store.root,g,kind)) for kind in kinds} for g in games}
     coverage={kind:sum(present[g['id']][kind] for g in games) for kind in kinds}
     sources={kind:sum(bool(game_sources(g,kind)) for g in games) for kind in kinds}
-    issues=[{'game_id':g['id'],'name':g.get('name',''),'platform':g.get('platform'),'devices':g.get('devices',[]),'missing':[kind for kind in kinds if not present[g['id']][kind]],'states':g.get('artwork_download',{})} for g in games if not all(present[g['id']].values())]
-    icons=sum(bool(artwork.cached(store.root,'icon',a['id'])) for a in items)
+    icon_groups={g['id']:[] for g in games};icons=0
+    for a in items:
+        cached=bool(artwork.cached(store.root,'icon',a['id']));icons+=int(cached)
+        icon_groups[a['game_id']].append({'cached':cached,'source':artwork.safe_url(a.get('icon_url') or a.get('icon_candidate')),'state':(a.get('icon_download') or {}).get('state'),'code':(a.get('icon_download') or {}).get('code')})
+    issues=[]
+    for g in games:
+        missing=[kind for kind in kinds if not present[g['id']][kind]]
+        icon_rows=icon_groups[g['id']];icon_cached=sum(r['cached'] for r in icon_rows);icon_missing=len(icon_rows)-icon_cached
+        if not missing and not icon_missing:continue
+        assets={kind:asset_diagnosis(store.root,g,kind,present[g['id']][kind]) for kind in kinds}
+        icon_blocked=sum(not r['cached'] and r['state']=='blocked' for r in icon_rows);icon_failed=sum(not r['cached'] and r['state']=='failed' for r in icon_rows);icon_no_source=sum(not r['cached'] and not r['source'] for r in icon_rows)
+        assets['icon']={'kind':'icon','state':'missing' if icon_missing else 'cached','missing':icon_missing,'cached':icon_cached,'total':len(icon_rows),'source_available':any(r['source'] and not r['cached'] for r in icon_rows),'blocked':icon_blocked,'failed':icon_failed,'missing_source':icon_no_source,'http_codes':sorted({r['code'] for r in icon_rows if not r['cached'] and type(r['code']) is int}),'reason':f'{len(icon_rows)} kayıtlı başarımın {icon_missing} ikon dosyası eksik; {icon_no_source} kaynaksız, {icon_blocked} engelli, {icon_failed} başarısız.','action':'Başarım kaynağında ikon varsa yeniden indir; CSV tek başına ikon içermez.' if icon_missing else 'Mevcut ikonlar çevrimdışı kullanılabilir.'}
+        issues.append({'game_id':g['id'],'name':g.get('name',''),'platform':g.get('platform'),'title_id':g.get('title_id',''),'edition':g.get('platform_edition',''),'devices':g.get('devices',[]),'missing':missing+(['icon'] if icon_missing else []),'states':g.get('artwork_download',{}),'assets':assets})
     states=[v for g in games for v in g.get('artwork_download',{}).values()]+[a['icon_download'] for a in items if a.get('icon_download')]
     state_counts={key:sum(s.get('state')==key for s in states) for key in ('downloaded','cached','missing_source','failed','blocked','skipped','cancelled')}
     return {'games':len(games),'achievements':len(items),'cached':coverage,'cached_icons':icons,'valid_source_urls':sources,'icon_source_urls':sum(artwork.safe_url(a.get('icon_url') or a.get('icon_candidate')) for a in items),

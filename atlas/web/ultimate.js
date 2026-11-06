@@ -1,4 +1,13 @@
 'use strict';
+const artKindLabels={cover:'Kapak',hero:'Arka plan',banner:'Banner',logo:'Logo',screenshot:'Ekran görüntüsü',icon:'Başarım ikonları'};
+const artStateLabels={cached:'Önbellekte',missing_cache:'Yerel dosya eksik',invalid_cache:'Yerel dosya bozuk',local_file_missing:'Kendi dosyan eksik',identity_mismatch:'Eşleşme doğrulanmalı',missing_source:'Kaynak yok',blocked:'Erişim engelli',failed:'İndirilemedi',available_uncached:'İndirilmeyi bekliyor',missing:'Eksik ikonlar'};
+async function checkArtworkHealth(gameId=null){
+ if(gameId===''){toast('Önce görsel alanından bir oyun seç.',true);return}
+ const h=await run(()=>api('/api/art/health',{platform:gameId?null:ACTIVE_PLATFORM==='all'?null:ACTIVE_PLATFORM,game_id:gameId}));if(!h)return;
+ $('artHealth').textContent=h.games+' oyun · '+Object.entries(h.cached).map(([k,v])=>(artKindLabels[k]||k)+': '+v+'/'+h.games).join(' · ')+' · İkon: '+h.cached_icons+'/'+h.achievements+' · Kaynak adresi bulunması indirme değildir.';
+ $('artHealthGames').innerHTML=h.issues.slice(0,20).map(g=>`<article class="panel"><h3><button class="ghost-link" data-gid="${esc(g.game_id)}">${esc(g.name)}</button></h3><p>${esc(g.platform)} · ${esc(g.edition||'Edisyon belirtilmemiş')} · ${esc(deviceLabel(g))} · Oyun kimliği: ${esc(g.title_id||'Doğrulanmamış')}</p><dl>${Object.entries(g.assets||{}).map(([kind,a])=>`<dt><strong>${esc(artKindLabels[kind]||kind)}</strong> · ${esc(artStateLabels[a.state]||a.state)}${(a.code?[a.code]:(a.http_codes||[])).map(code=>' · HTTP '+esc(code)).join('')}</dt><dd>${esc(a.reason)} ${esc(a.action)}${a.provider?' Kaynak: '+esc(a.provider)+'.':''}</dd>`).join('')}</dl><button class="secondary" data-health-art="${esc(g.game_id)}">Bu oyuna görsel seç</button> <button class="secondary" data-health-retry="${esc(g.game_id)}">Bu oyunun eksiklerini yeniden dene</button></article>`).join('')||'<p>Bu kapsamda eksik görsel bulunmadı.</p>';
+ if(h.issue_count>20)$('artHealthGames').insertAdjacentHTML('beforeend',`<p>İlk 20 / ${esc(h.issue_count)} oyun gösteriliyor. Tek oyun için aşağıdan oyunu seçip “Seçili oyunu kontrol et” düğmesini kullan.</p>`);
+}
 function nextMoveChoices(){return (PLATFORM_REPORTS[ACTIVE_PLATFORM]?.next_moves||[]).filter(r=>gameById(r.game_id)).slice(0,3)}
 let preferenceQueue=Promise.resolve();
 function savePreferences(values){
@@ -130,7 +139,9 @@ init=function(){baseInit();
  document.querySelectorAll('[data-layout]').forEach(b=>b.onclick=async()=>{await savePreferences({library_layout:b.dataset.layout});renderGames()});
  document.querySelectorAll('[data-tab]').forEach(b=>{b.onclick=()=>{universeTab=b.dataset.tab;renderUniverse()};b.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const tabs=[...document.querySelectorAll('[data-tab]')],i=tabs.indexOf(b),target=e.key==='Home'?tabs[0]:e.key==='End'?tabs.at(-1):tabs[(i+(e.key==='ArrowLeft'?-1:1)+tabs.length)%tabs.length];target.click();target.focus()}});
  $('detailClose').onclick=leaveUniverse;
- $('checkArtHealth').onclick=async()=>{const h=await run(()=>api('/api/art/health',{platform:ACTIVE_PLATFORM==='all'?null:ACTIVE_PLATFORM}));if(h){$('artHealthGames').innerHTML=h.issues.slice(0,20).map(g=>`<button class="ghost-link" data-gid="${esc(g.game_id)}">${esc(g.name)} · ${esc(g.platform)} · ${esc(g.missing.map(kind=>kind+': '+(mediaStateLabel(g.states?.[kind]?.state))+(g.states?.[kind]?.code?' HTTP '+g.states[kind].code:'')).join(', '))}</button>`).join('<br>');$('artHealth').textContent=h.games+' oyun · '+Object.entries(h.cached).map(([k,v])=>k+': '+v+'/'+h.games).join(' · ')+' · İkon: '+h.cached_icons+'/'+h.achievements+' · Geçerli kaynak URL: '+Object.values(h.valid_source_urls||{}).reduce((a,b)=>a+b,0)+' · Son kontrol: '+(h.checked_at?timeLabel(h.checked_at):'Henüz yok')+' · Son durumlar: '+Object.entries(h.last_checked_states||{}).map(([k,v])=>k+': '+v).join(' · ')+' · URL bulunması indirme değildir'}};
+ $('checkArtHealth').onclick=()=>checkArtworkHealth();
+ $('checkSelectedArtHealth').onclick=()=>checkArtworkHealth($('artGame').value);
+ $('artHealthGames').onclick=async e=>{const art=e.target.closest('[data-health-art]'),retry=e.target.closest('[data-health-retry]');if(art){$('artGame').value=art.dataset.healthArt;renderVisuals();$('artGame').focus()}if(retry){const r=await run(()=>api('/api/media/download',{game_id:retry.dataset.healthRetry}));if(r)toast(r.message)}};
  $('repairArtHealth').onclick=()=>$('allMedia').click();
  $('drawerClose').onclick=()=>$('achievementDrawer').close();$('achievementDrawer').addEventListener('close',()=>{if(drawerFocus?.isConnected)drawerFocus.focus()});
  $('showSecrets').onchange=renderAchievements;$('achDlc').onchange=()=>{achPage=0;renderAchievements()};

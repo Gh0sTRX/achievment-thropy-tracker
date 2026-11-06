@@ -148,3 +148,5 @@ body[data-skin=xmb] .rail .nav{overflow-x:auto;overflow-y:hidden}
 body[data-skin=blades] .atlas-nav-group{color:#bde28d}
 body[data-skin=xmb] .atlas-nav-group{color:#b3d5f6}
 @media(min-width:1150px){body[data-skin=xmb] .atlas-nav-group{display:none}}
+
+.atlas-console-open .atlas-console-foot{font-size:clamp(12px,1.1vw,18px);line-height:1.5;letter-spacing:.03em}

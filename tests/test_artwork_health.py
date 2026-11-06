@@ -7,6 +7,50 @@ from atlas.core import Library
 from atlas import artwork,media_sync
 
 class ArtworkHealthTests(unittest.TestCase):
+    def test_valid_bytes_bound_to_other_title_are_not_applied_or_deleted(self):
+        with TemporaryDirectory() as root:
+            store=Library(root);g={'id':'csv:1','platform':'xbox','title_id':'new','platform_edition':'360','cover_url':'local','artwork_meta':{'cover':{'game_id':'csv:1','platform':'xbox','title_id':'old','platform_edition':'360','provider':'Xbox TitleHub','source_url':'https://xboxlive.com/old'}}};store.library['games']=[g]
+            data=io.BytesIO();Image.new('RGB',(12,12)).save(data,format='PNG');artwork.store_bytes(store.root,'cover',g['id'],data.getvalue());path=artwork.cached(store.root,'cover',g['id']);before=path.read_bytes()
+            self.assertEqual(media_sync.health(store)['cached']['cover'],0)
+            self.assertEqual(media_sync.health(store)['issues'][0]['assets']['cover']['state'],'identity_mismatch')
+            with patch.object(artwork,'fetch') as fetch:media_sync.download(store);fetch.assert_not_called()
+            self.assertEqual(path.read_bytes(),before)
+            g['artwork_meta']['cover']['provider']='user_file'
+            self.assertEqual(media_sync.health(store)['cached']['cover'],1)
+    def test_decoded_cache_wins_over_old_error_and_corruption_is_distinct(self):
+        with TemporaryDirectory() as root:
+            store=Library(root);g={'id':'xbox:1','platform':'xbox','cover_url':'local','artwork_download':{'cover':{'state':'blocked','code':403}}};store.library['games']=[g]
+            data=io.BytesIO();Image.new('RGB',(12,12)).save(data,format='PNG');artwork.store_bytes(store.root,'cover',g['id'],data.getvalue())
+            a=media_sync.health(store)['issues'][0]['assets']['cover'];self.assertEqual(a['state'],'cached');self.assertIsNone(a['code'])
+            artwork.cached(store.root,'cover',g['id']).write_bytes(b'corrupt')
+            self.assertEqual(media_sync.health(store)['issues'][0]['assets']['cover']['state'],'invalid_cache')
+    def test_icon_only_gaps_and_single_game_scope_are_visible(self):
+        with TemporaryDirectory() as root:
+            store=Library(root);store.library['games']=[{'id':'g1','platform':'xbox'},{'id':'g2','platform':'psn'}]
+            store.library['achievements']=[{'id':'a1','game_id':'g1','icon_url':'https://xboxlive.com/icon','icon_download':{'state':'blocked','code':429}}]
+            data=io.BytesIO();Image.new('RGB',(12,12)).save(data,format='PNG')
+            for kind in ('cover','hero','banner','logo','screenshot'):artwork.store_bytes(store.root,kind,'g1',data.getvalue())
+            h=media_sync.health(store,game_id='g1');self.assertEqual(h['games'],1);self.assertEqual(h['issues'][0]['missing'],['icon'])
+            self.assertEqual(h['issues'][0]['assets']['icon']['http_codes'],[429]);self.assertEqual(h['issues'][0]['assets']['icon']['blocked'],1)
+    def test_same_local_id_with_changed_title_cannot_recover_old_image(self):
+        with TemporaryDirectory() as root:
+            store=Library(root)
+            store.library['games']=[{'id':'csv:1','platform':'xbox','title_id':'new','platform_edition':'360','cover_url':'local','artwork_meta':{'cover':{'game_id':'csv:1','platform':'xbox','title_id':'old','platform_edition':'360','provider':'Xbox TitleHub','source_url':'https://xboxlive.com/old'}}}]
+            with patch.object(artwork,'fetch') as fetch:media_sync.download(store);fetch.assert_not_called()
+            issue=media_sync.health(store)['issues'][0]
+            self.assertEqual(issue['assets']['cover']['state'],'identity_mismatch')
+            self.assertTrue(issue['assets']['cover']['action'])
+
+    def test_health_explains_missing_cache_source_and_blocked_assets(self):
+        with TemporaryDirectory() as root:
+            store=Library(root)
+            g={'id':'csv:1','name':'Minecraft: Xbox 360 Edition','platform':'xbox','title_id':'12','platform_edition':'360','cover_url':'local','hero_url':'https://xboxlive.com/hero','artwork_meta':{'cover':{'game_id':'csv:1','platform':'xbox','title_id':'12','platform_edition':'360','provider':'Xbox TitleHub','source_url':'https://xboxlive.com/cover'}},'artwork_download':{'hero':{'state':'blocked','code':403}}}
+            store.library['games']=[g];store.library['achievements']=[{'id':'a1','game_id':'csv:1','platform':'xbox'}]
+            assets=media_sync.health(store)['issues'][0]['assets']
+            self.assertEqual(assets['cover']['state'],'missing_cache');self.assertTrue(assets['cover']['source_available'])
+            self.assertEqual(assets['hero']['code'],403);self.assertEqual(assets['logo']['state'],'missing_source')
+            self.assertEqual(assets['icon']['missing'],1)
+            self.assertTrue(all(x['reason'] and x['action'] for x in assets.values()))
     def test_health_sources_obey_download_edition_and_user_file_rules(self):
         with TemporaryDirectory() as root:
             store=Library(root)

@@ -343,7 +343,9 @@ class Controller:
             game=self.art_game(data);kind=str(data.get('kind','hero'))
             previous=(game.get('artwork_meta') or {}).get(kind,{})
             original=previous.get('original_url',game.get(kind+'_url',''))
-            if not artwork.safe_url(original) and previous.get('provider')!='user_file' and previous.get('game_id')==game['id'] and all(previous.get(k)==game.get(k) for k in ('platform','platform_edition')):
+            same_identity=not any(previous.get(k) not in (None,'') and previous[k]!=v for k,v in (('game_id',game['id']),('platform',game.get('platform')),('platform_edition',game.get('platform_edition')),('title_id',game.get('title_id'))))
+            if not same_identity:original=''
+            if same_identity and not artwork.safe_url(original) and previous.get('provider')!='user_file' and previous.get('game_id')==game['id'] and all(previous.get(k)==game.get(k) for k in ('platform','platform_edition')):
                 original=previous.get('source_url','')
             game.setdefault('artwork_meta',{})[kind]={**metadata,'original_url':original if artwork.safe_url(original) else '',
                 'game_id':game['id'],'platform':game.get('platform'),'platform_edition':game.get('platform_edition'),'title_id':game.get('title_id'),
@@ -741,7 +743,7 @@ class Handler(BaseHTTPRequestHandler):
                '/api/pin':self.server.controller.set_pin,
                '/api/game/notes':self.server.controller.save_notes,
                '/api/preferences':lambda d:self.server.controller.store.set_preferences(d),
-               '/api/art/health':lambda d:media_sync.health(self.server.controller.store,d.get('platform')),
+               '/api/art/health':lambda d:media_sync.health(self.server.controller.store,d.get('platform'),d.get('game_id')),
                '/api/enrichment/preview':self.server.controller.preview_enrichment,
                '/api/enrichment/confirm':self.server.controller.confirm_enrichment,
                '/api/art/key':self.server.controller.set_sgdb_key,

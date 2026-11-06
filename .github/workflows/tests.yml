@@ -101,6 +101,8 @@ jobs:
           node tests/test_issue22_setup.cjs
           node tests/test_achievement_hit_area.cjs
           node tests/test_console_layout.cjs
+          node tests/test_console_return.cjs
+          node tests/test_artwork_health_ui.cjs
           node tests/test_next_moves.cjs
           node tests/test_issue22_metadata.cjs
           node tests/test_library_transfer.cjs

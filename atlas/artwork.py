@@ -101,6 +101,15 @@ def cached(root,category,ident):
             if 0<stat.st_size<=MAX_BYTES and _decoded_cache(str(p),stat.st_mtime_ns,stat.st_size):return p
     return None
 
+def game_art_matches(game,kind):
+    meta=(game.get('artwork_meta') or {}).get(kind,{})
+    if meta.get('provider')=='user_file':return True
+    return not any(meta.get(k) not in (None,'') and meta[k]!=value for k,value in (
+        ('game_id',game['id']),('platform',game.get('platform')),('platform_edition',game.get('platform_edition')),('title_id',game.get('title_id'))))
+
+def game_cached(root,game,kind):
+    return cached(root,kind,game['id']) if game_art_matches(game,kind) else None
+
 def sgdb_json(path,key):
     if not key or len(key)>400:raise ValueError('SteamGridDB API key missing')
     url='https://www.steamgriddb.com/api/v2/'+path.lstrip('/')

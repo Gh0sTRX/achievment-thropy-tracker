@@ -13,6 +13,14 @@ class ArtTests(unittest.TestCase):
         self.assertEqual(suffix(b'NOT IMAGE'),None)
 if __name__=='__main__':unittest.main()
 class LocalArtTests(unittest.TestCase):
+    def test_reset_does_not_restore_old_title_with_same_edition(self):
+        import base64
+        from tempfile import TemporaryDirectory
+        from atlas.server import Controller
+        with TemporaryDirectory() as root:
+            c=Controller(root);g={'id':'csv:1','platform':'xbox','title_id':'new','platform_edition':'360','cover_url':'local','artwork_meta':{'cover':{'game_id':'csv:1','platform':'xbox','title_id':'old','platform_edition':'360','provider':'user_file','original_url':'https://xboxlive.com/old'}}};c.store.library['games']=[g]
+            c.upload_art({'game_id':g['id'],'kind':'cover','image':base64.b64encode(self.image_bytes()).decode()});c.reset_art({'game_id':g['id'],'kind':'cover'})
+            self.assertEqual(g['cover_url'],'')
     def test_custom_reset_does_not_restore_another_edition_source(self):
         import base64
         from tempfile import TemporaryDirectory

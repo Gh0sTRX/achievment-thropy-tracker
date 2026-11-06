@@ -10,6 +10,7 @@
     '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
   }[char]));
   let stage = [], active = 0, returnFocus = null, raf = 0;
+  let consoleOrigin = null;
   let held = false, lastMove = 0, gamepadConnected = false;
   let timelineRange = 90;
 
@@ -28,9 +29,10 @@
   function focusGame(id) {
     const g = stage.find(item => item.id === id);
     if (!g) return;
+    const origin={hash:location.hash,gameId:g.id};
     closeConsole();
     // The native game detail is the sole destination; do not open a duplicate Ultimate screen.
-    if (typeof openGame === 'function') openGame(g.id);
+    if (typeof openGame === 'function') {consoleOrigin=origin;if(openGame(g.id)===false)consoleOrigin=null;}
   }
 
   function showGame() {
@@ -56,6 +58,7 @@
     if (coverUrl) { cover.src = coverUrl; cover.alt = (g.name || 'Oyun') + ' kapağı'; }
     else { cover.removeAttribute('src'); cover.alt = ''; }
     const rail = $native('atlasConsoleRail');
+    const restoreRailFocus=rail.contains(document.activeElement);
     const indices = [];
     for (let n = -2; n <= 2 && indices.length < stage.length; n++) {
       const index = (active + n + stage.length) % stage.length;
@@ -76,6 +79,7 @@
       const url = visualUrl(item, 'cover');
       button.querySelector('.atlas-console-cover').style.backgroundImage = url ? cssUrl(url) : 'none';
     });
+    if(restoreRailFocus)rail.querySelector('.selected')?.focus({preventScroll:true});
     $native('atlasConsoleCount').textContent = (active + 1) + ' / ' + stage.length;
   }
 
@@ -238,6 +242,16 @@
   }
 
   function init() {
+    window.addEventListener('popstate',()=>{
+      const origin=consoleOrigin;if(!origin||location.hash!==origin.hash)return;
+      consoleOrigin=null;
+      // Let the native router restore its page and scroll before modal focus.
+      setTimeout(()=>requestAnimationFrame(()=>{
+        if(page==='universe'||!DATA.library.games.some(g=>g.id===origin.gameId))return;
+        selectedGame=origin.gameId;openConsole();
+        $native('atlasConsoleRail').querySelector('.selected')?.focus({preventScroll:true});
+      }),0);
+    });
     const select = $native('atlasThemeSkin');
     select?.addEventListener('change', () => {
       const skin = safeSkin(select.value);
