@@ -41,7 +41,7 @@ CSV ve API'den aynı oyuna ait ayrı kimlikler varsa veri kaybetmemek için otom
 
 ## Yerel doğrulama
 
-- **201 Python testi** hedeflenen son tur (çıktı ve CI sonucu teslim kanıtında kesinleştirilir). Yeni dosyalar: `test_issue22_media.py`, `test_issue22_accounts.py`; önceki tarih/CSV/Xbox/PSN/Steam/restore/update testleri korunur.
+- **203 Python testi geçti, 0 başarısız** (yerel son tam tur). Yeni dosyalar: `test_issue22_media.py`, `test_issue22_accounts.py`; önceki tarih/CSV/Xbox/PSN/Steam/restore/update testleri korunur.
 - Dört Node suite ve `app.js`, `ultimate.js`, `ui/ultimate.js` ile yeni modüllerin syntax kontrolleri geçti.
 - Gerçek Chromium, sentetik HTTP: `test_issue22_metadata.cjs`, `test_issue22_setup.cjs`; 1920×1080, 1440×900, 980×640, 390×844. Gerçek yerel ayar kaydı + mock PSN/Steam bağlantı yanıtı; sırların geri gösterilmemesi, ad/durum ayrımı, dört başarısız oyun/+1, app filtresi, gerçek cache ikonu, tarih/spoiler, inline odak, kapak/boş fallback.
 - Mevcut Game Universe/back/forward/deep-link/not taslağı, Ctrl+K, 16 tema/ekran kombinasyonu, gzip/kısmi yenileme/yanıt sıralaması, gamepad API simülasyonu ve azaltılmış hareket geçti. Fiziksel gamepad/NVDA testi değildir.
@@ -69,4 +69,13 @@ Anahtarsız/oturumsuz üçüncü taraf profillerinin bütün verisini getirme va
 
 ## Teslim kanıtları
 
-Son CI koşuları ve kalan başarısızlıklar burada doğrulandıktan sonra kaydedilir. Kaynak kod hazır olması canlı entegrasyonun çalıştığı kanıtı değildir.
+Kaynak kod hazır olması canlı entegrasyonun çalıştığı kanıtı değildir.
+
+- #23 kaynak `405664e56b1b36049cf2720d7c1369ed0e635a08`: Windows `42101967106`, PR testleri `42101967118`, push testleri `42101916994` başarılı.
+- #24 kaynak `8ff03c608d2f350d623a2849b1190ff5cebf1f33`: Windows `42102734037`, PR testleri `42102734312`, push testleri `42102682346` başarılı.
+- Eski #25 kaynak `1512997624fd6ad1954fbf9f9f093460ba70b474`: Windows `42107565658` native history/focus testinde başarısız; Python/JS/Chromium geçmesi bu hatayı kapatmadı.
+- #37 düzeltmesi sonrası #25 kaynak `9512d149ae6e17b92cf01a4d1c6d8a380342ca5a`: Windows `42134533000` ve PR unit `42134532809` başarılı. Ayrıntı `ISSUE_37_NATIVE_FOCUS_TR.md`. Test skip veya timeout artışı yapılmadı.
+- Sonraki offline export/restore sorunları #38/#39'da ayrı düzeltilir; #22 otomatik testleri gerçek hesap kabulü sayılmaz.
+- Geliştirme dalı `145accefdf1053d826249d52e54aeba6aa69fbfd`, main `98f870b908fa73ec2711c2f3fd359eca92a7ab77` korunur. Yeni release yok.
+
+Son ek kök nedenler: Xbox OAuth/reconnect genel kütüphanenin son PSN/Steam yazıcı adını kullanıyordu; platforma ait kimlik yardımcı işleviyle ayrıldı, seçilen Xbox hedefi korunur. Kaynağı bilinmeyen kayıt yalnız platformuna göre API diye etiketlenmez. Tarih-only değerler zaman çizelgesinde de 00:00 üretmez. Eski platformu bilinmeyen uyarılar geçmişte bu belirsizlikle korunur.
