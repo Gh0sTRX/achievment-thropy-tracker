@@ -1,5 +1,14 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+Kullanıcı bu turda açıkça **derle ve güncelleme yayımla** dedi. 0.16.2 Development
+hazırlanıyor; önceki yayın yasağı bu belirli yayın için kaldırıldı. Main korunur.
+Kaynak dalındaki birikim codex/public-profile-trophies'a fast-forward alınabilir;
+sürüm/paket/UI/manifest tutarlılığı ve aynı HEAD Unit/Windows kapıları zorunlu.
+Yetkili push yayını ayrıca exact-source tam test workflow'unun başarılı olmasını
+bekler. Sertifika yoksa imzasız Development; canlı hesap kabulü iddiası yok.
+Yayın tamamlandı denmeden release manifest/asset ve yayın sonrası native
+0.16.1→0.16.2 self-update sonucu ayrıca doğrulanır.
+
 Steam devamı: bozuk player achievement satırı tüm sync'i kesmek yerine AppID
 düzeyinde başarısız sayılır; önceki aynı hesap kaydı korunur. known_games boş
 schema koruması SteamID64'ye bağlandı, diğer hesabın cache'i yeni hesabı engellemez.

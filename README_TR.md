@@ -1,4 +1,7 @@
-# Achievement Atlas 0.15.0 Preview — Türkçe Kurulum
+# Achievement Atlas 0.16.2 Development — Türkçe Kurulum
+
+Güncelleme: uygulama → Diğer ekranlar → Güncellemeler → Kontrol et → İndir →
+Kur ve yeniden başlat. [0.16.2 değişiklikleri ve sınırlar](docs/RELEASE_NOTES_0_16_2_TR.md).
 
 Windows 10/11 64 bit için hazır **Setup.exe** ve **Portable.zip** paketleri hazırlanır.
 Hazır paketlerde Python kurman gerekmez. Arayüz Microsoft Edge WebView2 ile kendi masaüstü penceresinde açılır. Setup masaüstü/Başlat menüsü kısayolu ve

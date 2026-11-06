@@ -166,9 +166,9 @@ jobs:
           Copy-Item KURULUM.txt dist\AchievementAtlas\
           Copy-Item LICENSE dist\AchievementAtlas\
           New-Item -ItemType Directory -Path dist/AchievementAtlas/docs -Force | Out-Null
-          Copy-Item docs/PUBLIC_PROFILES_TR.md,docs/UPDATE_CRASH_RECOVERY_TR.md,docs/UPDATE_ROLLBACK_SNAPSHOT_TR.md,docs/RELEASE_NOTES_0_16_1_TR.md dist/AchievementAtlas/docs/
-          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.16.1-Windows-x64-Portable.zip
-          Compress-Archive preview -DestinationPath dist\installer\AchievementAtlas-0.16.1-Preview.zip
+          Copy-Item docs/PUBLIC_PROFILES_TR.md,docs/UPDATE_CRASH_RECOVERY_TR.md,docs/UPDATE_ROLLBACK_SNAPSHOT_TR.md,docs/RELEASE_NOTES_0_16_2_TR.md dist/AchievementAtlas/docs/
+          Compress-Archive dist\AchievementAtlas -DestinationPath dist\installer\AchievementAtlas-0.16.2-Windows-x64-Portable.zip
+          Compress-Archive preview -DestinationPath dist\installer\AchievementAtlas-0.16.2-Preview.zip
           Copy-Item app-signing.json dist/installer/
           Copy-Item frozen-test-report.json,installed-test-report.json,desktop-test-report.json,upgrade-test-report.json dist\installer\
           Get-ChildItem dist\installer\*.exe,dist\installer\*.zip | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist\installer\SHA256SUMS.txt
@@ -189,7 +189,7 @@ jobs:
           python scripts/build_dev_manifest.py dist/installer
       - uses: actions/upload-artifact@v4
         with:
-          name: AchievementAtlas-0.16.1-Windows-x64
+          name: AchievementAtlas-0.16.2-Windows-x64
           path: dist/installer/*
           retention-days: 30
           if-no-files-found: error
@@ -203,7 +203,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: AchievementAtlas-0.16.1-Windows-x64
+          name: AchievementAtlas-0.16.2-Windows-x64
           path: release-files
       - name: Require a signed, matching stable release
         env:
@@ -285,6 +285,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: write
+      actions: read
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -295,9 +296,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Require complete tests on this exact source
+        run: python scripts/require_release_tests.py
       - uses: actions/download-artifact@v4
         with:
-          name: AchievementAtlas-0.16.1-Windows-x64
+          name: AchievementAtlas-0.16.2-Windows-x64
           path: release-files
       - name: Reverify the exact successful push build
         run: |
@@ -306,9 +309,9 @@ jobs:
       - name: Publish explicitly authorized development update
         run: |
           if gh release view development >/dev/null 2>&1; then
-            gh release edit development --prerelease --title 'Achievement Atlas 0.16.1 — Development' --notes-file docs/RELEASE_NOTES_0_16_1_TR.md
+            gh release edit development --prerelease --title 'Achievement Atlas 0.16.2 — Development' --notes-file docs/RELEASE_NOTES_0_16_2_TR.md
           else
-            gh release create development --target "$CANDIDATE_COMMIT" --prerelease --title 'Achievement Atlas 0.16.1 — Development' --notes-file docs/RELEASE_NOTES_0_16_1_TR.md
+            gh release create development --target "$CANDIDATE_COMMIT" --prerelease --title 'Achievement Atlas 0.16.2 — Development' --notes-file docs/RELEASE_NOTES_0_16_2_TR.md
           fi
           gh release upload development release-files/*-Setup.exe release-files/SHA256SUMS.txt release-files/update-bundle.json release-files/development-verification.json --clobber
           gh release upload development release-files/development-manifest.json --clobber
