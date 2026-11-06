@@ -57,7 +57,7 @@ class Controller:
             unchanged=known_library_token==token
             payload=self.store.payload(include_library=not unchanged);revision=self.store.revision
             library=payload['library'] if payload['library'] is not None else self.store.library;pins=payload['state']['pins']
-            cache_key=(token,tuple(pins))
+            cache_key=(token,tuple(pins),datetime.now(timezone.utc).date())
             cached_reports=self._report_cache
             if cached_reports and cached_reports[0]==cache_key:
                 reports=cached_reports[1]
@@ -67,8 +67,8 @@ class Controller:
                     games=[g for g in library['games'] if g.get('platform')==platform]
                     ids={g['id'] for g in games}
                     scoped={**library,'games':games,'achievements':[a for a in library['achievements'] if a['game_id'] in ids]}
-                    reports[platform]={'recommendations':recommendations.rank(scoped,pins),'insights':recommendations.insights(scoped)}
-                reports['all']={'recommendations':recommendations.rank(library,pins),'insights':recommendations.insights(library)}
+                    reports[platform]={'recommendations':recommendations.rank(scoped,pins),'next_moves':recommendations.next_moves(scoped,pins),'insights':recommendations.insights(scoped)}
+                reports['all']={'recommendations':recommendations.rank(library,pins),'next_moves':recommendations.next_moves(library,pins),'insights':recommendations.insights(library)}
                 self._report_cache=(cache_key,reports)
         return {'revision':revision,'library_token':token,'library_unchanged':unchanged,'library':payload, 'recommendations':reports['all']['recommendations'],
                 'insights':reports['all']['insights'],'platform_reports':reports,

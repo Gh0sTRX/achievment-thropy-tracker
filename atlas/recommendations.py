@@ -7,6 +7,45 @@ from collections import defaultdict
 from .catalog import only_games
 
 
+def next_moves(library, pins=(), today=None):
+    """At most three archive-backed choices; never infer ease from rarity/points."""
+    from datetime import datetime, timezone, timedelta
+    from .dates import normalize_unlock_date
+    today=today or datetime.now(timezone.utc).date()
+    library=only_games(library);pinset=set(pins)
+    groups=defaultdict(list)
+    for item in library.get('achievements',[]):groups[item['game_id']].append(item)
+    choices=[]
+    for game in library.get('games',[]):
+        items=groups[game['id']]
+        pending=[a for a in items if not a.get('unlocked') and not a.get('flag')]
+        if not pending:continue
+        earned=sum(bool(a.get('unlocked')) for a in items);total=len(items)
+        dates=[]
+        for a in items:
+            value=normalize_unlock_date(a.get('unlock_time')) if a.get('unlocked') else ''
+            if value:
+                day=datetime.fromisoformat(value).date()
+                if today-timedelta(days=30)<=day<=today:dates.append(day)
+        selected=sorted(pending,key=lambda a:(a['id'] not in pinset,str(a['id'])))[0]
+        pinned=selected['id'] in pinset;near=earned/total>=.75
+        if not (pinned or near or dates):continue
+        reasons=[]
+        if pinned:reasons.append('Kendi sabitlediğin hedef')
+        if near:reasons.append(f'Eldeki kayıtlarda {earned}/{total} kazanılmış; {total-earned} kayıt kaldı')
+        if dates:reasons.append('Bu oyunda son 30 günde tarihli kazanım kaydın var: '+max(dates).isoformat())
+        sources=sorted({str(a.get('metadata_source') or a.get('source') or 'Kaynak belirtilmemiş') for a in items})
+        reasons.append('Kaynak: '+', '.join(sources))
+        reasons.append('Süre, zorluk, sahiplik ve çevrimiçi erişilebilirlik doğrulanmadı')
+        if not library.get('complete_export'):reasons.append('Arşiv kapsamı kısmi/bilinmiyor; kalan kayıt sayısı tüm oyun veya DLC kapsamı değildir')
+        choices.append((not pinned,not near,-earned/total,-max(dates).toordinal() if dates else 0,str(game['id']),
+            {'achievement_id':selected['id'],'game_id':game['id'],'game':game.get('name',''),
+             'achievement':selected.get('name',''),'points':selected.get('points',0),'reasons':reasons,
+             'progress':None,'is_measured':False,'signals':{'pinned':pinned,'recorded_completion':near,'recent_unlock':bool(dates)}}))
+    choices.sort(key=lambda x:x[:-1])
+    return [x[-1] for x in choices[:3]]
+
+
 def rank(library, pins=(), limit=12):
     library=only_games(library)
     games={g['id']:g for g in library.get('games',[])}

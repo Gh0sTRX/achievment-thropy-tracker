@@ -1,5 +1,14 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+Sonraki kaynak çalışması: sınırlı Next Move ayrı `next_moves` raporu ve ana
+ekran/hedef/oyun öneri alanlarına bağlandı. En fazla üç farklı oyun; pin,
+kayıtlarda tamamlanmaya yakınlık ve geçerli son kazanım tarihi. Kaynak ve
+bilinmeyenler açık; TA ratio/GS ağırlığı yok. Eski rank uyumluluk için korunur.
+226 Python testi; docs/ISSUE_37_NEXT_MOVE_TR.md. 54a76b1 Unit tests başarılı
+(42235578403), Windows o test/docs-only push'ta tetiklenmedi; önceki Windows
+koşusu yeni Next Move kaynağının kanıtı değildir. Yeni kaynak CI ayrıca izlenir.
+Açık PR/release/main-dev merge yok. Gerçek kullanıcı kabulü hâlâ yapılmadı.
+
 Son CI takibi: f3d2a0d Unit tests kırmızısı Console Mode testindeki kalıcı
 oyun seçimi varsayımındandı (42234874945 / 42234866618). Kapaklı ve kapaksız
 fixture artık açıkça seçiliyor. Aynı CI sırasındaki 11 Chromium script'i
