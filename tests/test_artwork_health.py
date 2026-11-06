@@ -7,6 +7,13 @@ from atlas.core import Library
 from atlas import artwork,media_sync
 
 class ArtworkHealthTests(unittest.TestCase):
+    def test_explicit_csv_image_without_title_id_can_recover(self):
+        with TemporaryDirectory() as root:
+            store=Library(root);g={'id':'csv:1','platform':'xbox','title_id':'','platform_edition':'unknown','cover_url':'local','artwork_meta':{'cover':{'game_id':'csv:1','platform':'xbox','title_id':'','platform_edition':'unknown','provider':'SteamGridDB','provider_id':'asset1','source_url':'https://cdn2.steamgriddb.com/chosen'}}};store.library['games']=[g]
+            self.assertEqual(media_sync.health(store)['valid_source_urls']['cover'],1)
+            data=io.BytesIO();Image.new('RGB',(12,12)).save(data,format='PNG')
+            with patch.object(artwork,'fetch',return_value=(data.getvalue(),'image/png')) as request:result=media_sync.download(store)
+            self.assertEqual(result['downloaded'],1);request.assert_called_once_with('https://cdn2.steamgriddb.com/chosen')
     def test_valid_bytes_bound_to_other_title_are_not_applied_or_deleted(self):
         with TemporaryDirectory() as root:
             store=Library(root);g={'id':'csv:1','platform':'xbox','title_id':'new','platform_edition':'360','cover_url':'local','artwork_meta':{'cover':{'game_id':'csv:1','platform':'xbox','title_id':'old','platform_edition':'360','provider':'Xbox TitleHub','source_url':'https://xboxlive.com/old'}}};store.library['games']=[g]

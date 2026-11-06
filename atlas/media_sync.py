@@ -15,7 +15,7 @@ def game_sources(game,kind):
     candidates=[c for c in game.get('art_candidates',[]) if c.get('kind')==kind]
     candidates.append({'url':game.get(kind+'_url'),'provider':game.get('image_source') or game.get('platform')})
     recorded_title=saved.get('title_id') or (saved.get('provider_id') if saved.get('provider')!='SteamGridDB' else None)
-    if saved.get('game_id')==game['id'] and saved.get('platform')==game.get('platform') and saved.get('platform_edition')==game.get('platform_edition') and recorded_title==game.get('title_id'):
+    if saved.get('game_id')==game['id'] and saved.get('platform')==game.get('platform') and saved.get('platform_edition')==game.get('platform_edition') and (recorded_title or None)==(game.get('title_id') or None):
         candidates.append({**saved,'url':saved.get('source_url')})
     return [c for c in candidates if artwork.safe_url(c.get('url'))]
 

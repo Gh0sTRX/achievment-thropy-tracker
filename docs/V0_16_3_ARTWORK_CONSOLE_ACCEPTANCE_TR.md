@@ -67,13 +67,16 @@ mesafesi/NVDA kabulü tamamlandı diye işaretlenmez.
 
 ## Test raporu
 
-Son yerel tur: **253/253 Python**, dört Node suite, gerekli JS syntax kontrolleri
+Son yerel tur: **254/254 Python**, dört Node suite, gerekli JS syntax kontrolleri
 ve CI sırasındaki **14 Chromium script'i** başarılı. Dört çözünürlük, 16 tema/
 ekran, 5k/15k/40k ve simüle gamepad dahil; page_errors boş. Sürüm metadata'sı
 0.16.3 test adayıdır, yayımlı kanal 0.16.2 kalır. Windows sonucu exact push
 SHA'sında ayrıca beklenir; yerel Chromium, Windows WebView2 yerine geçmez.
 Upgrade matrisi kullanıcıdaki mevcut yayımlı 0.16.2'yi de sabitlenmiş SHA256
 ile içerir; aday kurulum/rollback testi güncelleme kanalında 0.16.3 yayımlamaz.
+CSV'nin boş Title ID'si ile None eşdeğerdir; kullanıcının açık manuel SGDB
+seçiminin aynı yerel oyun/edisyon kaynağı bu yüzden kaybolmaz. Dolu farklı
+Title ID'ler yine reddedilir. Bu sınır durumu için red→green regresyon eklendi.
 
 Yeni Title ID recovery ve reset testleri düzeltme öncesi başarısız oldu.
 Health/UI testi gerçek localhost API'sini, tek oyun kapsamını, altı kategoriyi,
