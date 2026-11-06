@@ -24,6 +24,7 @@ MAX_ACHIEVEMENTS = 120_000
 STATE_FIELDS = frozenset({
     "pins", "hidden", "custom_art", "xbox_titles", "linked_profile",
     "sync_at", "log", "ui", "demo_removed", "public_profiles", "sync_warnings",
+    "provider_inputs", "sync_warnings_by_platform",
 })
 _PENDING = ".atlas-restore-pending.json"
 _BACKUP_NAME = re.compile(r"^pre-restore-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}\.json$")
@@ -73,7 +74,7 @@ def _validate_data(data: object) -> dict:
     for key in ("pins", "hidden", "log", "sync_warnings"):
         if not isinstance(state.get(key, []), list):
             raise ValueError("Arşiv yerel listesi geçersiz: " + key)
-    for key in ("custom_art", "xbox_titles", "ui", "public_profiles"):
+    for key in ("custom_art", "xbox_titles", "ui", "public_profiles", "provider_inputs", "sync_warnings_by_platform"):
         if not isinstance(state.get(key, {}), dict):
             raise ValueError("Arşiv yerel ayarları geçersiz: " + key)
     if state.get("linked_profile") is not None and not isinstance(
@@ -85,10 +86,18 @@ def _validate_data(data: object) -> dict:
            for x in state.get("sync_warnings", [])):
         raise ValueError("Arşiv eşitleme uyarıları geçersiz.")
     for key, profile in state.get("public_profiles", {}).items():
-        if key not in ("xbox", "psn") or not isinstance(profile, dict):
+        if key not in ("xbox", "psn", "pc") or not isinstance(profile, dict):
             raise ValueError("Arşiv profil eşleştirmesi geçersiz.")
         if not isinstance(profile.get("username", ""), str):
             raise ValueError("Arşiv profil adı geçersiz.")
+    for platform, username in state.get("provider_inputs", {}).items():
+        if platform not in ("xbox", "psn", "pc") or not isinstance(username, str) or len(username)>200:
+            raise ValueError("Arşiv platform kullanıcı adı geçersiz.")
+    for platform, warnings in state.get("sync_warnings_by_platform", {}).items():
+        if platform not in ("xbox", "psn", "pc") or not isinstance(warnings, list):
+            raise ValueError("Arşiv platform uyarıları geçersiz.")
+        if any(not isinstance(w,dict) or not isinstance(w.get("game"),str) for w in warnings):
+            raise ValueError("Arşiv platform uyarısı geçersiz.")
     return data
 
 
