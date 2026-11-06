@@ -1,5 +1,15 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+## Son kullanıcı emri — eksikleri sürdür ve açık PR'ları kapat
+
+Tek teslimat dalında PSN ilk listeleme sırasında iptal/progress ve Console Mode
+okunaklı kapak/metin/kontrol düzeni eklendi. Python 222 test. Gerçek PSN hız
+kazanımı veya fiziksel kontrolcü kabulü iddia edilmez. #43 kullanıcı talebiyle
+merge edilmeden kapatılacak; bu tamamlandı/release anlamına gelmez. Kaynak
+`fix/37-confirmed-xbox-artwork-candidates` dalında korunur. Aşağıdaki tek açık
+PR anlatımları tarihsel durumdur. Main/dev/release değişmez. Yeniden geliştirme
+için bu daldan devam et; yeni PR açmak mevcut kullanıcı tercihi değildir.
+
 ## 6 Kasım — PR konsolidasyonu (önce bu bölümü oku)
 
 Kullanıcı açık PR birikimini kapatıp işi bütünleştirmeyi istedi. Tek teslimat

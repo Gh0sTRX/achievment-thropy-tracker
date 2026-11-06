@@ -50,6 +50,11 @@
     backdrop.style.backgroundImage = url ? cssUrl(url) : 'none';
     backdrop.style.backgroundPosition = String(Number(g.art_theme?.x ?? 50)) + '% ' +
       String(Number(g.art_theme?.y ?? 38)) + '%';
+    const cover = $native('atlasConsoleCover'), coverUrl = visualUrl(g, 'cover');
+    cover.hidden = !coverUrl;
+    cover.onerror = () => { cover.hidden = true; };
+    if (coverUrl) { cover.src = coverUrl; cover.alt = (g.name || 'Oyun') + ' kapağı'; }
+    else { cover.removeAttribute('src'); cover.alt = ''; }
     const rail = $native('atlasConsoleRail');
     const indices = [];
     for (let n = -2; n <= 2 && indices.length < stage.length; n++) {

@@ -1,5 +1,17 @@
 # Birikmiş PR teslimatı
 
+Son takip: Kullanıcı tüm açık PR'ları kapatmayı tekrar istedi. #43 de kaynak
+dalı korunarak, merge/release yapılmadan kapatılır. Bu belge bir tamamlanma
+ilanı değildir; aşağıdaki gerçek hesap, artwork kapsama ve güvenlik eksikleri
+açık kalır. Sonraki CI sonuçları branch SHA üzerinden izlenir.
+
+PSN SDK oyun listesi iterator'ünde artık her yield'de iptal kontrolü ve bulunan
+oyun sayısı progress'i var. İlk metadata isteği tamamlanmadan iptal edilemez;
+rate-limit aşılarak paralel sorgu başlatılmaz. Bu, hız ölçümü yerine geçmez.
+Console Mode aynı shell içinde belirgin gerçek kapak, okunaklı metin, akıştaki
+alt kontroller ve mobil kaydırılabilir oyun şeridi kullanır. Olmayan kapak
+üretilmez, hatalı kapak yüklemesinde img gizlenir. Yeni tema yoktur.
+
 Kullanıcı 6 Kasım 2026'da açık PR birikimini kapatmayı istedi. Kodları tek tek
 main veya geliştirme dalına körlemesine merge etmek yerine, son kaynak zinciri
 ve #26 belgeleri tek inceleme PR #43 altında toplandı. Küçük commitlerin

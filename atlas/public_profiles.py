@@ -180,10 +180,17 @@ def _psn(username, progress):
     user = PSNAWP(secret).user(online_id=username)
     identity.verify_requested_name('psn', username, user.online_id)
     identity.provider_key('psn', user.account_id)
-    titles = list(user.trophy_titles(limit=None))
+    titles = []
+    # The SDK iterator can fetch many pages before the first game's progress.
+    # Check between yields so cancellation does not require a restart.
+    for title in user.trophy_titles(limit=None):
+        sync_control.check()
+        titles.append(title)
+        progress(0,0,f'PSN oyun listesi alınıyor · {len(titles)} oyun bulundu')
     games = []; items = [];warnings=[];failed=[]
     for title in titles:
         sync_control.check()
+        progress(len(games)+len(failed),len(titles),str(title.title_name or title.np_communication_id))
         if not title.np_communication_id or not title.title_platform:
             raise ValueError('PSN oyun kimliği eksik; arşiv değiştirilmedi.')
         try:

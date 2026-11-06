@@ -100,6 +100,7 @@ jobs:
           node tests/test_offline_archive.cjs
           node tests/test_issue22_setup.cjs
           node tests/test_achievement_hit_area.cjs
+          node tests/test_console_layout.cjs
           node tests/test_issue22_metadata.cjs
           node tests/test_library_transfer.cjs
           node tests/browser_audit.cjs

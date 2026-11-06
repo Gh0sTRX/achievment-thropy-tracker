@@ -118,6 +118,21 @@ body[data-skin] .progress-track i,body[data-skin] .bar i{background:var(--lime)}
 .atlas-console-card b{font-size:10px;display:block;padding:7px 3px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
 .atlas-console-foot{position:absolute!important;bottom:15px;left:0;right:0;text-align:center;font-size:11px;letter-spacing:.08em;color:#bacbe0}
 .atlas-console-open{overflow:hidden}
+/* A readable couch layout inside the existing console, not another shell. */
+.atlas-console[open]{display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
+.atlas-console-hero{display:flex;align-items:center;gap:clamp(20px,4vw,60px);width:100%;max-width:1400px;margin:auto;box-sizing:border-box;min-height:0}
+.atlas-console-hero>div{min-width:0;flex:1}
+#atlasConsoleCover{width:clamp(110px,16vw,240px);height:clamp(150px,27vh,320px);object-fit:contain;flex-shrink:0;border-radius:12px;box-shadow:0 15px 45px #0007}
+#atlasConsoleCover[hidden]{display:none}
+.atlas-console-hero h2{font-size:clamp(28px,5vw,72px);overflow-wrap:anywhere}
+.atlas-console-hero p{font-size:clamp(14px,1.3vw,20px);line-height:1.6}
+.atlas-console-rail{flex-shrink:0;padding:16px 8px;box-sizing:border-box;min-height:0;margin-bottom:12px}
+.atlas-console-card{width:clamp(85px,12vw,180px)}
+.atlas-console-cover{height:clamp(80px,15vh,160px)}
+.atlas-console-card b{font-size:clamp(11px,1vw,15px)}
+.atlas-console-foot{position:relative!important;bottom:auto;padding:12px;box-sizing:border-box;flex-shrink:0}
+.atlas-console :focus-visible{outline:3px solid var(--lime);outline-offset:5px}
+@media(max-width:650px){.atlas-console-hero{padding:14px 6vw;gap:16px}#atlasConsoleCover{width:85px;height:125px}.atlas-console-hero h2{font-size:28px}.atlas-console-header{padding:16px;gap:8px}.atlas-console-card{max-width:26vw}.atlas-console-rail{justify-content:flex-start;overflow-x:auto;width:100%}.atlas-console-foot{font-size:11px}}
 @media(max-width:1000px){body .topbar{height:auto;min-height:80px;gap:10px;padding-top:12px;padding-bottom:12px}body .top-right{gap:6px}body #globalSearchForm{max-width:145px}}
 @media(max-width:650px){.atlas-theme-label{display:none}#atlasThemeSkin{max-width:116px;font-size:10px}#atlasConsoleButton{padding:9px 8px}body #globalSearchForm{display:none}.atlas-console-card{width:85px}.atlas-console-cover{height:80px}.atlas-console-hero{padding:2vh 6vw}.atlas-console-rail{gap:6px}.atlas-console-foot{font-size:8px;letter-spacing:0}}
 @media(prefers-reduced-motion:reduce){.atlas-console-card.selected{transform:none}body[data-skin] .featured,body[data-skin] .game-card{animation:none!important;transition:none!important}}

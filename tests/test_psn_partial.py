@@ -5,6 +5,22 @@ from unittest.mock import patch
 from atlas import public_profiles as public
 
 class PsnPartialTests(unittest.TestCase):
+    def test_cancel_during_title_discovery_stops_before_trophy_requests(self):
+        from atlas import sync_control
+        stopped=False;yielded=[]
+        def titles(**kwargs):
+            for i in range(100):
+                yielded.append(i)
+                yield NS(title_name='Game',np_communication_id='NP'+str(i))
+        def progress(*args):
+            nonlocal stopped
+            stopped=True
+        user=NS(account_id='123',online_id='Player1',trophy_titles=titles)
+        sdk=NS(PSNAWP=lambda secret:NS(user=lambda **kwargs:user))
+        with patch.dict('sys.modules',{'psnawp_api':sdk}),patch.object(public.settings,'get',return_value='service-session'):
+            with self.assertRaises(sync_control.Cancelled):public.fetch('psn','Player1',progress,stop=lambda:stopped)
+        self.assertLessEqual(len(yielded),2)
+
     def test_all_devices_and_discard_partial_title_rows(self):
         class Platform(Enum):PS3='PS3';PS4='PS4';PS5='PS5';VITA='PSVITA'
         titles=[NS(np_communication_id='NP'+str(i),title_platform={p},title_name=p.value,title_icon_url='') for i,p in enumerate(Platform)]
