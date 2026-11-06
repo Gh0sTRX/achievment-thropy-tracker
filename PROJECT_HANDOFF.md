@@ -1,5 +1,19 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+## 0.16.2 YAYIMLANDI — güncel sonuç, 6 Kasım 2026
+
+Kullanıcının açık derle/güncelleme yayımla talebi tamamlandı. Birikmiş kaynak
+codex/public-profile-trophies'a fast-forward alındı; main 98f870b korunur.
+Yayın kaynağı ee13cd76ea9e6669d0dd60ed24fde773681c1e4d. Unit 42257112129,
+Windows/yayın 42257112192 başarılı. 247 Python + Chromium/PowerShell, native,
+installer, 0.16.1 dahil upgrade/rollback ve exact-source tam test kapısı geçti.
+Installer 33.346.488 byte, sha256 df146f08541deada69fd97e83a006fe29d73de06c2db64598f343008c94c1ab2;
+canlı manifest/GitHub digest/indirilen EXE baytları doğrulandı. İmzasızdır.
+Yayın sonrası stok 0.16.1→0.16.2 native self-update job128031624641 başarılı;
+veri koruması sentetik test arşiviyle, gerçek oyuncu hesabı değildir.
+docs/RELEASE_NOTES_0_16_2_TR.md. Yeni yayın için yeniden açık talep gerekir.
+Aşağıdaki hazırlık/yayın yasağı anlatımları tarihsel kayıttır. PR açılmadı.
+
 Kullanıcı bu turda açıkça **derle ve güncelleme yayımla** dedi. 0.16.2 Development
 hazırlanıyor; önceki yayın yasağı bu belirli yayın için kaldırıldı. Main korunur.
 Kaynak dalındaki birikim codex/public-profile-trophies'a fast-forward alınabilir;

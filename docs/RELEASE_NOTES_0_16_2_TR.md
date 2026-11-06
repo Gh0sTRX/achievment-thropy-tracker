@@ -1,5 +1,31 @@
 # Achievement Atlas 0.16.2 — Development
 
+## Yayın kanıtı — 6 Kasım 2026
+
+Yayımlandı. Kaynak `ee13cd76ea9e6669d0dd60ed24fde773681c1e4d`,
+geliştirme dalı `codex/public-profile-trophies`; main değişmedi.
+247 Python testi ve tam Unit/Chromium/PowerShell matrisi: `42257112129` başarılı.
+Windows native/installer/0.16.1 dahil upgrade-rollback, attestation ve yayın:
+`42257112192` başarılı. Exact-source yayın test kapısı ayrıca geçti.
+
+Installer `AchievementAtlas-0.16.2-Windows-x64-Setup.exe`, 33.346.488 byte;
+SHA256 `df146f08541deada69fd97e83a006fe29d73de06c2db64598f343008c94c1ab2`.
+Canlı manifest ve GitHub asset digest eşleşti; yayımlı EXE'nin gerçek baytları
+da indirilip hash/boyut doğrulandı. Authenticode signed: false.
+
+Yayın SONRASI stok **0.16.1 → 0.16.2** native uygulama içi indirme/doğrulama/
+kurulum/yeniden açılış ve sentetik arşiv koruma geçti: aynı koşu attempt 2,
+native job `128031624641`. Log `Native self-update passed: 0.16.1 -> 0.16.2`
+der. Artifact metadata: paket `13523970328`, native rapor `13522699707`;
+ZIP içerikleri yerelde açılmış gibi raporlanmaz. Bu fiziksel oyuncu cihazı veya
+gerçek hesap kabulü değildir. Bu belge eklemesi yayın kaynağını değiştirmez.
+
+`development` Git kaynak etiketi eski b214eee commit'inde korunmuştur. Etiketi
+taşıma işlemi otomatik onay denetiminde yayımlanmış ref yeniden yazımı olarak
+reddedildi; alternatif olarak etiket değiştirilmedi. Release sayfasındaki
+otomatik Source code ZIP'i yerine gerçek kaynak için yukarıdaki ee13cd7 SHA'sını
+kullan. EXE ve güncelleme manifestinin ee13cd7 kökeni ayrıca doğrulanmıştır.
+
 ## Kullanıcıya yansıyan düzeltmeler
 
 - Game Universe ve Başarım Kasası ortak ikon/açıklama/tarih/kaynak bileşeni
