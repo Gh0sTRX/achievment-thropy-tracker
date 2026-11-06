@@ -353,15 +353,17 @@ class Controller:
         return {'message':'Görsel oyununa kaydedildi. Çevrimdışıyken de kullanılabilir.'}
 
     def upload_art(self, data):
-        game=self.art_game(data);kind=str(data.get('kind','hero'))
+        kind=str(data.get('kind','hero'))
         if kind not in ('cover','hero','logo','banner','screenshot'):raise ValueError('Geçersiz görsel kategorisi.')
         encoded=data.get('image','')
         if not isinstance(encoded,str) or len(encoded)>10_666_672:raise ValueError('Görsel en fazla 8 MB olabilir.')
         try:raw=base64.b64decode(encoded,validate=True)
         except (ValueError,TypeError):raise ValueError('Görsel dosyası okunamadı.') from None
-        meta=artwork.store_bytes(self.store.root,kind,game['id'],raw)
-        return self.save_art(data,{**meta,'provider':'user_file','provider_id':'', 'source_url':'',
-            'rights_note':'Kullanıcının seçtiği yerel dosya; dağıtım izni doğrulanmadı.'})
+        with self.store.lock:
+            game=self.art_game(data)
+            meta=artwork.store_bytes(self.store.root,kind,game['id'],raw)
+            return self.save_art(data,{**meta,'provider':'user_file','provider_id':'', 'source_url':'',
+                'rights_note':'Kullanıcının seçtiği yerel dosya; dağıtım izni doğrulanmadı.'})
 
     def reset_art(self, data):
         with self.store.lock:
@@ -396,28 +398,40 @@ class Controller:
         return {'message':'Oyun notların bu cihazda kaydedildi.'}
 
     def select_art(self,data):
-        game=self.art_game(data);gid=game['id'];kind=str(data.get('kind',''))
+        from copy import deepcopy
+        kind=str(data.get('kind',''))
         if kind not in ('cover','hero','logo'):raise ValueError('Image type unknown')
         url=str(data.get('url',''))
-        candidate=next((c for c in self.store.live_artwork.get(gid,[]) if c['kind']==kind and c['url']==url),None)
-        if not candidate:raise ValueError('Önce oyun ve sürüm eşleşmesini onaylayıp bir arama sonucu seç.')
-        if (game.get('artwork_meta') or {}).get(kind,{}).get('provider')=='user_file' and not data.get('replace_local'):
-            raise ValueError('Bu oyun için yerel dosya seçilmiş. Değiştirmek için önce özel görseli sıfırla.')
-        meta=artwork.cache_image(self.store.root,kind,gid,url)
-        return self.save_art(data,{**meta,'provider':'SteamGridDB','provider_id':candidate.get('provider_id',''),
-            'source_url':url,'page_url':candidate.get('source_url','https://www.steamgriddb.com/'),
-            'rights_note':candidate.get('rights_note','Topluluk görseli; hak sahipliği bağımsızdır.')})
+        fields=('platform','title_id','platform_edition','devices','artwork_match')
+        with self.store.lock:
+            game=self.art_game(data);gid=game['id'];before=deepcopy({k:game.get(k) for k in fields})
+            previous=deepcopy((game.get('artwork_meta') or {}).get(kind,{}))
+            candidate=deepcopy(next((c for c in self.store.live_artwork.get(gid,[]) if c['kind']==kind and c['url']==url),None))
+            if not candidate:raise ValueError('Önce oyun ve sürüm eşleşmesini onaylayıp bir arama sonucu seç.')
+            if previous.get('provider')=='user_file' and not data.get('replace_local'):
+                raise ValueError('Bu oyun için yerel dosya seçilmiş. Değiştirmek için önce özel görseli sıfırla.')
+        raw,mime=artwork.fetch(url)
+        if not mime.startswith('image/'):raise ValueError('Görsel servisi bir görsel döndürmedi.')
+        with self.store.lock:
+            current=self.art_game(data)
+            if current is not game or any(current.get(k)!=before[k] for k in fields) or (current.get('artwork_meta') or {}).get(kind,{})!=previous:
+                raise ValueError('Oyun, profil veya seçili görsel değişti; görsel seçimini yeniden onayla.')
+            meta=artwork.store_bytes(self.store.root,kind,gid,raw)
+            return self.save_art(data,{**meta,'provider':'SteamGridDB','provider_id':candidate.get('provider_id',''),
+                'source_url':url,'page_url':candidate.get('source_url','https://www.steamgriddb.com/'),
+                'rights_note':candidate.get('rights_note','Topluluk görseli; hak sahipliği bağımsızdır.')})
 
     def get_art_choices(self,data):
+        from copy import deepcopy
         gid=str(data.get('game_id',''))
-        game=next((g for g in self.store.library['games'] if g['id']==gid),None)
-        if not game:raise ValueError('Game unknown')
+        fields=('platform','title_id','platform_edition','devices')
+        with self.store.lock:
+            game=self.art_game(data);before=deepcopy({k:game.get(k) for k in fields})
         if data.get('confirmed') is not True:raise ValueError('Oyun ve sürüm eşleşmesini onayla; diğer platform kimlikleri otomatik eşleştirilmez.')
         choices=artwork.candidates(data.get('sgdb_id'),self.store.steamgriddb_key)
         with self.store.lock:
             current=next((g for g in self.store.library['games'] if g['id']==gid),None)
-            fields=('platform','title_id','platform_edition','devices')
-            if not current or any(current.get(k)!=game.get(k) for k in fields):
+            if current is not game or any(current.get(k)!=before[k] for k in fields):
                 raise ValueError('Oyun kaydı değişti; sürüm eşleşmesini yeniden onayla.')
             self.store.live_artwork[gid]=choices
             current['artwork_match']={'provider':'SteamGridDB','provider_id':str(int(data['sgdb_id'])),'game_id':gid,

@@ -1,5 +1,12 @@
 # PROJECT_HANDOFF — Achievement Atlas
 
+Geç gelen artwork yanıtları: manuel seçim fetch'i dosyayı yazmadan önce profil/
+edisyon/cihaz/eşleştirme ve kategori metadata'sını immutable snapshot ile tekrar
+doğrular. Yeni user_file ve farklı profil korunur. Aday sorgusunda in-place
+edisyon değişimi reddedilir; upload cache+metadata yazımı tek lock altındadır.
+docs/ISSUE_37_STALE_ART_RESPONSES_TR.md, üç yeni yarış regresyonu. Son HEAD CI
+ayrıca izlenir; 8b4331a Unit/Windows işleri başarılıydı. PR/merge/release yok.
+
 Görsel devamı: custom reset öncesi provider URL kaybı ve manuel SGDB seçiminin
 site ana sayfasını dosya kaynağı gibi saklaması düzeltildi. Yeni kayıtlar gerçek
 image source_url + ayrı page_url ve oyun/edisyon kimlikleri taşır. Farklı edisyon
